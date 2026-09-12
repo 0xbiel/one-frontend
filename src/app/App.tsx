@@ -1362,7 +1362,7 @@ const onboardingKey = () => `one_onboarding_complete:${sessionStorage.getItem('o
 function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
-  const [granted, setGranted] = useState(true);
+  const [granted, setGranted] = useState<boolean | null>(null);
   const [error, setError] = useState("");
   const steps = [
     {
@@ -1380,10 +1380,11 @@ function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   ];
   const current = steps[step];
   useEffect(() => {
-    setGranted(true);
+    setGranted(null);
     setError("");
   }, [step]);
   const next = async () => {
+    if (granted === null) return;
     setBusy(true);
     setError("");
     try {
@@ -1412,14 +1413,14 @@ function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         </p>
         <fieldset className="consent-choice">
           <legend>Allow this purpose?</legend>
-          <label><input type="radio" name="onboarding-consent" checked={granted} onChange={() => setGranted(true)} /> Yes, enable it</label>
-          <label><input type="radio" name="onboarding-consent" checked={!granted} onChange={() => setGranted(false)} /> Not now</label>
+          <label><input type="radio" name="onboarding-consent" checked={granted === true} onChange={() => setGranted(true)} /> Yes, enable it</label>
+          <label><input type="radio" name="onboarding-consent" checked={granted === false} onChange={() => setGranted(false)} /> Not now</label>
         </fieldset>
         {error && <div className="error-note" role="alert">{error}</div>}
         <button
           className="primary-button full-width"
           onClick={next}
-          disabled={busy}
+          disabled={busy || granted === null}
         >
           {busy
             ? "Saving your choice…"

@@ -3,7 +3,8 @@ import { demoDevice, demoEvents, demoObjects, demoScene, demoSession } from '../
 import type { paths } from './schema';
 
 export const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api/v1';
-export const demoMode = import.meta.env.VITE_DEMO_MODE !== 'false';
+// Live API is the safe default. Demo data must be explicitly enabled.
+export const demoMode = import.meta.env.VITE_DEMO_MODE === 'true';
 
 interface RequestOptions extends RequestInit { auth?: boolean; }
 type JsonBody<Path extends keyof paths, Method extends keyof paths[Path]> = paths[Path][Method] extends { requestBody?: { content?: { 'application/json'?: infer Body } } } ? Body : never;
