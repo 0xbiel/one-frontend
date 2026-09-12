@@ -1181,22 +1181,28 @@ function JoinPage() {
 
 function LoginPage() {
   const navigate = useNavigate();
+  const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
+  const [challenge, setChallenge] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (code.length !== 6 || busy) return;
+    if (busy) return;
     setBusy(true);
     setError("");
     try {
-      await api.completePairing(code);
-      navigate("/dashboard", { replace: true });
+      if (!challenge) {
+        const result = await api.requestEmailCode("login", email);
+        setChallenge(true);
+        if (result.dev_code) setCode(result.dev_code);
+      } else {
+        await api.verifyEmailCode(email, code);
+        navigate("/dashboard", { replace: true });
+      }
     } catch {
       clearSession();
-      setError(
-        "That code is invalid or expired. Ask the home admin for a new pairing code.",
-      );
+      setError(challenge ? "That email code is invalid or expired. Request a new one." : "We could not find an account for that email.");
     } finally {
       setBusy(false);
     }
@@ -1210,11 +1216,15 @@ function LoginPage() {
         </div>
         <h1>Stay close to what matters.</h1>
         <p className="muted">
-          Enter the six-digit code from your home admin to securely open the
-          caregiver view.
+          Use the email attached to your ONE household. We’ll send a six-digit
+          sign-in code so your home stays with you when you change phones.
         </p>
-        <label htmlFor="login-code">
-          Pairing code
+        <label htmlFor="login-email">
+          Email address
+          <input id="login-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" autoFocus={!challenge} />
+        </label>
+        {challenge && <label htmlFor="login-code">
+          Email code
           <input
             id="login-code"
             value={code}
@@ -1226,7 +1236,7 @@ function LoginPage() {
             autoComplete="one-time-code"
             autoFocus
           />
-        </label>
+        </label>}
         {error && (
           <div className="error-note" role="alert">
             {error}
@@ -1235,9 +1245,9 @@ function LoginPage() {
         <button
           className="primary-button full-width"
           type="submit"
-          disabled={code.length !== 6 || busy}
+          disabled={busy || !email || (challenge && code.length !== 6)}
         >
-          {busy ? "Opening your home…" : "Continue securely"}{" "}
+          {busy ? "Checking securely…" : challenge ? "Open my home" : "Email me a code"}{" "}
           <ChevronRight size={16} />
         </button>
         <div className="join-divider">
@@ -1268,6 +1278,8 @@ function LoginPage() {
 function AccountPage() {
   const navigate = useNavigate();
   const [form, setForm] = useState({ name: "", email: "", home: "" });
+  const [challenge, setChallenge] = useState<{ email: string; code: string; devCode?: string | null } | null>(null);
+  const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const submit = async (event: React.FormEvent) => {
@@ -1275,9 +1287,14 @@ function AccountPage() {
     setBusy(true);
     setError("");
     try {
-      const created = await api.createAccount(form.name, form.email, form.home);
-      await api.completePairing(created.pairing_code);
-      navigate("/onboarding", { replace: true });
+      if (!challenge) {
+        const created = await api.requestEmailCode("create", form.email, form.name, form.home);
+        setChallenge({ email: form.email, code: created.verification_id, devCode: created.dev_code });
+        if (created.dev_code) setCode(created.dev_code);
+      } else {
+        await api.verifyEmailCode(challenge.email, code);
+        navigate("/onboarding", { replace: true });
+      }
     } catch {
       setError(
         "We could not create this home. Check the details and try again.",
@@ -1305,12 +1322,14 @@ function AccountPage() {
           />
         </label>
         <label>
-          Email (optional)
+          Email
           <input
+            required
             type="email"
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
             autoComplete="email"
+            disabled={Boolean(challenge)}
           />
         </label>
         <label>
@@ -1326,8 +1345,10 @@ function AccountPage() {
             {error}
           </div>
         )}
-        <button className="primary-button full-width" disabled={busy}>
-          {busy ? "Creating your home…" : "Create home"}{" "}
+        {challenge && <div className="pairing-code" role="status"><span className="eyebrow">CHECK YOUR EMAIL</span><strong>{challenge.devCode ? `Local code ${challenge.devCode}` : "A six-digit code was sent"}</strong><span className="muted">This code expires in 10 minutes and can be used once.</span></div>}
+        {challenge && <label htmlFor="account-email-code">Email code<input id="account-email-code" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" placeholder="123456" /></label>}
+        <button className="primary-button full-width" disabled={busy || (challenge ? code.length !== 6 : false)}>
+          {busy ? "Working securely…" : challenge ? "Verify and continue" : "Email me a code"}{" "}
           <ChevronRight size={16} />
         </button>
         <button
@@ -1335,7 +1356,7 @@ function AccountPage() {
           className="text-button"
           onClick={() => navigate("/login")}
         >
-          Already have a code? Sign in
+          Already have an account? Sign in
         </button>
       </form>
     </div>
@@ -1346,6 +1367,7 @@ function InvitePage() {
   const navigate = useNavigate();
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const submit = async (event: React.FormEvent) => {
@@ -1353,7 +1375,7 @@ function InvitePage() {
     setBusy(true);
     setError("");
     try {
-      await api.acceptFamilyInvite(code, name);
+      await api.acceptFamilyInvite(code, name, email);
       navigate("/onboarding", { replace: true });
     } catch {
       setError(
@@ -1369,7 +1391,7 @@ function InvitePage() {
         <span className="brand-mark large">O</span>
         <span className="eyebrow">JOIN A HOUSEHOLD</span>
         <h1>Care works better together.</h1>
-        <p className="muted">Use the invitation code from your home admin.</p>
+        <p className="muted">Use the invitation code sent to the email your home admin invited.</p>
         <label>
           Your name
           <input
@@ -1378,6 +1400,10 @@ function InvitePage() {
             onChange={(e) => setName(e.target.value)}
             autoComplete="name"
           />
+        </label>
+        <label>
+          Invited email
+          <input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
         </label>
         <label>
           Invitation code
