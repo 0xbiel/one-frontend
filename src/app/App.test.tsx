@@ -17,7 +17,42 @@ describe('ONE dashboard', () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/join/482701']}><App /></MemoryRouter></QueryClientProvider>);
     await waitFor(() => expect(screen.getByRole('textbox')).toHaveValue('482701'));
-    expect(screen.getByRole('button', { name: /continue as publisher/i })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /connect this camera/i })).toBeEnabled();
+  });
+
+  it('keeps consent and preview setup inline after the camera connects', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/join/482701']}><App /></MemoryRouter></QueryClientProvider>);
+    const connectButton = await screen.findByRole('button', { name: /connect this camera/i });
+    fireEvent.click(connectButton);
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Camera connected.' })).toBeInTheDocument());
+    expect(screen.getByText('CONNECTED WITH')).toBeInTheDocument();
+    expect(screen.getByText('Finish on this device')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /I understand what is shared/i })).toBeInTheDocument();
+  });
+
+  it('keeps /join as the camera pairing flow', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/join']}><App /></MemoryRouter></QueryClientProvider>);
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Bring ONE into the room.' })).toBeInTheDocument());
+    expect(screen.getByText('PAIR A CAMERA')).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Enter a pairing code' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /connect this camera/i })).toBeDisabled();
+    expect(screen.getByText(/This is device setup, not household sign-in/)).toBeInTheDocument();
+    expect(screen.queryByText('JOIN A HOUSEHOLD')).not.toBeInTheDocument();
+  });
+
+  it('keeps /join-household as the household invitation flow', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/join-household']}><App /></MemoryRouter></QueryClientProvider>);
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Care works better together.' })).toBeInTheDocument());
+    expect(screen.getByText('JOIN A HOUSEHOLD')).toBeInTheDocument();
+    expect(screen.getByText(/does not pair a camera/)).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Your name' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Invited email' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Invitation code' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /join household/i })).toBeDisabled();
+    expect(screen.queryByText('PAIR A DEVICE')).not.toBeInTheDocument();
   });
 
   it('shows live account and household entry points on the login screen', async () => {

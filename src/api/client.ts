@@ -24,6 +24,8 @@ interface MapResponse { id: string; revision: number; coordinate_frame: string; 
 interface ObjectResponse { data: LastSeenObject[]; }
 interface CameraResponse { data: Device[]; }
 export interface FamilyMember { id: string; display_name: string; email?: string | null; role: 'admin' | 'resident' | 'caregiver'; created_at: string; representation_status?: string; synthetic_demo?: boolean; }
+export type EditableFamilyRole = Exclude<FamilyMember['role'], 'admin'>;
+export interface FamilyMemberMutationResponse { data: FamilyMember; invalidated_sessions: number; }
 export interface MedicationReminder { plan_id: string; name: string; dose: string; instructions: string; schedule_rule: string; scheduled_for: string; status: 'pending' | 'taken' | 'skipped' | 'missed'; note: string; updated_at?: string | null; assigned_caregiver_id?: string | null; assigned_caregiver_name?: string | null; }
 export type MedicationCheckInStatus = 'taken' | 'skipped' | 'missed' | 'pending';
 export interface FamilyInviteResponse { id: string; code: string; role: string; expires_in_seconds: number; synthetic_demo?: boolean; }
@@ -73,6 +75,10 @@ export const api = {
     const result = await request<CameraResponse>(`/homes/${homeId()}/cameras`);
     return result.data[0] ?? null;
   },
+  updateCamera: async (cameraId: string, input: { name?: string; room_id?: string | null; metadata?: Record<string, unknown> }) => {
+    if (demoMode) return { status: 'saved' };
+    return request(`/homes/${homeId()}/cameras/${encodeURIComponent(cameraId)}`, { method: 'PATCH', body: JSON.stringify(input) });
+  },
   startPairing: async (displayName: string, homeName = 'ONE Home', role: 'resident' | 'caregiver' = 'resident'): Promise<PairStartResponse> => demoMode ? { pairing_code: '482701', expires_in_seconds: 600, home_id: 'home-demo', user_id: 'user-demo', role } : request('/pairing/start', { method: 'POST', auth: false, body: JSON.stringify({ display_name: displayName, home_name: homeName, role } satisfies PairStartInput) }),
   createAccount: async (displayName: string, email: string, homeName: string): Promise<PairStartResponse> => {
     if (demoMode) return api.startPairing(displayName, homeName, 'caregiver');
@@ -112,6 +118,8 @@ export const api = {
   deleteData: async () => demoMode ? { status: 'queued' } : request(`/homes/${homeId()}/privacy/delete`, { method: 'POST' }),
   getFamilyMembers: async (): Promise<FamilyMember[]> => demoMode ? [] : (await request<{ data: FamilyMember[] }>(`/homes/${homeId()}/family/members`)).data,
   createFamilyInvite: async (displayName: string, email: string, role: 'resident' | 'caregiver' = 'caregiver'): Promise<FamilyInviteResponse> => demoMode ? { id: 'invite-demo', code: '482701', role, expires_in_seconds: 86400, synthetic_demo: true } : request<FamilyInviteResponse>(`/homes/${homeId()}/family/invites`, { method: 'POST', body: JSON.stringify({ display_name: displayName, email: email || null, role, expires_in_seconds: 86400 }) }),
+  updateFamilyMember: async (memberId: string, role: EditableFamilyRole): Promise<FamilyMemberMutationResponse> => demoMode ? { data: { id: memberId, display_name: 'Demo family member', role, created_at: new Date().toISOString(), synthetic_demo: true }, invalidated_sessions: 0 } : request<FamilyMemberMutationResponse>(`/homes/${homeId()}/family/members/${encodeURIComponent(memberId)}`, { method: 'PATCH', body: JSON.stringify({ role }) }),
+  removeFamilyMember: async (memberId: string): Promise<FamilyMemberMutationResponse> => demoMode ? { data: { id: memberId, display_name: 'Demo family member', role: 'resident', created_at: new Date().toISOString(), synthetic_demo: true }, invalidated_sessions: 0 } : request<FamilyMemberMutationResponse>(`/homes/${homeId()}/family/members/${encodeURIComponent(memberId)}`, { method: 'DELETE' }),
   getMedicationReminders: async (day = new Date().toISOString().slice(0, 10), subjectUserId?: string): Promise<MedicationReminder[]> => demoMode ? [] : (await request<{ data: MedicationReminder[] }>(`/homes/${homeId()}/medication-reminders?day=${encodeURIComponent(day)}${subjectUserId ? `&subject_user_id=${encodeURIComponent(subjectUserId)}` : ''}`)).data,
   getMedicationPlans: async (subjectUserId?: string, activeOnly = true): Promise<MedicationPlan[]> => demoMode ? [] : (await request<{ data: MedicationPlan[] }>(`/homes/${homeId()}/medication-plans?active_only=${activeOnly}${subjectUserId ? `&subject_user_id=${encodeURIComponent(subjectUserId)}` : ''}`)).data,
   createMedicationPlan: async (input: Omit<MedicationPlan, 'id' | 'active' | 'version'> & { active?: boolean }): Promise<MedicationPlan> => demoMode ? { ...input, id: 'plan-demo', active: input.active ?? true, version: 1 } : request<MedicationPlan>(`/homes/${homeId()}/medication-plans`, { method: 'POST', body: JSON.stringify(input) }),
