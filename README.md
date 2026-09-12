@@ -6,7 +6,7 @@ ONE is a calm, caregiver-facing web experience for a daily home check-in. It pre
 
 ```bash
 npm install
-cp .env.example .env
+test -f .env || cp .env.example .env
 npm run dev
 ```
 
@@ -28,6 +28,13 @@ Click the avatar in the top bar to sign out. ONE first calls
 stops any active camera/microphone publisher, clears cached queries, and returns
 to `/login`. Demo mode intentionally bypasses this gate so the deterministic
 review experience remains available.
+
+Account setup routes are `/create-account` (creates a home with
+`POST /api/v1/pairing/start` and signs the creator in), `/join-household` (accepts
+`POST /api/v1/family/invites/accept`), and `/onboarding` (records audio, video,
+family, and medication-purpose choices, then stores a scoped local completion
+state). Publisher pairing at `/join/:code?` remains a camera-only flow; an
+admin/caregiver must be signed in before creating a publisher code.
 
 For the backend, set `VITE_API_BASE_URL` to the FastAPI `/api/v1` origin. LiveKit configuration is deliberately kept behind the backend token endpoint; the frontend must receive a room URL/token from `POST /homes/{home_id}/livekit/token`. The local Compose stack runs self-hosted LiveKit on `ws://localhost:7880` with development credentials; no LiveKit Cloud subscription is used. For a phone, override the backend's `ONE_LIVEKIT_URL` with a host-reachable LAN/Tailscale endpoint.
 
@@ -82,4 +89,7 @@ npm test
 npm run build
 ```
 
-The test suite covers the demo dashboard render. Add MSW/OpenAPI contract fixtures and real-device Playwright/manual checks when the FastAPI and LiveKit environments are available.
+The test suite covers the dashboard, route rendering, pairing/session storage,
+and contract/SSE mapping. The local integration checklist additionally exercises
+live FastAPI pairing, consent, family invite, and logout with synthetic data;
+real camera/WebRTC and physical-device checks remain environment-dependent.

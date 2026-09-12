@@ -977,6 +977,19 @@ export interface components {
              */
             role: string;
         };
+        /** PairStartResponse */
+        PairStartResponse: {
+            /** Expires In Seconds */
+            expires_in_seconds: number;
+            /** Home Id */
+            home_id: string;
+            /** Pairing Code */
+            pairing_code: string;
+            /** Role */
+            role: string;
+            /** User Id */
+            user_id: string;
+        };
         /** RoomIn */
         RoomIn: {
             /** Name */
@@ -2520,7 +2533,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["PairStartResponse"];
                 };
             };
             /** @description Validation Error */
