@@ -21,6 +21,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/email/request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Email Auth Request
+         * @description Create a short-lived passwordless sign-in challenge.
+         *
+         *     The development outbox returns the code once so a local Docker setup
+         *     works without an email subscription. A production mail adapter should
+         *     consume the same event and keep ``dev_code`` absent.
+         */
+        post: operations["email_auth_request_api_v1_auth_email_request_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/email/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Email Auth Verify */
+        post: operations["email_auth_verify_api_v1_auth_email_verify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clips/{clip_id}/content": {
         parameters: {
             query?: never;
@@ -79,7 +120,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Calibrations */
+        get: operations["calibrations_api_v1_homes__home_id__calibrations_get"];
         put?: never;
         /** Calibration */
         post: operations["calibration_api_v1_homes__home_id__calibrations_post"];
@@ -105,6 +147,23 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/homes/{home_id}/cameras/{camera_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Camera Update */
+        patch: operations["camera_update_api_v1_homes__home_id__cameras__camera_id__patch"];
         trace?: never;
     };
     "/api/v1/homes/{home_id}/caregiver-summary": {
@@ -341,6 +400,40 @@ export interface paths {
         get: operations["current_map_api_v1_homes__home_id__maps_current_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/homes/{home_id}/maps/provisional": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Provisional Map */
+        post: operations["provisional_map_api_v1_homes__home_id__maps_provisional_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/homes/{home_id}/maps/roomplan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Roomplan Map */
+        post: operations["roomplan_map_api_v1_homes__home_id__maps_roomplan_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -737,6 +830,10 @@ export interface components {
             accuracy_m?: number | null;
             /** Camera Id */
             camera_id: string;
+            /** Camera Metadata */
+            camera_metadata?: {
+                [key: string]: unknown;
+            };
             /** Extrinsics */
             extrinsics: {
                 [key: string]: unknown;
@@ -747,11 +844,43 @@ export interface components {
             };
             /** Map Id */
             map_id: string;
+            /** Resolution Height */
+            resolution_height?: number | null;
+            /** Resolution Width */
+            resolution_width?: number | null;
+            /**
+             * Source
+             * @default manual
+             */
+            source: string;
         };
         /** CameraIn */
         CameraIn: {
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
             /** Name */
             name: string;
+            /** Resolution Height */
+            resolution_height?: number | null;
+            /** Resolution Width */
+            resolution_width?: number | null;
+            /** Room Id */
+            room_id?: string | null;
+        };
+        /** CameraUpdate */
+        CameraUpdate: {
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /** Name */
+            name?: string | null;
+            /** Resolution Height */
+            resolution_height?: number | null;
+            /** Resolution Width */
+            resolution_width?: number | null;
             /** Room Id */
             room_id?: string | null;
         };
@@ -805,6 +934,56 @@ export interface components {
             /** Label */
             label?: string | null;
         };
+        /** EmailAuthRequest */
+        EmailAuthRequest: {
+            /** Display Name */
+            display_name?: string | null;
+            /** Email */
+            email: string;
+            /**
+             * Home Name
+             * @default ONE Home
+             */
+            home_name: string;
+            /**
+             * Purpose
+             * @default login
+             */
+            purpose: string;
+            /**
+             * Role
+             * @default admin
+             */
+            role: string;
+        };
+        /** EmailAuthRequestResponse */
+        EmailAuthRequestResponse: {
+            /** Delivery */
+            delivery: string;
+            /** Dev Code */
+            dev_code?: string | null;
+            /** Email */
+            email: string;
+            /** Expires In Seconds */
+            expires_in_seconds: number;
+            /** Home Id */
+            home_id: string;
+            /** Purpose */
+            purpose: string;
+            /** Role */
+            role: string;
+            /** User Id */
+            user_id: string;
+            /** Verification Id */
+            verification_id: string;
+        };
+        /** EmailAuthVerify */
+        EmailAuthVerify: {
+            /** Code */
+            code: string;
+            /** Email */
+            email: string;
+        };
         /** FamilyAssistantIn */
         FamilyAssistantIn: {
             /**
@@ -821,6 +1000,8 @@ export interface components {
             code: string;
             /** Display Name */
             display_name?: string | null;
+            /** Email */
+            email?: string | null;
         };
         /** FamilyInviteIn */
         FamilyInviteIn: {
@@ -990,10 +1171,38 @@ export interface components {
             /** User Id */
             user_id: string;
         };
+        /** ProvisionalMapIn */
+        ProvisionalMapIn: {
+            /** Camera Id */
+            camera_id: string;
+            /** Resolution Height */
+            resolution_height: number;
+            /** Resolution Width */
+            resolution_width: number;
+            /** Room Id */
+            room_id?: string | null;
+            /** Zones */
+            zones?: {
+                [key: string]: unknown;
+            }[];
+        };
         /** RoomIn */
         RoomIn: {
             /** Name */
             name: string;
+        };
+        /** RoomPlanMapIn */
+        RoomPlanMapIn: {
+            /** Normalized Scan */
+            normalized_scan: {
+                [key: string]: unknown;
+            };
+            /** Room Id */
+            room_id?: string | null;
+            /** Scan Metadata */
+            scan_metadata?: {
+                [key: string]: unknown;
+            };
         };
         /** ValidationError */
         ValidationError: {
@@ -1050,6 +1259,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    email_auth_request_api_v1_auth_email_request_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailAuthRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailAuthRequestResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    email_auth_verify_api_v1_auth_email_verify_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailAuthVerify"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -1138,6 +1413,37 @@ export interface operations {
             };
         };
     };
+    calibrations_api_v1_homes__home_id__calibrations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     calibration_api_v1_homes__home_id__calibrations_post: {
         parameters: {
             query?: never;
@@ -1216,6 +1522,42 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["CameraIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    camera_update_api_v1_homes__home_id__cameras__camera_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CameraUpdate"];
             };
         };
         responses: {
@@ -1752,6 +2094,76 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    provisional_map_api_v1_homes__home_id__maps_provisional_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProvisionalMapIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    roomplan_map_api_v1_homes__home_id__maps_roomplan_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoomPlanMapIn"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
