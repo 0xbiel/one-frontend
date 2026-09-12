@@ -25,4 +25,12 @@ describe('FastAPI contract mapping', () => {
     expect(event.type).toBe('object.last_seen');
     expect(event.occurredAt).toBe('2026-09-12T10:01:00Z');
   });
+
+  it('keeps map revisions and invite codes on the explicit demo contract', async () => {
+    const map = await api.getCurrentMap();
+    expect(map?.revision).toBeGreaterThan(0);
+    expect(map?.coordinate_frame).toBe('roomplan-local');
+    const invite = await api.createFamilyInvite('Test caregiver', 'test@example.com');
+    expect(invite.code).toMatch(/^\d{6}$/);
+  });
 });

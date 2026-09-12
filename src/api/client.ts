@@ -16,11 +16,13 @@ interface InviteAcceptResponse extends PairCompleteResponse { role?: string; }
 interface LiveKitResponse { url: string; token: string; expires_in: number; mode?: 'auto' | 'publish' | 'subscribe'; }
 interface BackendEvent { id: string; event_type: string; status?: string; explanation?: string; confidence?: number; evidence_ids?: string; evidence_json?: string; first_seen_at?: string; last_seen_at?: string; }
 interface MeResponse { actor: Session['actor']; home: Session['home']; device: Device | null; paused: boolean; }
-interface SceneResponse { sceneId: string | null; version: number; zones: Scene['zones']; }
+interface SceneResponse { sceneId: string | null; version: number; zones: Scene['zones']; mapId?: string | null; coordinateFrame?: string | null; }
+interface MapResponse { id: string; revision: number; coordinate_frame: string; room_id?: string | null; created_at?: string; map_data?: Record<string, unknown>; }
 interface ObjectResponse { data: LastSeenObject[]; }
 interface CameraResponse { data: Device[]; }
 export interface FamilyMember { id: string; display_name: string; email?: string | null; role: 'admin' | 'resident' | 'caregiver'; created_at: string; representation_status?: string; synthetic_demo?: boolean; }
 export interface MedicationReminder { plan_id: string; name: string; dose: string; instructions: string; schedule_rule: string; scheduled_for: string; status: 'pending' | 'taken' | 'skipped' | 'missed'; note: string; updated_at?: string | null; assigned_caregiver_id?: string | null; assigned_caregiver_name?: string | null; }
+export interface FamilyInviteResponse { id: string; code: string; role: string; expires_in_seconds: number; synthetic_demo?: boolean; }
 
 const token = () => sessionStorage.getItem('one_access_token');
 const homeId = () => sessionStorage.getItem('one_home_id') ?? 'current';
@@ -53,7 +55,11 @@ export const api = {
   getScene: async (): Promise<Scene> => {
     if (demoMode) return demoScene;
     const result = await request<SceneResponse>(`/homes/${homeId()}/scene`);
-    return { sceneId: result.sceneId ?? 'scene-empty', version: result.version, zones: result.zones ?? [] };
+    return { sceneId: result.sceneId ?? 'scene-empty', version: result.version, zones: result.zones ?? [], mapId: result.mapId, coordinateFrame: result.coordinateFrame };
+  },
+  getCurrentMap: async (): Promise<MapResponse | null> => {
+    if (demoMode) return { id: demoScene.sceneId, revision: demoScene.version, coordinate_frame: 'roomplan-local', map_data: { zones: demoScene.zones } };
+    try { return await request<MapResponse>(`/homes/${homeId()}/maps/current`); } catch (error) { if (error instanceof Error && error.message === 'API_404') return null; throw error; }
   },
   getObjects: async (): Promise<LastSeenObject[]> => demoMode ? demoObjects : (await request<ObjectResponse>(`/homes/${homeId()}/objects/last-seen`)).data,
   getEvents: async (): Promise<HomeEvent[]> => demoMode ? demoEvents : request<{ data: BackendEvent[] }>(`/homes/${homeId()}/events?limit=50`).then((r) => r.data.map(mapBackendEvent)),
@@ -92,6 +98,7 @@ export const api = {
   exportData: async () => demoMode ? { status: 'complete' } : request(`/homes/${homeId()}/privacy/export`, { method: 'POST' }),
   deleteData: async () => demoMode ? { status: 'queued' } : request(`/homes/${homeId()}/privacy/delete`, { method: 'POST' }),
   getFamilyMembers: async (): Promise<FamilyMember[]> => demoMode ? [] : (await request<{ data: FamilyMember[] }>(`/homes/${homeId()}/family/members`)).data,
+  createFamilyInvite: async (displayName: string, email: string, role: 'resident' | 'caregiver' = 'caregiver'): Promise<FamilyInviteResponse> => demoMode ? { id: 'invite-demo', code: '482701', role, expires_in_seconds: 86400, synthetic_demo: true } : request<FamilyInviteResponse>(`/homes/${homeId()}/family/invites`, { method: 'POST', body: JSON.stringify({ display_name: displayName, email: email || null, role, expires_in_seconds: 86400 }) }),
   getMedicationReminders: async (day = new Date().toISOString().slice(0, 10), subjectUserId?: string): Promise<MedicationReminder[]> => demoMode ? [] : (await request<{ data: MedicationReminder[] }>(`/homes/${homeId()}/medication-reminders?day=${encodeURIComponent(day)}${subjectUserId ? `&subject_user_id=${encodeURIComponent(subjectUserId)}` : ''}`)).data,
   askFamilyAssistant: async (message: string, subjectUserId?: string) => demoMode ? { degraded: true, data: { summary: 'Demo mode keeps the organizer local.', next_action: 'Connect a backend family consent to review live reminders.', evidence_ids: [], limitations: 'Administrative summary only; not medical advice.' } } : request(`/homes/${homeId()}/family-assistant`, { method: 'POST', body: JSON.stringify({ message, subject_user_id: subjectUserId ?? null }) }),
 };

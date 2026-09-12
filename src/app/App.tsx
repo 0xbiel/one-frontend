@@ -377,13 +377,15 @@ function MapPage({
 }) {
   const [selected, setSelected] = useState(objects[0]?.id);
   const [view, setView] = useState<"3d" | "2d">("3d");
+  const mapQuery = useQuery({ queryKey: ["current-map"], queryFn: api.getCurrentMap, enabled: demoMode || Boolean(sessionStorage.getItem("one_access_token")), retry: false });
+  const cameraQuery = useQuery({ queryKey: ["camera"], queryFn: api.getDevice, enabled: demoMode || Boolean(sessionStorage.getItem("one_access_token")), retry: false });
   const current = objects.find((o) => o.id === selected);
   return (
     <div className="map-layout">
       <section className="map-panel panel">
         <div className="panel-heading">
           <div>
-            <span className="eyebrow">ROOMPLAN-DERIVED VIEW · v3</span>
+          <span className="eyebrow">ROOMPLAN-DERIVED VIEW · REVISION {mapQuery.data?.revision ?? scene.version}</span>
             <h2>Familiar places, gently remembered.</h2>
           </div>
           <div className="view-toggle">
@@ -460,6 +462,10 @@ function MapPage({
                 : "Scale · 1 square = 1m"}
             </span>
           </div>
+          <div className="map-data-note" role="status">
+            <strong>Map data</strong> · revision {mapQuery.data?.revision ?? scene.version} · {mapQuery.data?.coordinate_frame ?? scene.coordinateFrame ?? "coordinate frame not reported"}.
+            {!scene.sceneId || scene.sceneId === "scene-empty" ? " No RoomPlan map is available." : ""}
+          </div>
         </div>
       </section>
       <aside className="map-side">
@@ -500,11 +506,10 @@ function MapPage({
         </div>
         <div className="panel calibration-card">
           <span className="eyebrow">FIXED CAMERA</span>
-          <h3>Camera coverage is good</h3>
-          <p className="muted">Calibrated 2 days ago · estimated error 0.18m</p>
-          <button className="text-button">
-            Review calibration <ChevronRight size={15} />
-          </button>
+          <h3>{cameraQuery.data ? "Camera connection" : "No camera connected"}</h3>
+          <p className="muted">{cameraQuery.data ? `${cameraQuery.data.label} · ${cameraQuery.data.status}` : "Connect a fixed camera to record calibration."}</p>
+          <p className="calibration-state" role="status"><strong>Calibration state:</strong> not reported by the current API.</p>
+          <p className="muted small-copy">Automatic projection is unavailable here. Markers without a reliable point fall back to their zone; ONE does not claim automatic localization.</p>
         </div>
       </aside>
     </div>
@@ -1659,6 +1664,12 @@ export default App;
 
 function FamilyPage() {
   const nav = useNavigate();
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteForm, setInviteForm] = useState({ name: "", email: "", role: "caregiver" as "caregiver" | "resident" });
+  const [inviteResult, setInviteResult] = useState<{ code: string; expires_in_seconds: number } | null>(null);
+  const [inviteError, setInviteError] = useState("");
+  const [inviteBusy, setInviteBusy] = useState(false);
+  const [selectedDay, setSelectedDay] = useState(() => new Date().toISOString().slice(0, 10));
   const [selectedSubject, setSelectedSubject] = useState(() => sessionStorage.getItem('one_subject_user_id') ?? '');
   const hasBackendSession =
     !demoMode &&
@@ -1673,8 +1684,8 @@ function FamilyPage() {
     retry: false,
   });
   const reminderQuery = useQuery({
-    queryKey: ["medication-reminders", new Date().toISOString().slice(0, 10), selectedSubject],
-    queryFn: () => api.getMedicationReminders(new Date().toISOString().slice(0, 10), selectedSubject || undefined),
+    queryKey: ["medication-reminders", selectedDay, selectedSubject],
+    queryFn: () => api.getMedicationReminders(selectedDay, selectedSubject || undefined),
     enabled: hasBackendSession,
     retry: false,
   });
@@ -1799,8 +1810,8 @@ function FamilyPage() {
       scheduleRule: reminder.schedule_rule,
     };
   });
-  const caregivers = hasBackendSession ? liveCaregivers : demoCaregivers;
-  const doses = hasBackendSession ? liveDoses : demoDoses;
+  const caregivers = demoMode ? demoCaregivers : liveCaregivers;
+  const doses = demoMode ? demoDoses : liveDoses;
   const liveError =
     hasBackendSession && (familyQuery.isError || reminderQuery.isError);
   const nextDose =
@@ -1830,7 +1841,7 @@ function FamilyPage() {
               <span className="eyebrow">HOUSEHOLD CIRCLE</span>
               <h3>People with a view</h3>
             </div>
-            <button className="secondary-button">
+            <button className="secondary-button" onClick={() => { setInviteOpen(true); setInviteError(""); setInviteResult(null); }} disabled={!demoMode && !hasBackendSession}>
               <Users size={16} /> Invite caregiver
             </button>
           </div>
@@ -1868,16 +1879,15 @@ function FamilyPage() {
             <ShieldCheck size={15} /> Roles keep each person’s access
             purposeful. Only the admin can change privacy and home controls.
           </p>
+          {inviteResult && <div className="invite-result" role="status"><strong>Invitation created</strong><span>Share this one-time code: <code>{inviteResult.code}</code> · expires in {Math.round(inviteResult.expires_in_seconds / 3600)} hours.</span></div>}
         </section>
         <section className="panel medication-plan">
           <div className="section-heading">
             <div>
-              <span className="eyebrow">MEDICATION PLAN · TODAY</span>
+              <span className="eyebrow">MEDICATION PLAN · {selectedDay === new Date().toISOString().slice(0, 10) ? "TODAY" : selectedDay}</span>
               <h3>A simple shared rhythm.</h3>
             </div>
-            <button className="text-button">
-              Add or edit <ChevronRight size={15} />
-            </button>
+            <label className="day-picker">Day <input type="date" value={selectedDay} onChange={(event) => setSelectedDay(event.target.value)} /></label>
           </div>
           {nextDose ? (
             <div className="next-dose">
@@ -1948,6 +1958,7 @@ function FamilyPage() {
           </div>
         </section>
       </div>
+      {inviteOpen && <div className="modal-backdrop" role="presentation" onClick={() => setInviteOpen(false)}><section className="panel invite-modal" role="dialog" aria-modal="true" aria-labelledby="invite-title" onClick={(event) => event.stopPropagation()}><button className="modal-close icon-button" aria-label="Close invitation" onClick={() => setInviteOpen(false)}><X size={18} /></button><span className="eyebrow">FAMILY INVITATION</span><h2 id="invite-title">Invite someone trusted</h2><p className="muted">Only an authorized caregiver or admin can create an invitation. The code is shown once.</p><label>Person’s name<input value={inviteForm.name} onChange={(e) => setInviteForm({ ...inviteForm, name: e.target.value })} autoFocus /></label><label>Email (optional)<input type="email" value={inviteForm.email} onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })} /></label><label>Role<select value={inviteForm.role} onChange={(e) => setInviteForm({ ...inviteForm, role: e.target.value as "caregiver" | "resident" })}><option value="caregiver">Caregiver</option><option value="resident">Resident</option></select></label>{inviteError && <div className="error-note" role="alert">{inviteError}</div>}<button className="primary-button full-width" disabled={inviteBusy || !inviteForm.name.trim()} onClick={async () => { setInviteBusy(true); setInviteError(""); try { const result = await api.createFamilyInvite(inviteForm.name.trim(), inviteForm.email.trim(), inviteForm.role); setInviteResult(result); setInviteOpen(false); } catch (error) { setInviteError(error instanceof Error && error.message === "API_403" ? "Family sharing consent or caregiver permission is required." : "We could not create this invitation. Check the local connection."); } finally { setInviteBusy(false); } }}>{inviteBusy ? "Creating invitation…" : "Create invitation"} <ChevronRight size={16} /></button></section></div>}
     </div>
   );
 }

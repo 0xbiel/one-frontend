@@ -12,5 +12,5 @@ export interface LastSeenObject {
   zone: Zone | null; sourceEventId: string | null;
 }
 export interface HomeEvent { id: string; type: EventType; title: string; detail: string; occurredAt: string; objectId?: string; clipId?: string; tone: 'blue' | 'green' | 'amber'; }
-export interface Scene { sceneId: string; version: number; zones: Zone[]; }
+export interface Scene { sceneId: string; version: number; zones: Zone[]; mapId?: string | null; coordinateFrame?: string | null; }
 export interface Consent { purpose: string; label: string; description: string; granted: boolean; required: boolean; }
