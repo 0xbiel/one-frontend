@@ -57,6 +57,7 @@ describe('ONE dashboard', () => {
     await waitFor(() => expect(screen.getByRole('dialog', { name: /connect a phone or laptop/i })).toBeInTheDocument());
     expect(screen.getByText('482701')).toBeInTheDocument();
     expect(screen.getByText(/Keep this screen open/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('Camera connected')).toBeInTheDocument());
   });
 
   it('exposes account settings with an explicit sign-out action', async () => {
