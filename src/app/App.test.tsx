@@ -48,4 +48,22 @@ describe('ONE dashboard', () => {
     fireEvent.change(schedule, { target: { value: 'Mon,Wed,Fri @ 08:00' } });
     expect(schedule).toHaveValue('Mon,Wed,Fri @ 08:00');
   });
+
+  it('creates a camera code in the dashboard without leaving the page', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/dashboard']}><App /></MemoryRouter></QueryClientProvider>);
+    await waitFor(() => expect(screen.getByRole('button', { name: /pair a camera/i })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /pair a camera/i }));
+    await waitFor(() => expect(screen.getByRole('dialog', { name: /connect a phone or laptop/i })).toBeInTheDocument());
+    expect(screen.getByText('482701')).toBeInTheDocument();
+    expect(screen.getByText(/Keep this screen open/)).toBeInTheDocument();
+  });
+
+  it('exposes account settings with an explicit sign-out action', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/dashboard/account']}><App /></MemoryRouter></QueryClientProvider>);
+    await waitFor(() => expect(screen.getByText('Keep your access clear.')).toBeInTheDocument());
+    expect(screen.getAllByRole('button', { name: /sign out/i }).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByRole('link', { name: /privacy & consent/i })).toBeInTheDocument();
+  });
 });

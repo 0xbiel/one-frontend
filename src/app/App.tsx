@@ -21,12 +21,13 @@ import {
   Play,
   ShieldCheck,
   Sparkles,
+  Settings,
   Users,
   Video,
   X,
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, clearSession, demoMode, type FamilyMember, type MedicationPlan } from "../api/client";
+import { api, clearSession, demoMode, type FamilyMember, type MedicationCheckInStatus, type MedicationPlan, type MedicationReminder } from "../api/client";
 import { consentDefaults, demoEvents, demoObjects } from "../demo/data";
 import type {
   Consent,
@@ -126,6 +127,10 @@ function Shell({
             <ShieldCheck size={18} />
             <span>Privacy & consent</span>
           </NavLink>
+          <NavLink to="/dashboard/account" className="nav-item">
+            <Settings size={18} />
+            <span>Account settings</span>
+          </NavLink>
           <div className="connection-pill">
             <span className="status-dot" /> Local network ·{" "}
             {demoMode ? "Demo" : "Connected"}
@@ -142,8 +147,10 @@ function Shell({
                   ? "EVENTS"
                   : location.pathname.includes("assistant")
                     ? "RESIDENT ASSISTANT"
-                    : location.pathname.includes("family")
-                      ? "FAMILY MODE"
+                      : location.pathname.includes("family")
+                        ? "FAMILY MODE"
+                      : location.pathname.includes("account")
+                        ? "ACCOUNT"
                       : "GOOD MORNING, CLARA"}
             </span>
             <h1>
@@ -155,6 +162,8 @@ function Shell({
                     ? "Ask about María’s day"
                     : location.pathname.includes("family")
                       ? "Care together, clearly"
+                      : location.pathname.includes("account")
+                        ? "Your ONE account"
                       : "The García home"}
             </h1>
           </div>
@@ -263,6 +272,23 @@ function Dashboard({
   onEvent: (e: HomeEvent) => void;
 }) {
   const nav = useNavigate();
+  const [pairingOpen, setPairingOpen] = useState(false);
+  const [pairing, setPairing] = useState<{ code: string; expires_at: string } | null>(null);
+  const [pairingBusy, setPairingBusy] = useState(false);
+  const [pairingError, setPairingError] = useState("");
+  const openPairing = async () => {
+    setPairingOpen(true);
+    setPairingError("");
+    setPairing(null);
+    setPairingBusy(true);
+    try {
+      setPairing(await api.createPairing("Hallway phone"));
+    } catch {
+      setPairingError("We could not create a camera code. Sign in as an admin or caregiver and try again.");
+    } finally {
+      setPairingBusy(false);
+    }
+  };
   return (
     <div className="home-page">
       <section className="home-intro">
@@ -285,10 +311,11 @@ function Dashboard({
             before anything is shared.
           </p>
         </div>
-        <button className="primary-button" onClick={() => nav("/join")}>
+        <button className="primary-button" onClick={openPairing}>
           <Camera size={17} /> Pair a camera <ChevronRight size={16} />
         </button>
       </section>
+      {pairingOpen && <div className="modal-backdrop" role="presentation" onClick={() => setPairingOpen(false)}><section className="panel pairing-modal" role="dialog" aria-modal="true" aria-labelledby="camera-pairing-title" onClick={(event) => event.stopPropagation()}><button className="modal-close icon-button" aria-label="Close camera pairing" onClick={() => setPairingOpen(false)}><X size={18} /></button><span className="eyebrow">CAMERA CONNECTION</span><h2 id="camera-pairing-title">Connect a phone or laptop</h2><p className="muted">Open the website on the camera device, choose Join a camera, and enter this one-time code. Keep this screen open while the camera completes setup.</p>{pairingBusy && <p className="pairing-status" role="status">Creating a secure code…</p>}{pairingError && <div className="error-note" role="alert">{pairingError}</div>}{pairing && <div className="pairing-code pairing-code-live" role="status"><span className="eyebrow">ENTER THIS CODE ON THE CAMERA DEVICE</span><strong>{pairing.code}</strong><span className="muted">Expires in 10 minutes · one use only</span><button type="button" className="secondary-button" onClick={() => { void navigator.clipboard?.writeText(pairing.code); }}>Copy code</button></div>}<div className="pairing-modal-actions"><button type="button" className="secondary-button" onClick={() => void openPairing()} disabled={pairingBusy}>New code</button><button type="button" className="primary-button" onClick={() => setPairingOpen(false)}>Done</button></div></section></div>}
       <div className="status-chips" aria-label="Home status filters">
         <button className="chip active">
           <span className="status-dot" />
@@ -1639,6 +1666,7 @@ function App() {
                 />
                 <Route path="dashboard/assistant" element={<AssistantPage />} />{" "}
                 <Route path="dashboard/family" element={<FamilyPage />} />
+                <Route path="dashboard/account" element={<AccountSettingsPage onLogout={logout} />} />
                 <Route
                   path="dashboard/privacy"
                   element={
@@ -1693,6 +1721,44 @@ function App() {
 
 export default App;
 
+function AccountSettingsPage({ onLogout }: { onLogout: () => void }) {
+  const nav = useNavigate();
+  const sessionQuery = useQuery({ queryKey: ["account-session"], queryFn: api.getSession, retry: false });
+  const actor = sessionQuery.data?.actor;
+  const home = sessionQuery.data?.home;
+  return (
+    <div className="account-page">
+      <section className="account-intro">
+        <span className="eyebrow">ACCOUNT SETTINGS</span>
+        <h2>Keep your access clear.</h2>
+        <p>Review the home this browser can access, manage privacy choices, or sign out when you are finished.</p>
+      </section>
+      <div className="account-grid">
+        <section className="panel account-card">
+          <span className="eyebrow">SIGNED IN AS</span>
+          <h3>{actor?.name ?? "Current caregiver"}</h3>
+          <dl className="account-details">
+            <div><dt>Role</dt><dd>{actor?.role ?? "—"}</dd></div>
+            <div><dt>Home</dt><dd>{home?.name ?? "ONE home"}</dd></div>
+            <div><dt>Home ID</dt><dd><code>{home?.id ?? sessionStorage.getItem("one_home_id") ?? "—"}</code></dd></div>
+            <div><dt>Session</dt><dd>Browser-only bearer session</dd></div>
+          </dl>
+        </section>
+        <section className="panel account-card">
+          <span className="eyebrow">PRIVACY</span>
+          <h3>Your choices stay visible.</h3>
+          <p className="muted">Pause care, withdraw purpose-specific consent, or request your home data from the privacy center.</p>
+          <button type="button" className="secondary-button" onClick={() => nav("/dashboard/privacy")}>Open Privacy & consent <ChevronRight size={16} /></button>
+        </section>
+      </div>
+      <section className="panel account-signout">
+        <div><span className="eyebrow">FINISHED FOR NOW?</span><h3>Sign out of this browser.</h3><p className="muted">ONE revokes the current server session and clears this browser’s local credentials.</p></div>
+        <button type="button" className="secondary-button danger-outline" onClick={onLogout}>Sign out <ChevronRight size={16} /></button>
+      </section>
+    </div>
+  );
+}
+
 function FamilyPage() {
   const nav = useNavigate();
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -1707,6 +1773,7 @@ function FamilyPage() {
   const [planError, setPlanError] = useState("");
   const [planBusy, setPlanBusy] = useState(false);
   const [revealedPlan, setRevealedPlan] = useState<string | null>(null);
+  const [checkInBusy, setCheckInBusy] = useState<string | null>(null);
   const [selectedSubject, setSelectedSubject] = useState(() => sessionStorage.getItem('one_subject_user_id') ?? '');
   const hasBackendSession =
     !demoMode &&
@@ -1817,7 +1884,7 @@ function FamilyPage() {
       tone,
     };
   });
-  const liveDoses = (reminderQuery.data ?? []).map((reminder) => {
+  const liveDoses = (reminderQuery.data ?? []).map((reminder: MedicationReminder) => {
     const owner = reminder.assigned_caregiver_name ?? "Unassigned";
     const state =
       reminder.status === "taken"
@@ -1851,10 +1918,14 @@ function FamilyPage() {
       state,
       tone,
       scheduleRule: reminder.schedule_rule,
+      planId: reminder.plan_id,
+      scheduledFor: reminder.scheduled_for,
+      status: reminder.status,
     };
   });
   const caregivers = demoMode ? demoCaregivers : liveCaregivers;
   const doses = demoMode ? demoDoses : liveDoses;
+  const isLiveDose = (dose: (typeof doses)[number]): dose is (typeof liveDoses)[number] => "planId" in dose;
   const liveError =
     hasBackendSession && (familyQuery.isError || reminderQuery.isError);
   const nextDose =
@@ -1878,6 +1949,18 @@ function FamilyPage() {
   const archivePlan = async (plan: MedicationPlan) => {
     if (!window.confirm(`Disable “${plan.name}”? This keeps its history but stops future reminders.`)) return;
     try { await api.updateMedicationPlan(plan.id, { active: false, version: plan.version }); setRevealedPlan(null); await planQuery.refetch(); await reminderQuery.refetch(); } catch { setPlanError("We could not disable this plan."); }
+  };
+  const updateCheckIn = async (dose: (typeof liveDoses)[number], status: MedicationCheckInStatus) => {
+    if (!dose.planId || !dose.scheduledFor || checkInBusy) return;
+    setCheckInBusy(`${dose.planId}:${dose.scheduledFor}`);
+    try {
+      await api.updateMedicationCheckIn(dose.planId, dose.scheduledFor, status);
+      await reminderQuery.refetch();
+    } catch {
+      setPlanError("We could not update this reminder. Check consent and caregiver permissions.");
+    } finally {
+      setCheckInBusy(null);
+    }
   };
   return (
     <div className="family-page">
@@ -1992,10 +2075,18 @@ function FamilyPage() {
                 >
                   {dose.state}
                 </span>
+                {!demoMode && isLiveDose(dose) && dose.status !== "taken" && dose.status !== "skipped" && (
+                  <span className="dose-actions">
+                    <button className="dose-action taken" type="button" disabled={checkInBusy !== null} onClick={() => updateCheckIn(dose, "taken")}>
+                      {checkInBusy === `${dose.planId}:${dose.scheduledFor}` ? "Saving…" : "Mark taken"}
+                    </button>
+                    <button className="dose-action skipped" type="button" disabled={checkInBusy !== null} onClick={() => updateCheckIn(dose, "skipped")}>Skip</button>
+                  </span>
+                )}
               </div>
             ))}
           </div>
-          {!demoMode && <div className="plan-management"><span className="eyebrow">ACTIVE PLAN RULES</span>{(planQuery.data ?? []).map((plan) => <div className="plan-rule-row" key={plan.id}><span><strong>{plan.name}</strong><small>{plan.schedule}</small></span><button className="text-button" onClick={() => openPlan(plan)}>Edit</button>{revealedPlan === plan.id ? <button className="archive-confirm" onClick={() => archivePlan(plan)}>Confirm archive</button> : <button className="reveal-action" onClick={() => setRevealedPlan(plan.id)} aria-label={`Reveal archive action for ${plan.name}`}>Swipe to reveal</button>}</div>)}</div>}
+          {!demoMode && <div className="plan-management"><span className="eyebrow">ACTIVE PLAN RULES</span>{planQuery.isError ? <p className="error-note" role="alert">Medication access is not active for this care recipient. Complete medication consent before adding or editing plans.</p> : (planQuery.data ?? []).map((plan) => <div className="plan-rule-row" key={plan.id}><span><strong>{plan.name}</strong><small>{plan.schedule}</small></span><button className="text-button" onClick={() => openPlan(plan)}>Edit</button>{revealedPlan === plan.id ? <button className="archive-confirm" onClick={() => archivePlan(plan)}>Confirm archive</button> : <button className="reveal-action" onClick={() => setRevealedPlan(plan.id)} aria-label={`Reveal archive action for ${plan.name}`}>Swipe to reveal</button>}</div>)}</div>}
           <p className="muted plan-disclaimer">
             ONE helps organize reminders and acknowledgements. It does not
             provide medical advice.
