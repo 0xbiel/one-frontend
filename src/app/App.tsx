@@ -1172,8 +1172,10 @@ function LoginPage() {
   return (
     <div className="join-page">
       <form className="join-card panel" onSubmit={submit}>
-        <span className="brand-mark large">O</span>
-        <span className="eyebrow">WELCOME TO ONE</span>
+        <div className="join-brand" aria-label="ONE">
+          <span className="brand-mark large">O</span>
+          <span className="eyebrow">WELCOME TO ONE</span>
+        </div>
         <h1>Stay close to what matters.</h1>
         <p className="muted">
           Enter the six-digit code from your home admin to securely open the
@@ -1205,6 +1207,23 @@ function LoginPage() {
         >
           {busy ? "Opening your home…" : "Continue securely"}{" "}
           <ChevronRight size={16} />
+        </button>
+        <div className="join-divider">
+          <span>NEW TO ONE?</span>
+        </div>
+        <button
+          type="button"
+          className="secondary-button full-width"
+          onClick={() => navigate("/create-account")}
+        >
+          Create your ONE home <ChevronRight size={16} />
+        </button>
+        <button
+          type="button"
+          className="text-button login-invite-link"
+          onClick={() => navigate("/join-household")}
+        >
+          Join an existing household
         </button>
         <p className="muted login-footnote">
           Your session stays in this browser until you sign out.

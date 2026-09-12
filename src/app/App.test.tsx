@@ -20,6 +20,14 @@ describe('ONE dashboard', () => {
     expect(screen.getByRole('button', { name: /continue as publisher/i })).toBeEnabled();
   });
 
+  it('shows live account and household entry points on the login screen', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/login']}><App /></MemoryRouter></QueryClientProvider>);
+    await waitFor(() => expect(screen.getByText('WELCOME TO ONE')).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: /create your one home/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /join an existing household/i })).toBeInTheDocument();
+  });
+
   it('renders Family mode from the dashboard route', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/dashboard/family']}><App /></MemoryRouter></QueryClientProvider>);
