@@ -33,4 +33,15 @@ describe('FastAPI contract mapping', () => {
     const invite = await api.createFamilyInvite('Test caregiver', 'test@example.com');
     expect(invite.code).toMatch(/^\d{6}$/);
   });
+
+  it('keeps family access mutations demo-safe', async () => {
+    const changed = await api.updateFamilyMember('jordi-demo', 'resident');
+    expect(changed.data.id).toBe('jordi-demo');
+    expect(changed.data.role).toBe('resident');
+    expect(changed.invalidated_sessions).toBe(0);
+
+    const removed = await api.removeFamilyMember('jordi-demo');
+    expect(removed.data.id).toBe('jordi-demo');
+    expect(removed.invalidated_sessions).toBe(0);
+  });
 });
