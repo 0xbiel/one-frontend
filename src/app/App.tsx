@@ -1518,16 +1518,18 @@ function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         <fieldset className="consent-choice">
           <legend>Choose for this home</legend>
           <p className="consent-guidance">This choice only controls this purpose. Nothing starts until you choose.</p>
-          <label className={`consent-option ${granted === true ? "selected" : ""}`}>
-            <input type="radio" name="onboarding-consent" checked={granted === true} onChange={() => setGranted(true)} />
-            <span className="consent-option-copy"><strong>Allow</strong><span>Enable this purpose for your care circle.</span></span>
-            <span className="consent-option-mark" aria-hidden="true">{granted === true ? "✓" : ""}</span>
-          </label>
-          <label className={`consent-option ${granted === false ? "selected" : ""}`}>
-            <input type="radio" name="onboarding-consent" checked={granted === false} onChange={() => setGranted(false)} />
-            <span className="consent-option-copy"><strong>Not now</strong><span>Keep this data source off for now.</span></span>
-            <span className="consent-option-mark" aria-hidden="true">{granted === false ? "✓" : ""}</span>
-          </label>
+          <div className="consent-choice-options" aria-label="Consent choice">
+            <label className={`consent-option ${granted === true ? "selected" : ""}`}>
+              <input type="radio" name="onboarding-consent" checked={granted === true} onChange={() => setGranted(true)} />
+              <span className="consent-option-copy"><strong>Allow</strong><span>Enable this purpose for your care circle.</span></span>
+              <span className="consent-option-mark" aria-hidden="true">{granted === true ? "✓" : ""}</span>
+            </label>
+            <label className={`consent-option ${granted === false ? "selected" : ""}`}>
+              <input type="radio" name="onboarding-consent" checked={granted === false} onChange={() => setGranted(false)} />
+              <span className="consent-option-copy"><strong>Not now</strong><span>Keep this data source off for now.</span></span>
+              <span className="consent-option-mark" aria-hidden="true">{granted === false ? "✓" : ""}</span>
+            </label>
+          </div>
         </fieldset>
         {error && <div className="error-note" role="alert">{error}</div>}
         <div className="onboarding-actions">
