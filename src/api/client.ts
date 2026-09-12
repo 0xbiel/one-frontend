@@ -12,6 +12,7 @@ type PairStartInput = JsonBody<'/api/v1/pairing/start', 'post'>;
 type LiveKitInput = JsonBody<'/api/v1/homes/{home_id}/livekit/token', 'post'>;
 interface PairStartResponse { pairing_id?: string; pairing_code: string; code?: string; expires_in_seconds: number; home_id: string; user_id: string; role?: 'admin' | 'resident' | 'caregiver' | 'publisher' | string; }
 interface PairCompleteResponse { access_token: string; token_type: string; expires_in: number; home_id: string; user_id: string; }
+export interface PairingStatus { pairing_id: string; home_id: string; status: 'pending' | 'connected' | 'expired'; expires_at: string; connected_at?: string | null; device: { id: string; label: string; role: string }; }
 export interface EmailChallenge { verification_id: string; expires_in_seconds: number; delivery: string; dev_code?: string | null; email: string; purpose: 'create' | 'login'; home_id: string; user_id: string; role: string; }
 export interface EmailSession extends PairCompleteResponse { role?: string; email?: string; }
 interface InviteAcceptResponse extends PairCompleteResponse { role?: string; }
@@ -91,6 +92,9 @@ export const api = {
     if (!token() || homeId() === 'current') throw new Error('API_401');
     return request(`/homes/${homeId()}/pairing/start`, { method: 'POST', body: JSON.stringify({ label: displayName, expires_in_seconds: 600 }) });
   },
+  getPairingStatus: async (pairingId: string): Promise<PairingStatus> => demoMode
+    ? { pairing_id: pairingId, home_id: 'home-demo', status: 'connected', expires_at: new Date(Date.now() + 600_000).toISOString(), connected_at: new Date().toISOString(), device: { id: pairingId, label: 'Hallway phone', role: 'publisher' } }
+    : request<PairingStatus>(`/homes/${homeId()}/pairing/${encodeURIComponent(pairingId)}/status`),
   completePairing: async (code: string): Promise<PairCompleteResponse> => { const result = demoMode ? { access_token: 'demo', token_type: 'bearer', expires_in: 3600, home_id: 'home-demo', user_id: 'user-demo' } : await request<PairCompleteResponse>('/pairing/complete', { method: 'POST', auth: false, body: JSON.stringify({ code }) }); sessionStorage.setItem('one_access_token', result.access_token); sessionStorage.setItem('one_home_id', result.home_id); sessionStorage.setItem('one_user_id', result.user_id); return result; },
   logout: async (): Promise<void> => {
     try {

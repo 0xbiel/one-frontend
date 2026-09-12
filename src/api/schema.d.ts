@@ -629,6 +629,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/homes/{home_id}/pairing/{pairing_id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Device Pairing Status
+         * @description Return publisher setup state without returning the pairing code.
+         */
+        get: operations["device_pairing_status_api_v1_homes__home_id__pairing__pairing_id__status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/homes/{home_id}/privacy/delete": {
         parameters: {
             query?: never;
@@ -1170,6 +1190,23 @@ export interface components {
             role: string;
             /** User Id */
             user_id: string;
+        };
+        /** PairingStatusResponse */
+        PairingStatusResponse: {
+            /** Connected At */
+            connected_at?: string | null;
+            /** Device */
+            device: {
+                [key: string]: unknown;
+            };
+            /** Expires At */
+            expires_at: string;
+            /** Home Id */
+            home_id: string;
+            /** Pairing Id */
+            pairing_id: string;
+            /** Status */
+            status: string;
         };
         /** ProvisionalMapIn */
         ProvisionalMapIn: {
@@ -2613,6 +2650,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    device_pairing_status_api_v1_homes__home_id__pairing__pairing_id__status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+                pairing_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PairingStatusResponse"];
                 };
             };
             /** @description Validation Error */

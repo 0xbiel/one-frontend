@@ -276,17 +276,18 @@ function Dashboard({
 }) {
   const nav = useNavigate();
   const [pairingOpen, setPairingOpen] = useState(false);
-  const [pairing, setPairing] = useState<{ code: string; expires_at: string } | null>(null);
+  const [pairing, setPairing] = useState<{ pairing_id: string; code: string; expires_at: string } | null>(null);
   const [pairingBusy, setPairingBusy] = useState(false);
   const [pairingError, setPairingError] = useState("");
-  const cameraStatusQuery = useQuery({
-    queryKey: ["pairing-camera-status"],
-    queryFn: api.getDevice,
-    enabled: pairingOpen,
-    refetchInterval: pairingOpen ? 3000 : false,
+  const pairingStatusQuery = useQuery({
+    queryKey: ["pairing-status", pairing?.pairing_id],
+    queryFn: () => api.getPairingStatus(pairing!.pairing_id),
+    enabled: pairingOpen && Boolean(pairing?.pairing_id),
+    refetchInterval: pairingOpen && pairing ? 3000 : false,
     retry: false,
   });
-  const cameraConnected = cameraStatusQuery.data?.status === "online";
+  const cameraConnected = pairingStatusQuery.data?.status === "connected";
+  const pairingExpired = pairingStatusQuery.data?.status === "expired";
   const openPairing = async () => {
     setPairingOpen(true);
     setPairingError("");
@@ -326,7 +327,7 @@ function Dashboard({
           <Camera size={17} /> Pair a camera <ChevronRight size={16} />
         </button>
       </section>
-      {pairingOpen && <div className="modal-backdrop" role="presentation" onClick={() => setPairingOpen(false)}><section className="panel pairing-modal" role="dialog" aria-modal="true" aria-labelledby="camera-pairing-title" onClick={(event) => event.stopPropagation()}><button className="modal-close icon-button" aria-label="Close camera pairing" onClick={() => setPairingOpen(false)}><X size={18} /></button><span className="eyebrow">CAMERA CONNECTION</span><h2 id="camera-pairing-title">Connect a phone or laptop</h2><p className="muted">Open the website on the camera device, choose Join a camera, and enter this one-time code. Keep this screen open while the camera completes setup.</p>{pairingBusy && <p className="pairing-status" role="status">Creating a secure code…</p>}{pairingError && <div className="error-note" role="alert">{pairingError}</div>}{pairing && <div className="pairing-code pairing-code-live" role="status"><span className="eyebrow">ENTER THIS CODE ON THE CAMERA DEVICE</span><strong>{pairing.code}</strong><span className="muted">Expires in 10 minutes · one use only</span><button type="button" className="secondary-button" onClick={() => { void navigator.clipboard?.writeText(pairing.code); }}>Copy code</button></div>}<div className={`pairing-connection-state ${cameraConnected ? "connected" : "waiting"}`} role="status"><span className="status-dot" />{cameraConnected ? "Camera connected" : "Waiting for camera to finish setup"}<small>{cameraConnected ? "ONE can now receive the consented publisher stream." : "This page checks for a connected device every few seconds."}</small></div><div className="pairing-steps" aria-label="Camera setup steps"><div className={cameraConnected ? "complete" : "current"}><strong>1 · Consent & preview</strong><span>On the camera device, allow camera and microphone only after reading the purpose.</span></div><div className={cameraConnected ? "current" : "upcoming"}><strong>2 · Keep the preview live</strong><span>Place the device in its fixed position; this page will keep the connection state visible.</span></div><div className="upcoming"><strong>3 · Calibrate the room</strong><span>After the preview is stable, use the map calibration controls to add reliable anchors.</span></div></div><div className="pairing-modal-actions"><button type="button" className="secondary-button" onClick={() => void openPairing()} disabled={pairingBusy}>New code</button><button type="button" className="primary-button" onClick={() => setPairingOpen(false)}>Done</button></div></section></div>}
+      {pairingOpen && <div className="modal-backdrop" role="presentation" onClick={() => setPairingOpen(false)}><section className="panel pairing-modal" role="dialog" aria-modal="true" aria-labelledby="camera-pairing-title" onClick={(event) => event.stopPropagation()}><button className="modal-close icon-button" aria-label="Close camera pairing" onClick={() => setPairingOpen(false)}><X size={18} /></button><span className="eyebrow">CAMERA CONNECTION</span><h2 id="camera-pairing-title">Connect a phone or laptop</h2><p className="muted">Open the website on the camera device, choose Join a camera, and enter this one-time code. Keep this screen open while the camera completes setup.</p>{pairingBusy && <p className="pairing-status" role="status">Creating a secure code…</p>}{pairingError && <div className="error-note" role="alert">{pairingError}</div>}{pairing && <div className="pairing-code pairing-code-live" role="status"><span className="eyebrow">ENTER THIS CODE ON THE CAMERA DEVICE</span><strong>{pairing.code}</strong><span className="muted">Expires in 10 minutes · one use only</span><button type="button" className="secondary-button" onClick={() => { void navigator.clipboard?.writeText(pairing.code); }}>Copy code</button></div>}<div className={`pairing-connection-state ${cameraConnected ? "connected" : pairingExpired ? "expired" : "waiting"}`} role="status"><span className="status-dot" />{cameraConnected ? "Camera connected" : pairingExpired ? "Code expired" : "Waiting for camera setup"}<small>{cameraConnected ? "The device accepted the code. Finish the consented preview there, then return here for calibration." : pairingExpired ? "Create a new code to start another device setup." : "This page checks the one-time pairing state every few seconds."}</small></div><div className="pairing-steps" aria-label="Camera setup steps"><div className={cameraConnected ? "complete" : "current"}><strong>1 · Consent & preview</strong><span>On the camera device, allow camera and microphone only after reading the purpose.</span></div><div className={cameraConnected ? "current" : "upcoming"}><strong>2 · Keep the preview live</strong><span>Place the device in its fixed position; this page will keep the connection state visible.</span></div><div className="upcoming"><strong>3 · Calibrate the room</strong><span>After the preview is stable, use the map calibration controls to add reliable anchors.</span></div></div><div className="pairing-modal-actions"><button type="button" className="secondary-button" onClick={() => void openPairing()} disabled={pairingBusy}>New code</button><button type="button" className="primary-button" onClick={() => setPairingOpen(false)}>Done</button></div></section></div>}
       <div className="status-chips" aria-label="Home status filters">
         <button className="chip active">
           <span className="status-dot" />
