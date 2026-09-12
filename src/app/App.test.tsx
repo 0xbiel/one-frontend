@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
@@ -36,5 +36,16 @@ describe('ONE dashboard', () => {
     expect(screen.getByText('Next dose')).toBeInTheDocument();
     expect(screen.getByText('Assigned to Jordi García · No acknowledgement yet')).toBeInTheDocument();
     expect(screen.getByText('Needs confirmation')).toBeInTheDocument();
+  });
+
+  it('opens the medication plan form and preserves a recurrence rule', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/dashboard/family']}><App /></MemoryRouter></QueryClientProvider>);
+    await waitFor(() => expect(screen.getByText('Care works better together.')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /add plan/i }));
+    expect(screen.getByRole('heading', { name: /add reminder plan/i })).toBeInTheDocument();
+    const schedule = screen.getByPlaceholderText(/Mon,Wed,Fri/);
+    fireEvent.change(schedule, { target: { value: 'Mon,Wed,Fri @ 08:00' } });
+    expect(schedule).toHaveValue('Mon,Wed,Fri @ 08:00');
   });
 });

@@ -26,7 +26,7 @@ import {
   X,
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, clearSession, demoMode, type FamilyMember } from "../api/client";
+import { api, clearSession, demoMode, type FamilyMember, type MedicationPlan } from "../api/client";
 import { consentDefaults, demoEvents, demoObjects } from "../demo/data";
 import type {
   Consent,
@@ -1426,33 +1426,64 @@ function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   return (
     <div className="join-page">
       <section className="join-card panel">
-        <span className="brand-mark large">O</span>
-        <span className="eyebrow">
-          SET UP ONE · {step + 1} OF {steps.length}
-        </span>
+        <div className="join-brand" aria-label="ONE">
+          <span className="brand-mark large">O</span>
+          <span className="eyebrow">SET UP ONE</span>
+        </div>
+        <div
+          className="onboarding-progress"
+          role="progressbar"
+          aria-label={`Onboarding step ${step + 1} of ${steps.length}`}
+          aria-valuemin={1}
+          aria-valuemax={steps.length}
+          aria-valuenow={step + 1}
+        >
+          <span style={{ width: `${((step + 1) / steps.length) * 100}%` }} />
+        </div>
+        <div className="onboarding-step-meta">
+          <span>STEP {step + 1} OF {steps.length}</span>
+          <span>{current.purpose.replaceAll("_", " ")}</span>
+        </div>
         <h1>{current.title}</h1>
         <p className="muted">
           {current.copy} You can change this choice any time in Privacy &
           consent.
         </p>
         <fieldset className="consent-choice">
-          <legend>Allow this purpose?</legend>
-          <label><input type="radio" name="onboarding-consent" checked={granted === true} onChange={() => setGranted(true)} /> Yes, enable it</label>
-          <label><input type="radio" name="onboarding-consent" checked={granted === false} onChange={() => setGranted(false)} /> Not now</label>
+          <legend>Choose for this home</legend>
+          <p className="consent-guidance">This choice only controls this purpose. Nothing starts until you choose.</p>
+          <label className={`consent-option ${granted === true ? "selected" : ""}`}>
+            <input type="radio" name="onboarding-consent" checked={granted === true} onChange={() => setGranted(true)} />
+            <span className="consent-option-copy"><strong>Allow</strong><span>Enable this purpose for your care circle.</span></span>
+            <span className="consent-option-mark" aria-hidden="true">{granted === true ? "✓" : ""}</span>
+          </label>
+          <label className={`consent-option ${granted === false ? "selected" : ""}`}>
+            <input type="radio" name="onboarding-consent" checked={granted === false} onChange={() => setGranted(false)} />
+            <span className="consent-option-copy"><strong>Not now</strong><span>Keep this data source off for now.</span></span>
+            <span className="consent-option-mark" aria-hidden="true">{granted === false ? "✓" : ""}</span>
+          </label>
         </fieldset>
         {error && <div className="error-note" role="alert">{error}</div>}
-        <button
-          className="primary-button full-width"
-          onClick={next}
-          disabled={busy || granted === null}
-        >
-          {busy
-            ? "Saving your choice…"
-            : step === steps.length - 1
-              ? "Finish setup"
-              : "Continue"}{" "}
-          <ChevronRight size={16} />
-        </button>
+        <div className="onboarding-actions">
+          {step > 0 && <button type="button" className="secondary-button" onClick={() => setStep((value) => value - 1)}>Back</button>}
+          <button
+            type="button"
+            className="primary-button"
+            onClick={next}
+            disabled={busy || granted === null}
+          >
+            {busy
+              ? "Saving your choice…"
+              : step === steps.length - 1
+                ? "Finish setup"
+                : "Continue"}{" "}
+            <ChevronRight size={16} />
+          </button>
+        </div>
+        <div className="onboarding-privacy-note">
+          <ShieldCheck size={16} />
+          <span><strong>You stay in control.</strong> Change or withdraw this choice later in Privacy & consent.</span>
+        </div>
         <p className="muted onboarding-note">Complete each purpose choice to finish setup. Choosing “Not now” keeps that data source off.</p>
       </section>
     </div>
@@ -1670,6 +1701,12 @@ function FamilyPage() {
   const [inviteError, setInviteError] = useState("");
   const [inviteBusy, setInviteBusy] = useState(false);
   const [selectedDay, setSelectedDay] = useState(() => new Date().toISOString().slice(0, 10));
+  const [planOpen, setPlanOpen] = useState(false);
+  const [editingPlan, setEditingPlan] = useState<MedicationPlan | null>(null);
+  const [planForm, setPlanForm] = useState({ name: "", dose: "", instructions: "", schedule: "", active: true, assigned_caregiver_id: "" });
+  const [planError, setPlanError] = useState("");
+  const [planBusy, setPlanBusy] = useState(false);
+  const [revealedPlan, setRevealedPlan] = useState<string | null>(null);
   const [selectedSubject, setSelectedSubject] = useState(() => sessionStorage.getItem('one_subject_user_id') ?? '');
   const hasBackendSession =
     !demoMode &&
@@ -1686,6 +1723,12 @@ function FamilyPage() {
   const reminderQuery = useQuery({
     queryKey: ["medication-reminders", selectedDay, selectedSubject],
     queryFn: () => api.getMedicationReminders(selectedDay, selectedSubject || undefined),
+    enabled: hasBackendSession,
+    retry: false,
+  });
+  const planQuery = useQuery({
+    queryKey: ["medication-plans", selectedSubject],
+    queryFn: () => api.getMedicationPlans(selectedSubject || undefined),
     enabled: hasBackendSession,
     retry: false,
   });
@@ -1817,6 +1860,25 @@ function FamilyPage() {
   const nextDose =
     doses.find((dose) => dose.tone === "next" || dose.tone === "pending") ??
     doses[0];
+  const subjectId = selectedSubject || familyQuery.data?.find((member) => member.role === "resident")?.id || sessionStorage.getItem("one_user_id") || "";
+  const openPlan = (plan?: MedicationPlan) => {
+    setEditingPlan(plan ?? null);
+    setPlanForm(plan ? { name: plan.name, dose: plan.dose, instructions: plan.instructions, schedule: plan.schedule, active: plan.active, assigned_caregiver_id: plan.assigned_caregiver_id ?? "" } : { name: "", dose: "", instructions: "", schedule: "", active: true, assigned_caregiver_id: "" });
+    setPlanError(""); setPlanOpen(true);
+  };
+  const savePlan = async () => {
+    if (!planForm.name.trim() || !planForm.dose.trim() || !planForm.schedule.trim() || (!editingPlan && !subjectId)) { setPlanError("Name, dose, schedule, and a care recipient are required."); return; }
+    setPlanBusy(true); setPlanError("");
+    try {
+      if (editingPlan) await api.updateMedicationPlan(editingPlan.id, { ...planForm, name: planForm.name.trim(), dose: planForm.dose.trim(), schedule: planForm.schedule.trim(), assigned_caregiver_id: planForm.assigned_caregiver_id || null, version: editingPlan.version });
+      else await api.createMedicationPlan({ ...planForm, subject_user_id: subjectId, name: planForm.name.trim(), dose: planForm.dose.trim(), schedule: planForm.schedule.trim(), assigned_caregiver_id: planForm.assigned_caregiver_id || null });
+      setPlanOpen(false); await planQuery.refetch(); await reminderQuery.refetch();
+    } catch { setPlanError("We could not save this plan. Check consent and caregiver permissions."); } finally { setPlanBusy(false); }
+  };
+  const archivePlan = async (plan: MedicationPlan) => {
+    if (!window.confirm(`Disable “${plan.name}”? This keeps its history but stops future reminders.`)) return;
+    try { await api.updateMedicationPlan(plan.id, { active: false, version: plan.version }); setRevealedPlan(null); await planQuery.refetch(); await reminderQuery.refetch(); } catch { setPlanError("We could not disable this plan."); }
+  };
   return (
     <div className="family-page">
       <section className="family-intro">
@@ -1887,7 +1949,7 @@ function FamilyPage() {
               <span className="eyebrow">MEDICATION PLAN · {selectedDay === new Date().toISOString().slice(0, 10) ? "TODAY" : selectedDay}</span>
               <h3>A simple shared rhythm.</h3>
             </div>
-            <label className="day-picker">Day <input type="date" value={selectedDay} onChange={(event) => setSelectedDay(event.target.value)} /></label>
+            <div className="plan-actions"><label className="day-picker">Day <input type="date" value={selectedDay} onChange={(event) => setSelectedDay(event.target.value)} /></label><button className="text-button" onClick={() => openPlan()}>Add plan <ChevronRight size={15} /></button></div>
           </div>
           {nextDose ? (
             <div className="next-dose">
@@ -1933,6 +1995,7 @@ function FamilyPage() {
               </div>
             ))}
           </div>
+          {!demoMode && <div className="plan-management"><span className="eyebrow">ACTIVE PLAN RULES</span>{(planQuery.data ?? []).map((plan) => <div className="plan-rule-row" key={plan.id}><span><strong>{plan.name}</strong><small>{plan.schedule}</small></span><button className="text-button" onClick={() => openPlan(plan)}>Edit</button>{revealedPlan === plan.id ? <button className="archive-confirm" onClick={() => archivePlan(plan)}>Confirm archive</button> : <button className="reveal-action" onClick={() => setRevealedPlan(plan.id)} aria-label={`Reveal archive action for ${plan.name}`}>Swipe to reveal</button>}</div>)}</div>}
           <p className="muted plan-disclaimer">
             ONE helps organize reminders and acknowledgements. It does not
             provide medical advice.
@@ -1959,6 +2022,7 @@ function FamilyPage() {
         </section>
       </div>
       {inviteOpen && <div className="modal-backdrop" role="presentation" onClick={() => setInviteOpen(false)}><section className="panel invite-modal" role="dialog" aria-modal="true" aria-labelledby="invite-title" onClick={(event) => event.stopPropagation()}><button className="modal-close icon-button" aria-label="Close invitation" onClick={() => setInviteOpen(false)}><X size={18} /></button><span className="eyebrow">FAMILY INVITATION</span><h2 id="invite-title">Invite someone trusted</h2><p className="muted">Only an authorized caregiver or admin can create an invitation. The code is shown once.</p><label>Person’s name<input value={inviteForm.name} onChange={(e) => setInviteForm({ ...inviteForm, name: e.target.value })} autoFocus /></label><label>Email (optional)<input type="email" value={inviteForm.email} onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })} /></label><label>Role<select value={inviteForm.role} onChange={(e) => setInviteForm({ ...inviteForm, role: e.target.value as "caregiver" | "resident" })}><option value="caregiver">Caregiver</option><option value="resident">Resident</option></select></label>{inviteError && <div className="error-note" role="alert">{inviteError}</div>}<button className="primary-button full-width" disabled={inviteBusy || !inviteForm.name.trim()} onClick={async () => { setInviteBusy(true); setInviteError(""); try { const result = await api.createFamilyInvite(inviteForm.name.trim(), inviteForm.email.trim(), inviteForm.role); setInviteResult(result); setInviteOpen(false); } catch (error) { setInviteError(error instanceof Error && error.message === "API_403" ? "Family sharing consent or caregiver permission is required." : "We could not create this invitation. Check the local connection."); } finally { setInviteBusy(false); } }}>{inviteBusy ? "Creating invitation…" : "Create invitation"} <ChevronRight size={16} /></button></section></div>}
+      {planOpen && <div className="modal-backdrop" role="presentation" onClick={() => setPlanOpen(false)}><section className="panel invite-modal" role="dialog" aria-modal="true" aria-labelledby="plan-title" onClick={(event) => event.stopPropagation()}><button className="modal-close icon-button" aria-label="Close medication plan" onClick={() => setPlanOpen(false)}><X size={18} /></button><span className="eyebrow">MEDICATION PLAN</span><h2 id="plan-title">{editingPlan ? "Edit reminder plan" : "Add reminder plan"}</h2><p className="muted">Keep the schedule rule as written, including weekly days or exact dates.</p><label>Name<input value={planForm.name} onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })} autoFocus /></label><label>Dose<input value={planForm.dose} onChange={(e) => setPlanForm({ ...planForm, dose: e.target.value })} /></label><label>Instructions<input value={planForm.instructions} onChange={(e) => setPlanForm({ ...planForm, instructions: e.target.value })} /></label><label>Schedule rule<input placeholder="Mon,Wed,Fri @ 08:00; 2026-09-20 @ 10:00" value={planForm.schedule} onChange={(e) => setPlanForm({ ...planForm, schedule: e.target.value })} /><small className="muted">Daily, weekday, weekly, and date-specific text is sent unchanged.</small></label><label>Assigned caregiver<select value={planForm.assigned_caregiver_id} onChange={(e) => setPlanForm({ ...planForm, assigned_caregiver_id: e.target.value })}><option value="">Unassigned</option>{(familyQuery.data ?? []).filter((member) => member.role === "admin" || member.role === "caregiver").map((member) => <option key={member.id} value={member.id}>{member.display_name}</option>)}</select></label><label className="check-label"><input type="checkbox" checked={planForm.active} onChange={(e) => setPlanForm({ ...planForm, active: e.target.checked })} /> Active plan</label>{planError && <div className="error-note" role="alert">{planError}</div>}<button className="primary-button full-width" disabled={planBusy} onClick={savePlan}>{planBusy ? "Saving plan…" : "Save plan"} <ChevronRight size={16} /></button></section></div>}
     </div>
   );
 }
