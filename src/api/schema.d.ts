@@ -2763,7 +2763,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "model/vnd.usdz+zip": string;
                 };
             };
             /** @description Validation Error */
@@ -2787,7 +2787,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "model/vnd.usdz+zip": string;
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
