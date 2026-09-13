@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { RoomGeometry, Scene, SurfaceGeometry } from "../models/domain";
 import { hasMeshData, hasRealLidarGeometry, hasSurfaceData } from "./lidarGeometry";
 export { hasRealLidarGeometry } from "./lidarGeometry";
@@ -135,9 +136,37 @@ export function LiDARRoomScene3D({ scene }: { scene: Scene }) {
     const center = bounds.getCenter(new THREE.Vector3());
     const size = bounds.getSize(new THREE.Vector3());
     const radius = Math.max(size.x, size.y, size.z, 1);
-    camera.position.set(center.x + radius * 1.45, center.y + radius * 1.2, center.z + radius * 1.55);
+    const verticalFov = THREE.MathUtils.degToRad(camera.fov * 0.5);
+    const fitHeight = Math.max(size.z, 0.5) * 0.5 / Math.tan(verticalFov);
+    const fitWidth = Math.max(size.x, 0.5) * 0.5 / Math.tan(verticalFov) / Math.max(camera.aspect, 0.2);
+    const topDistance = Math.max(fitHeight, fitWidth, 0.8) * 1.18;
+    camera.up.set(0, 0, -1);
+    camera.position.set(center.x, bounds.max.y + topDistance, center.z);
     camera.lookAt(center);
-    renderer.render(world, camera);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.copy(center);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.enablePan = true;
+    controls.enableZoom = true;
+    controls.enableRotate = true;
+    controls.screenSpacePanning = true;
+    controls.minDistance = Math.max(radius * 0.08, 0.15);
+    controls.maxDistance = radius * 18;
+    controls.mouseButtons.LEFT = THREE.MOUSE.PAN;
+    controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE;
+    controls.touches.ONE = THREE.TOUCH.PAN;
+    controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
+    controls.update();
+
+    let frame = 0;
+    const animate = () => {
+      controls.update();
+      renderer.render(world, camera);
+      frame = requestAnimationFrame(animate);
+    };
+    animate();
 
     const resize = () => {
       const nextWidth = host.clientWidth || width;
@@ -145,11 +174,12 @@ export function LiDARRoomScene3D({ scene }: { scene: Scene }) {
       camera.aspect = nextWidth / nextHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(nextWidth, nextHeight);
-      renderer.render(world, camera);
     };
     window.addEventListener("resize", resize);
     return () => {
+      cancelAnimationFrame(frame);
       window.removeEventListener("resize", resize);
+      controls.dispose();
       model.traverse((node) => {
         if (!(node instanceof THREE.Mesh || node instanceof THREE.Line)) return;
         node.geometry.dispose();

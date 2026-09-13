@@ -40,10 +40,17 @@ function objectLocationCopy(object: LastSeenObject, scene: Scene): string {
 export function MapPage({ objects, scene }: { objects: LastSeenObject[]; scene: Scene }) {
   const hasSession = demoMode || Boolean(sessionStorage.getItem("one_access_token"));
   const queryClient = useQueryClient();
-  const mapQuery = useQuery({ queryKey: ["current-map"], queryFn: api.getCurrentMap, enabled: hasSession, retry: false });
+  const mapQuery = useQuery({
+    queryKey: ["current-map"],
+    queryFn: api.getCurrentMap,
+    enabled: hasSession,
+    retry: false,
+    refetchInterval: hasSession ? 4_000 : false,
+    refetchIntervalInBackground: false,
+  });
   const cameraQuery = useQuery({ queryKey: ["camera"], queryFn: api.getDevice, enabled: hasSession, retry: false });
   const [selected, setSelected] = useState(objects[0]?.id);
-  const [view, setView] = useState<"3d" | "2d">("2d");
+  const [view, setView] = useState<"3d" | "2d">(hasRealLidarGeometry(scene) ? "3d" : "2d");
   const [measureMode, setMeasureMode] = useState(false);
   const [measurePoints, setMeasurePoints] = useState<Point2D[]>([]);
   const [referenceLength, setReferenceLength] = useState("1.00");
@@ -56,8 +63,8 @@ export function MapPage({ objects, scene }: { objects: LastSeenObject[]; scene: 
   const canMeasureScale = displayScene.source === "camera-cv-2d" && Boolean(displayScene.mapId);
 
   useEffect(() => {
-    if (!hasReal3D && view === "3d") setView("2d");
-  }, [hasReal3D, view]);
+    setView(hasReal3D ? "3d" : "2d");
+  }, [displayScene.mapId, hasReal3D]);
 
   const handleMeasurePoint = (point: Point2D) => {
     setScaleError("");
