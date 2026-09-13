@@ -68,7 +68,7 @@ function App() {
   const logout = async () => { stopActivePublisher(); clearPublisherRegistry(); await api.logout(); query.clear(); navigate("/login", { replace: true }); };
 
   if (!demoMode && !hasToken && !["/create-account", "/join-household"].includes(location.pathname) && location.pathname !== "/join" && !location.pathname.startsWith("/join/")) return <LoginPage />;
-  if (!demoMode && hasToken && sessionQuery.isPending) return <div className="join-page"><div className="join-card panel"><span className="brand-mark large">O</span><p className="muted">Checking your secure session…</p></div></div>;
+  if (!demoMode && hasToken && sessionQuery.isPending) return <div className="join-page"><div className="join-card panel"><img className="one-logo large" src="/one-logo.png" alt="" aria-hidden="true" /><p className="muted">Checking your secure session…</p></div></div>;
   if (!demoMode && hasToken && sessionQuery.isError) return <LoginPage />;
   const isPublisher = session?.actor.role === "publisher";
   if (!demoMode && hasToken && session && !isPublisher && !localStorage.getItem(onboardingKey()) && location.pathname !== "/onboarding" && !location.pathname.startsWith("/join")) return <Navigate to="/onboarding" replace />;
@@ -83,14 +83,14 @@ function App() {
       <Route path="/join/:code?" element={<JoinPage />} />
       <Route path="/publisher" element={<PublisherPage paused={paused} onTogglePause={togglePause} />} />
       <Route path="/publisher/live" element={<PublisherPage paused={paused} onTogglePause={togglePause} />} />
-      <Route path="*" element={<Shell paused={paused} onTogglePause={togglePause} onLogout={logout}><Routes>
+      <Route path="*" element={<Shell paused={paused} onTogglePause={togglePause} onLogout={logout} session={session}><Routes>
         <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<OverviewPage events={events} objects={objects} onEvent={setSelectedEvent} />} />
+        <Route path="dashboard" element={<OverviewPage events={events} objects={objects} onEvent={setSelectedEvent} session={session} />} />
         <Route path="dashboard/live" element={<LivePage />} />
         <Route path="dashboard/map" element={<MapPage objects={objects} scene={scene} />} />
         <Route path="dashboard/events" element={<EventsPage events={events} onEvent={setSelectedEvent} />} />
-        <Route path="dashboard/assistant" element={<AssistantPage />} />
-        <Route path="dashboard/family" element={<FamilyPage />} />
+        <Route path="dashboard/assistant" element={<AssistantPage session={session} />} />
+        <Route path="dashboard/family" element={<FamilyPage session={session} />} />
         <Route path="dashboard/account" element={<AccountSettingsPage onLogout={logout} />} />
         <Route path="dashboard/privacy" element={<PrivacyPage paused={paused} onTogglePause={togglePause} consents={consents} setConsents={setConsents} />} />
       </Routes></Shell>} />

@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="branding/one-logo.png" alt="ONE logo" width="128" />
+</p>
+
 # ONE frontend
 
 ONE is a calm, caregiver-facing web experience for a daily home check-in. It presents observations with context and uncertainty — never a diagnosis — and lets a paired laptop, iPhone, or Android browser act as a consented camera publisher.
@@ -63,7 +67,15 @@ For a Tailscale-only HTTPS URL, install Tailscale on the host and run
 
 ## Backend contract
 
-The typed adapter in `src/api/client.ts` targets the FastAPI routes in `../one`: session bootstrap (`GET /me`), pairing (`POST /pairing/start`, `/pairing/complete`, and authenticated same-home publisher pairing), LiveKit token issuance, cameras, RoomPlan scene/maps, objects, events, consent, and privacy export/delete. Demo mode remains the default so the UI renders without the backend; set `VITE_DEMO_MODE=false` for real API calls. `src/api/schema.d.ts` is generated with `npm run generate:api`. The generator uses the sibling backend contract when this repository is checked out beside `one`, and otherwise uses the pinned snapshot at `contracts/openapi.json`, keeping a standalone GitHub checkout buildable. Update that snapshot whenever the backend contract tag changes; CI fails if regeneration changes the committed artifact. `src/api/sse.ts` consumes the authenticated `/homes/{home_id}/events/stream` contract and invalidates dashboard queries when replayable event data arrives.
+The typed adapter in `src/api/client.ts` targets the FastAPI routes in `../one`: session bootstrap (`GET /me`), pairing (`POST /pairing/start`, `/pairing/complete`, and authenticated same-home publisher pairing), LiveKit token issuance, cameras, RoomPlan scene/maps and camera registration, local vision, objects, events, consent, and privacy export/delete. Live API calls are the default; synthetic demo data is used only when `VITE_DEMO_MODE=true` is set explicitly. `src/api/schema.d.ts` is generated with `npm run generate:api`. The generator uses the sibling backend contract when this repository is checked out beside `one`, and otherwise uses the pinned snapshot at `contracts/openapi.json`, keeping a standalone GitHub checkout buildable. Update that snapshot whenever the backend contract tag changes; CI fails if regeneration changes the committed artifact. `src/api/sse.ts` consumes the authenticated `/homes/{home_id}/events/stream` contract and invalidates dashboard queries when replayable event data arrives.
+
+After a fixed browser camera completes its relative 2D sweep, setup can submit
+several still frames to `/cameras/{camera_id}/localize-roomplan`. If the active
+native RoomPlan scan has a derived visual landmark index, the backend estimates
+that separate camera's pose in `roomplan-local`; otherwise setup remains usable
+in 2D and explains that a fresh native scan is required for 3D placement. Once
+ready, the publisher sends bounded transient frames to the local object-vision
+endpoint; raw frame bytes are not retained.
 
 Family mode uses the live family endpoints when a non-demo session is present:
 `GET /homes/{home_id}/family/members` and

@@ -131,6 +131,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/homes/{home_id}/camera-registrations/roomplan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Roomplan Camera Registration */
+        post: operations["roomplan_camera_registration_api_v1_homes__home_id__camera_registrations_roomplan_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/homes/{home_id}/cameras": {
         parameters: {
             query?: never;
@@ -159,11 +176,40 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Camera Delete
+         * @description Disable a camera and revoke its publisher session.
+         *
+         *     Camera records stay as an audit-safe tombstone so historical maps and
+         *     observations do not lose their camera reference. The device is no
+         *     longer returned to caregivers and its bearer session cannot publish a
+         *     new LiveKit token.
+         */
+        delete: operations["camera_delete_api_v1_homes__home_id__cameras__camera_id__delete"];
         options?: never;
         head?: never;
         /** Camera Update */
         patch: operations["camera_update_api_v1_homes__home_id__cameras__camera_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/homes/{home_id}/cameras/{camera_id}/localize-roomplan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Localize Roomplan Camera
+         * @description Visually register a separate fixed camera inside the active RoomPlan scene.
+         */
+        post: operations["localize_roomplan_camera_api_v1_homes__home_id__cameras__camera_id__localize_roomplan_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/homes/{home_id}/cameras/{camera_id}/map-generation": {
@@ -533,6 +579,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/homes/{home_id}/maps/{map_id}/scale": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Measure Map Scale
+         * @description Persist a scale derived from a caregiver-measured reference.
+         *
+         *     RGB camera geometry remains image-space and approximate. This endpoint
+         *     only adds a measured conversion after a person supplies the physical
+         *     length of two points visible on that map; it never invents meters from
+         *     the camera sweep alone.
+         */
+        post: operations["measure_map_scale_api_v1_homes__home_id__maps__map_id__scale_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/homes/{home_id}/maps/{map_id}/usdz": {
         parameters: {
             query?: never;
@@ -548,6 +619,26 @@ export interface paths {
          */
         put: operations["roomplan_usdz_upload_api_v1_homes__home_id__maps__map_id__usdz_put"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/homes/{home_id}/maps/{map_id}/visual-landmarks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Roomplan Visual Landmarks
+         * @description Build a derived, local-only visual landmark index for RoomPlan relocalization.
+         */
+        post: operations["roomplan_visual_landmarks_api_v1_homes__home_id__maps__map_id__visual_landmarks_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -986,6 +1077,26 @@ export interface components {
             /** Room Id */
             room_id?: string | null;
         };
+        /** CameraLocalizationFrameIn */
+        CameraLocalizationFrameIn: {
+            /** Frame Base64 */
+            frame_base64: string;
+            /** Height */
+            height: number;
+            /** Width */
+            width: number;
+        };
+        /** CameraLocalizationIn */
+        CameraLocalizationIn: {
+            /**
+             * Fov Degrees
+             * @default 60
+             */
+            fov_degrees: number;
+            /** Frames */
+            frames: components["schemas"]["CameraLocalizationFrameIn"][];
+            intrinsics?: components["schemas"]["Matrix3x3In"] | null;
+        };
         /** CameraMapFrameIn */
         CameraMapFrameIn: {
             /** Captured At */
@@ -1085,6 +1196,11 @@ export interface components {
         };
         /** EmailAuthRequest */
         EmailAuthRequest: {
+            /**
+             * Care Setting
+             * @default home
+             */
+            care_setting: string;
             /** Display Name */
             display_name?: string | null;
             /** Email */
@@ -1104,6 +1220,11 @@ export interface components {
              * @default admin
              */
             role: string;
+            /**
+             * Support Focus
+             * @default general
+             */
+            support_focus: string;
         };
         /** EmailAuthRequestResponse */
         EmailAuthRequestResponse: {
@@ -1194,6 +1315,13 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** ImagePoint */
+        ImagePoint: {
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+        };
         /** LiveKitTokenIn */
         LiveKitTokenIn: {
             /**
@@ -1215,6 +1343,26 @@ export interface components {
             };
             /** Room Id */
             room_id?: string | null;
+        };
+        /**
+         * MapScaleReferenceIn
+         * @description One caregiver-supplied real-world reference for an RGB 2D map.
+         */
+        MapScaleReferenceIn: {
+            end: components["schemas"]["ImagePoint"];
+            /**
+             * Label
+             * @default Measured reference
+             */
+            label: string;
+            /** Length M */
+            length_m: number;
+            start: components["schemas"]["ImagePoint"];
+        };
+        /** Matrix3x3In */
+        Matrix3x3In: {
+            /** Values */
+            values: number[][];
         };
         /** MedicationCheckInIn */
         MedicationCheckInIn: {
@@ -1312,6 +1460,11 @@ export interface components {
         };
         /** PairStart */
         PairStart: {
+            /**
+             * Care Setting
+             * @default home
+             */
+            care_setting: string;
             /** Display Name */
             display_name: string;
             /** Email */
@@ -1326,6 +1479,11 @@ export interface components {
              * @default admin
              */
             role: string;
+            /**
+             * Support Focus
+             * @default general
+             */
+            support_focus: string;
         };
         /** PairStartResponse */
         PairStartResponse: {
@@ -1376,6 +1534,23 @@ export interface components {
         RoomIn: {
             /** Name */
             name: string;
+        };
+        /** RoomPlanCameraRegistrationIn */
+        RoomPlanCameraRegistrationIn: {
+            /** Camera Id */
+            camera_id: string;
+            /** Camera To World */
+            camera_to_world: number[][];
+            /** Confidence */
+            confidence?: number | null;
+            /** Map Id */
+            map_id: string;
+            /**
+             * Tracking State
+             * @default normal
+             * @enum {string}
+             */
+            tracking_state: "normal" | "limited" | "unavailable";
         };
         /** RoomPlanDimensions3D */
         RoomPlanDimensions3D: {
@@ -1526,6 +1701,31 @@ export interface components {
             /** Story */
             story: number;
         };
+        /** RoomPlanVisualFrameIn */
+        RoomPlanVisualFrameIn: {
+            /** Camera To World */
+            camera_to_world: number[][];
+            /** Captured At */
+            captured_at?: string | null;
+            /** Depth Base64 */
+            depth_base64: string;
+            /** Depth Height */
+            depth_height: number;
+            /** Depth Width */
+            depth_width: number;
+            /** Frame Base64 */
+            frame_base64: string;
+            /** Height */
+            height: number;
+            intrinsics: components["schemas"]["Matrix3x3In"];
+            /** Width */
+            width: number;
+        };
+        /** RoomPlanVisualLandmarksIn */
+        RoomPlanVisualLandmarksIn: {
+            /** Frames */
+            frames: components["schemas"]["RoomPlanVisualFrameIn"][];
+        };
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -1544,7 +1744,7 @@ export interface components {
             /** Camera Id */
             camera_id: string;
             /** Candidate Labels */
-            candidate_labels: string[];
+            candidate_labels?: string[];
             /** Captured At */
             captured_at?: string | null;
             /** Depth M */
@@ -1801,6 +2001,41 @@ export interface operations {
             };
         };
     };
+    roomplan_camera_registration_api_v1_homes__home_id__camera_registrations_roomplan_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoomPlanCameraRegistrationIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     cameras_api_v1_homes__home_id__cameras_get: {
         parameters: {
             query?: never;
@@ -1867,6 +2102,38 @@ export interface operations {
             };
         };
     };
+    camera_delete_api_v1_homes__home_id__cameras__camera_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     camera_update_api_v1_homes__home_id__cameras__camera_id__patch: {
         parameters: {
             query?: never;
@@ -1880,6 +2147,42 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["CameraUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    localize_roomplan_camera_api_v1_homes__home_id__cameras__camera_id__localize_roomplan_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CameraLocalizationIn"];
             };
         };
         responses: {
@@ -2745,6 +3048,42 @@ export interface operations {
             };
         };
     };
+    measure_map_scale_api_v1_homes__home_id__maps__map_id__scale_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+                map_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MapScaleReferenceIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     roomplan_usdz_download_api_v1_homes__home_id__maps__map_id__usdz_get: {
         parameters: {
             query?: never;
@@ -2790,6 +3129,42 @@ export interface operations {
         requestBody: {
             content: {
                 "model/vnd.usdz+zip": string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    roomplan_visual_landmarks_api_v1_homes__home_id__maps__map_id__visual_landmarks_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+                map_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoomPlanVisualLandmarksIn"];
             };
         };
         responses: {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -37,15 +37,15 @@ export function PublisherPage({
         <div className="panel step-card">
           <span className="step-number">2</span>
           <div>
-            <strong>Take the guided sweep</strong>
-            <span className="muted">ONE samples the same approved preview</span>
+            <strong>Record a room walkthrough</strong>
+            <span className="muted">Walk around slowly; no precision pan is required</span>
           </div>
         </div>
         <div className="panel step-card">
           <span className="step-number">3</span>
           <div>
             <strong>Place the camera</strong>
-            <span className="muted">A relative 2D map appears when ready</span>
+            <span className="muted">ONE keeps the camera paired even if mapping is skipped</span>
           </div>
         </div>
       </aside>
@@ -60,6 +60,17 @@ export function JoinPage() {
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
+
+  // Pairing is durable on the backend.  A reload must not send a publisher
+  // back to the one-time-code screen just because this component's React state
+  // was recreated.
+  useEffect(() => {
+    let cancelled = false;
+    void api.getSession().then((session) => {
+      if (!cancelled && session.actor.role === "publisher") setConnected(true);
+    }).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
 
   const copyCode = async () => {
     try {
@@ -87,30 +98,65 @@ export function JoinPage() {
 
   return (
     <div className="join-page camera-pairing-page">
-      <main className="camera-pairing-shell">
-        <section className="join-card camera-pairing-card panel">
+      <main className={`camera-pairing-shell ${connected ? "is-connected" : ""}`}>
+        {!connected && (
+          <aside className="camera-pairing-story" aria-label="Camera setup details">
+            <div className="camera-story-mark">
+              <Camera size={20} />
+            </div>
+            <span className="eyebrow">ONE · ROOM CAMERA</span>
+            <h2>Connect the room in a few clear steps.</h2>
+            <p>
+              Pair this device first. Camera and microphone access stay off until
+              you review and choose consent on this device.
+            </p>
+            <div className="camera-story-list">
+              <div>
+                <span><CheckCircle2 size={15} /></span>
+                <p><strong>Pair once</strong><small>Use the six-digit code from the home admin.</small></p>
+              </div>
+              <div>
+                <span><ShieldCheck size={15} /></span>
+                <p><strong>Consent here</strong><small>Permissions are requested only after pairing.</small></p>
+              </div>
+              <div>
+                <span><Camera size={15} /></span>
+                <p><strong>Finish when ready</strong><small>Preview first, then record an optional room walkthrough.</small></p>
+              </div>
+            </div>
+          </aside>
+        )}
+
+        <section className={`join-card camera-pairing-card panel ${connected ? "is-connected" : ""}`}>
           <button className="camera-back-button" type="button" onClick={() => window.history.back()}>
             <ArrowLeft size={15} /> Back
           </button>
           <div className="camera-pairing-brand" aria-label="ONE camera setup">
-            <span className="brand-mark large">O</span>
+            <img className="one-logo large" src="/one-logo.png" alt="" aria-hidden="true" />
             <span className="camera-pairing-icon" aria-hidden="true"><Camera size={18} /></span>
           </div>
           <span className="eyebrow">PAIR A CAMERA</span>
           <h1>{connected ? "Camera connected." : "Bring ONE into the room."}</h1>
           <p className="muted">
             {connected
-              ? "This device is linked. Keep the code visible while you finish the consented preview and room sweep below."
+              ? "Paired securely and saved to the household. You can reload, stop, or finish mapping later without pairing this camera again."
               : "Use the one-time code from the caregiver to connect this camera. This is device setup, not household sign-in."}
           </p>
 
-          <div className="camera-flow-steps" aria-label="Camera pairing progress">
-            <span className={connected ? "complete" : "current"}><b>{connected ? <Check size={12} /> : "1"}</b> Pair</span>
-            <i />
-            <span className={connected ? "current" : ""}><b>2</b> Consent</span>
-            <i />
-            <span className={connected ? "current" : ""}><b>3</b> Map</span>
-          </div>
+          {connected ? (
+            <div className="camera-joined-status" role="status">
+              <span className="camera-joined-check"><Check size={13} /></span>
+              <span><strong>Pairing complete · camera saved</strong><small>Next · consent, preview, and optional room walkthrough</small></span>
+            </div>
+          ) : (
+            <div className="camera-flow-steps" aria-label="Camera pairing progress">
+              <span className="current"><b>1</b> Pair</span>
+              <i />
+              <span><b>2</b> Consent</span>
+              <i />
+              <span><b>3</b> Room</span>
+            </div>
+          )}
 
           {!connected && (
             <>
@@ -125,7 +171,7 @@ export function JoinPage() {
             </>
           )}
 
-          {connected && (
+          {connected && code && (
             <div className="camera-code-card connected" role="status">
               <div className="camera-code-card-heading">
                 <span className="eyebrow">CONNECTED WITH</span>
@@ -139,15 +185,7 @@ export function JoinPage() {
           {error && <div className="error-note" role="alert">{error}</div>}
         </section>
 
-        {connected && (
-          <>
-            <div className="camera-connected-note" role="status">
-              <CheckCircle2 size={17} />
-              <span><strong>Connection confirmed</strong><small>Your setup stays on this page. Nothing else opens in another tab.</small></span>
-            </div>
-            <CameraSetupCard embedded />
-          </>
-        )}
+        {connected && <CameraSetupCard embedded />}
 
         <p className="camera-privacy-footer"><ShieldCheck size={14} /> Camera and microphone stay off until you choose consent.</p>
       </main>

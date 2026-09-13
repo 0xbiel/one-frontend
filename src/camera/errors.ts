@@ -28,12 +28,12 @@ export function describeCameraError(error: unknown): string {
     return "The camera session is no longer authorized. Ask the caregiver for a new code and reconnect this device.";
   }
   if (name === "API_413" || name === "API_422") {
-    return "The room sweep was not accepted. Keep the phone steady, use the rear camera, and retry the sweep.";
+    return "The room walkthrough could not be processed. The camera is still paired and saved; you can retry the walkthrough later.";
   }
   if (name === "API_503") {
     return "The local room-layout service is unavailable. Keep this page open and ask the caregiver to start the local service, then retry.";
   }
-  if (name === "AbortError") return "The room sweep was paused. Resume the preview to try again.";
+  if (name === "AbortError") return "The room walkthrough was paused. Resume the preview when you want to try again.";
   return "ONE could not finish this camera step. Check the secure connection and retry safely.";
 }
 

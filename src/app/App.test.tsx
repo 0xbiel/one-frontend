@@ -59,8 +59,8 @@ describe('ONE dashboard', () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/login']}><App /></MemoryRouter></QueryClientProvider>);
     await waitFor(() => expect(screen.getByText('WELCOME TO ONE')).toBeInTheDocument());
-    expect(screen.getByRole('button', { name: /create your one home/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /join an existing household/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /create your one care space/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /join an existing care space/i })).toBeInTheDocument();
   });
 
   it('renders Family mode from the dashboard route', async () => {
@@ -79,8 +79,31 @@ describe('ONE dashboard', () => {
     await waitFor(() => expect(screen.getByText(/CAMERA-DERIVED 2D MAP/)).toBeInTheDocument());
     expect(screen.getByRole('img', { name: /Camera-derived 2D room map/ })).toBeInTheDocument();
     expect(container.querySelectorAll('.camera-map-polygon')).toHaveLength(4);
-    expect(screen.getByText(/relative geometry · not to scale/)).toBeInTheDocument();
+    expect(container.querySelectorAll('.camera-map-furniture')).toHaveLength(3);
+    expect(container.querySelectorAll('.camera-map-opening')).toHaveLength(2);
+    expect(screen.getByText(/add one measured wall, doorway, or object reference/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /measure map scale/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '3D' })).not.toBeInTheDocument();
+  });
+
+  it('measures a two-point reference and shows the calibrated scale bar', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { container } = render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/dashboard/map']}><App /></MemoryRouter></QueryClientProvider>);
+    const measureButton = await screen.findByRole('button', { name: /measure map scale/i });
+    await waitFor(() => expect(measureButton).toBeEnabled());
+    fireEvent.click(measureButton);
+    const map = container.querySelector('svg.camera-map-svg.is-measuring') as SVGSVGElement;
+    expect(map).toBeInTheDocument();
+    Object.defineProperty(map, 'getBoundingClientRect', { value: () => ({ left: 0, top: 0, width: 100, height: 100 }) });
+    fireEvent.click(map, { clientX: 10, clientY: 20 });
+    fireEvent.click(map, { clientX: 70, clientY: 20 });
+    expect(screen.getByText(/2\/2 selected/)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Reference name'), { target: { value: 'Hallway door' } });
+    fireEvent.change(screen.getByLabelText('Actual length (metres)'), { target: { value: '0.90' } });
+    fireEvent.click(screen.getByRole('button', { name: /save measured scale/i }));
+    await waitFor(() => expect(screen.getByText(/Hallway door:/)).toBeInTheDocument());
+    expect(screen.getByText(/Measured reference · 0.90 m/)).toBeInTheDocument();
+    expect(document.querySelector('.camera-map-scale-bar')).toBeInTheDocument();
   });
 
   it('opens the medication plan form and preserves a recurrence rule', async () => {
@@ -101,19 +124,21 @@ describe('ONE dashboard', () => {
     fireEvent.click(screen.getByRole('button', { name: /pair a camera/i }));
     await waitFor(() => expect(screen.getByRole('dialog', { name: /connect a phone or laptop/i })).toBeInTheDocument());
     expect(screen.getByText('482701')).toBeInTheDocument();
-    expect(screen.getByText(/Keep this screen open/)).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByText('Camera connected')).toBeInTheDocument());
+    expect(screen.getByText(/camera is saved; room mapping can be finished now or later/i)).toBeInTheDocument();
+    expect(screen.getByText(/Expires in 10 minutes/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('Camera connected and saved')).toBeInTheDocument());
   });
 
-  it('saves the connected camera and describes automatic mapping inline', async () => {
+  it('saves the connected camera and describes optional room context inline', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/dashboard']}><App /></MemoryRouter></QueryClientProvider>);
     await waitFor(() => expect(screen.getByRole('button', { name: /pair a camera/i })).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: /pair a camera/i }));
     const saveButton = await screen.findByRole('button', { name: /save camera setup/i });
     fireEvent.click(saveButton);
-    await waitFor(() => expect(screen.getByText('AUTOMATIC 2D MAP')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('ROOM CONTEXT · OPTIONAL')).toBeInTheDocument());
     expect(screen.getByText(/camera-derived geometry is saved/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /open live view & manage camera/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /start calibration/i })).not.toBeInTheDocument();
   });
 
@@ -122,6 +147,33 @@ describe('ONE dashboard', () => {
     render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/dashboard/account']}><App /></MemoryRouter></QueryClientProvider>);
     await waitFor(() => expect(screen.getByText('Keep your access clear.')).toBeInTheDocument());
     expect(screen.getAllByRole('button', { name: /sign out/i }).length).toBeGreaterThanOrEqual(2);
+    fireEvent.click(screen.getByRole('button', { name: /^menu$/i }));
+    await waitFor(() => expect(screen.getByRole('complementary', { name: /one care navigation/i })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /safety & settings/i }));
     expect(screen.getByRole('link', { name: /privacy & consent/i })).toBeInTheDocument();
+  });
+
+  it('keeps sidebar submenus collapsed until their group is opened', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/dashboard/events']}><App /></MemoryRouter></QueryClientProvider>);
+    fireEvent.click(screen.getByRole('button', { name: /^menu$/i }));
+    await waitFor(() => expect(screen.getByRole('complementary', { name: /one care navigation/i })).toBeInTheDocument());
+
+    const careTogether = screen.getByRole('button', { name: /care together/i });
+    const safetySettings = screen.getByRole('button', { name: /safety & settings/i });
+    expect(careTogether).toHaveAttribute('aria-expanded', 'false');
+    expect(safetySettings).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('link', { name: /assistant/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /privacy & consent/i })).not.toBeInTheDocument();
+
+    fireEvent.click(careTogether);
+    expect(careTogether).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('link', { name: /assistant/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /family/i })).toBeInTheDocument();
+
+    fireEvent.click(safetySettings);
+    expect(safetySettings).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('link', { name: /privacy & consent/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /account settings/i })).toBeInTheDocument();
   });
 });

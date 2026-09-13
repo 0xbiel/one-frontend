@@ -1,14 +1,18 @@
 import type {
+  CameraRegistration,
   CameraPose,
   Device,
+  FurnitureGeometry,
   GeometryStatus,
   HomeEvent,
   LastSeenObject,
   MapDimension,
+  MapScale,
   MapSource,
   Point2D,
   PolygonGeometry,
   RoomGeometry,
+  OpeningGeometry,
   Scene,
   Session,
   WallGeometry,
@@ -25,6 +29,7 @@ export const API_BASE = configuredApiBase && configuredApiBase !== '/api/v1'
     : '/api/v1';
 // Live API is the safe default. Demo data must be explicitly enabled.
 export const demoMode = import.meta.env.VITE_DEMO_MODE === 'true';
+let demoMapScale: MapScale | undefined;
 
 interface RequestOptions extends RequestInit { auth?: boolean; }
 type JsonBody<Path extends keyof paths, Method extends keyof paths[Path]> = paths[Path][Method] extends { requestBody?: { content?: { 'application/json'?: infer Body } } } ? Body : never;
@@ -49,8 +54,11 @@ interface SceneResponse {
   dimension?: MapDimension;
   confidence?: number | null;
   metricScaleKnown?: boolean;
+  scale?: unknown;
   walls?: unknown;
   camera?: unknown;
+  cameraRegistration?: unknown;
+  cameraRegistrations?: unknown;
   geometry?: unknown;
   geometryStatus?: GeometryStatus;
   rescanRequired?: boolean;
@@ -65,6 +73,7 @@ export interface MapResponse {
   source?: MapSource;
   dimension?: MapDimension;
   metadata?: Record<string, unknown>;
+  scale?: unknown;
   geometry_status?: GeometryStatus;
   rescan_required?: boolean;
   confidence?: number | null;
@@ -76,6 +85,32 @@ export interface MapResponse {
 }
 export type MapGenerationStatus = 'collecting' | 'processing' | 'ready' | 'needs_rescan' | 'unavailable' | 'failed';
 export interface MapGenerationFrame { frame_base64: string; width: number; height: number; captured_at?: string; }
+export interface CameraLocalizationResponse {
+  id: string;
+  status: 'positioned' | 'needs_rescan';
+  camera_id: string;
+  map_id: string;
+  coordinate_frame: 'roomplan-local';
+  camera_to_world?: number[][] | null;
+  confidence?: number | null;
+  tracking_state: string;
+  source: string;
+  inlier_count: number;
+  match_count: number;
+  reprojection_error_px?: number | null;
+  intrinsics_source: string;
+}
+export interface VisionFrameResponse {
+  data: Array<{
+    label: string;
+    confidence: number;
+    bbox: number[];
+    projection: { world_xyz?: number[] | null; uncertainty_m: number; zone: string; quality: string; room_zone?: { id?: string; label?: string } | null };
+  }>;
+  detector_version: string;
+  observations: Array<{ observation_id: string; event_id: string; object_id: string; zone?: string | null }>;
+  frames_persisted: false;
+}
 export interface StartMapGenerationInput { room_id?: string | null; room_label?: string | null; orientation?: string; resolution_width: number; resolution_height: number; }
 export interface MapGenerationStartResponse { job_id: string; status: MapGenerationStatus; }
 export interface MapGenerationResponse {
@@ -130,6 +165,38 @@ function rawPoint(value: unknown): { x: number; y: number } | null {
   return x === null || y === null ? null : { x, y };
 }
 
+function normalizeMapScale(value: unknown): MapScale | undefined {
+  if (!isRecord(value)) return undefined;
+  const metersPerNormalizedUnit = finiteNumber(value.meters_per_normalized_unit ?? value.metersPerNormalizedUnit);
+  const referenceLengthM = finiteNumber(value.reference_length_m ?? value.referenceLengthM);
+  const referenceLabel = value.reference_label ?? value.referenceLabel;
+  if (metersPerNormalizedUnit === null || metersPerNormalizedUnit <= 0 || referenceLengthM === null || referenceLengthM <= 0 || typeof referenceLabel !== 'string' || !referenceLabel.trim()) return undefined;
+  const rawPoints = isRecord(value.reference_points) ? value.reference_points : isRecord(value.referencePoints) ? value.referencePoints : undefined;
+  const start = rawPoints ? rawPoint(rawPoints.start) : null;
+  const end = rawPoints ? rawPoint(rawPoints.end) : null;
+  return {
+    status: 'measured_reference',
+    method: 'caregiver_reference',
+    metersPerNormalizedUnit,
+    referenceLengthM,
+    referenceLabel: referenceLabel.trim(),
+    ...(start && end ? { referencePoints: { start, end } } : {}),
+    ...(typeof value.measured_at === 'string' ? { measuredAt: value.measured_at } : typeof value.measuredAt === 'string' ? { measuredAt: value.measuredAt } : {}),
+  };
+}
+
+function rawSize(value: unknown): { x: number; y: number } | null {
+  if (Array.isArray(value) && value.length >= 2) {
+    const x = finiteNumber(value[0]);
+    const y = finiteNumber(value[1]);
+    return x === null || y === null ? null : { x, y };
+  }
+  if (!isRecord(value)) return null;
+  const x = finiteNumber(value.x ?? value.width);
+  const y = finiteNumber(value.y ?? value.height);
+  return x === null || y === null ? null : { x, y };
+}
+
 function geometryScale(rawGeometry: RawRecord, point: { x: number; y: number }, resolutionWidth?: number, resolutionHeight?: number): Point2D {
   const coordinateSpace = typeof rawGeometry.coordinate_space === 'string' ? rawGeometry.coordinate_space : '';
   if (coordinateSpace === 'normalized' || (point.x >= 0 && point.x <= 1 && point.y >= 0 && point.y <= 1)) {
@@ -139,6 +206,17 @@ function geometryScale(rawGeometry: RawRecord, point: { x: number; y: number }, 
     return { x: (point.x / resolutionWidth) * 100, y: (point.y / resolutionHeight) * 100 };
   }
   return point;
+}
+
+function geometrySizeScale(rawGeometry: RawRecord, size: { x: number; y: number }, resolutionWidth?: number, resolutionHeight?: number): Point2D {
+  const coordinateSpace = typeof rawGeometry.coordinate_space === 'string' ? rawGeometry.coordinate_space : '';
+  if (coordinateSpace === 'normalized' || (size.x >= 0 && size.x <= 1 && size.y >= 0 && size.y <= 1)) {
+    return { x: size.x * 100, y: size.y * 100 };
+  }
+  if (coordinateSpace === 'image' && resolutionWidth && resolutionHeight) {
+    return { x: (size.x / resolutionWidth) * 100, y: (size.y / resolutionHeight) * 100 };
+  }
+  return size;
 }
 
 function rawPoints(value: unknown, rawGeometry: RawRecord, resolutionWidth?: number, resolutionHeight?: number): Point2D[] {
@@ -232,6 +310,44 @@ export function normalizeGeometry(raw: unknown, resolutionWidth?: number, resolu
       return [{ id: typeof item.id === 'string' ? item.id : `wall-${index + 1}`, points, ...(start ? { start } : {}), ...(end ? { end } : {}), ...(finiteNumber(item.height) === null ? {} : { height: item.height as number }), ...(confidence === null ? {} : { confidence }) }];
     })
     : [];
+  const furniture: FurnitureGeometry[] = Array.isArray(raw.furniture)
+    ? raw.furniture.flatMap((item, index) => {
+      if (!isRecord(item)) return [];
+      const center = rawPoint(item.center ?? item.position);
+      const size = rawSize(item.size ?? item.dimensions);
+      if (!center || !size || size.x <= 0 || size.y <= 0) return [];
+      const confidence = finiteNumber(item.confidence);
+      const rotation = finiteNumber(item.rotation_degrees ?? item.rotationDegrees);
+      return [{
+        id: typeof item.id === 'string' ? item.id : `furniture-${index + 1}`,
+        label: typeof (item.label ?? item.name) === 'string' ? String(item.label ?? item.name) : 'Fixture',
+        center: geometryScale(raw, center, resolutionWidth, resolutionHeight),
+        size: geometrySizeScale(raw, size, resolutionWidth, resolutionHeight),
+        ...(rotation === null ? {} : { rotationDegrees: rotation }),
+        ...(confidence === null ? {} : { confidence }),
+      }];
+    })
+    : [];
+  const openingSource = Array.isArray(raw.openings)
+    ? raw.openings
+    : [
+      ...(Array.isArray(raw.doors) ? raw.doors.map((item) => ({ ...(isRecord(item) ? item : {}), kind: 'door' })) : []),
+      ...(Array.isArray(raw.windows) ? raw.windows.map((item) => ({ ...(isRecord(item) ? item : {}), kind: 'window' })) : []),
+    ];
+  const openings: OpeningGeometry[] = openingSource.flatMap((item, index) => {
+    if (!isRecord(item) || (item.kind !== 'door' && item.kind !== 'window')) return [];
+    const start = rawPoint(item.start);
+    const end = rawPoint(item.end);
+    if (!start || !end) return [];
+    const confidence = finiteNumber(item.confidence);
+    return [{
+      id: typeof item.id === 'string' ? item.id : `opening-${index + 1}`,
+      kind: item.kind,
+      start: geometryScale(raw, start, resolutionWidth, resolutionHeight),
+      end: geometryScale(raw, end, resolutionWidth, resolutionHeight),
+      ...(confidence === null ? {} : { confidence }),
+    }];
+  });
   const surfaces = Array.isArray(raw.surfaces)
     ? raw.surfaces.flatMap((item, index) => {
       if (!isRecord(item)) return [];
@@ -257,8 +373,32 @@ export function normalizeGeometry(raw: unknown, resolutionWidth?: number, resolu
       return [{ id: typeof item.id === 'string' ? item.id : `object-${index + 1}`, label: typeof item.label === 'string' ? item.label : typeof item.name === 'string' ? item.name : undefined, position, dimensions, ...(finiteNumber(item.confidence) === null ? {} : { confidence: item.confidence as number }) }];
     })
     : undefined;
-  if (!polygons.length && !walls.length && !surfaces.length && !mesh && !objects?.length) return undefined;
-  return { coordinateSpace: typeof raw.coordinate_space === 'string' ? raw.coordinate_space : undefined, polygons, walls, ...(surfaces.length ? { surfaces } : {}), ...(mesh ? { mesh } : {}), ...(objects?.length ? { objects } : {}) };
+  const roomZoneSource = raw.room_zones ?? raw.roomZones;
+  const roomZones = Array.isArray(roomZoneSource)
+    ? roomZoneSource.flatMap((item, index) => {
+      if (!isRecord(item) || !Array.isArray(item.polygon)) return [];
+      const polygon = item.polygon.flatMap((point) => {
+        if (!isRecord(point)) return [];
+        const x = finiteNumber(point.x);
+        const z = finiteNumber(point.z);
+        return x === null || z === null ? [] : [{ x, z }];
+      });
+      const floorY = finiteNumber(item.floor_y ?? item.floorY);
+      if (polygon.length < 3 || floorY === null) return [];
+      const confidence = finiteNumber(item.confidence);
+      const story = finiteNumber(item.story);
+      return [{
+        id: typeof item.id === 'string' ? item.id : `room-zone-${index + 1}`,
+        label: typeof item.label === 'string' ? item.label : `Room ${index + 1}`,
+        polygon,
+        floorY,
+        ...(story === null ? {} : { story }),
+        ...(confidence === null ? {} : { confidence }),
+      }];
+    })
+    : [];
+  if (!polygons.length && !walls.length && !surfaces.length && !mesh && !objects?.length && !furniture.length && !openings.length && !roomZones.length) return undefined;
+  return { coordinateSpace: typeof raw.coordinate_space === 'string' ? raw.coordinate_space : undefined, polygons, walls, ...(surfaces.length ? { surfaces } : {}), ...(mesh ? { mesh } : {}), ...(objects?.length ? { objects } : {}), ...(furniture.length ? { furniture } : {}), ...(openings.length ? { openings } : {}), ...(roomZones.length ? { roomZones } : {}) };
 }
 
 function inferSource(source: MapSource | undefined, coordinateFrame?: string | null): MapSource {
@@ -285,6 +425,30 @@ function normalizeCameraPose(value: unknown): CameraPose | undefined {
   };
 }
 
+function normalizeCameraRegistration(value: unknown): CameraRegistration | undefined {
+  if (!isRecord(value) || !['positioned', 'needs_rescan', 'unavailable'].includes(String(value.status))) return undefined;
+  const rawMatrix = value.cameraToWorld ?? value.camera_to_world;
+  const cameraToWorld = Array.isArray(rawMatrix)
+    && rawMatrix.length === 4
+    && rawMatrix.every((row) => Array.isArray(row) && row.length === 4 && row.every((component) => finiteNumber(component) !== null))
+    ? rawMatrix as number[][]
+    : undefined;
+  return {
+    status: value.status as CameraRegistration['status'],
+    cameraId: typeof (value.cameraId ?? value.camera_id) === 'string' ? String(value.cameraId ?? value.camera_id) : null,
+    cameraName: typeof (value.cameraName ?? value.camera_name) === 'string' ? String(value.cameraName ?? value.camera_name) : null,
+    roomId: typeof (value.roomId ?? value.room_id) === 'string' ? String(value.roomId ?? value.room_id) : null,
+    mapId: typeof (value.mapId ?? value.map_id) === 'string' ? String(value.mapId ?? value.map_id) : null,
+    coordinateFrame: typeof (value.coordinateFrame ?? value.coordinate_frame) === 'string' ? String(value.coordinateFrame ?? value.coordinate_frame) : 'roomplan-local',
+    cameraToWorld: cameraToWorld ?? null,
+    confidence: finiteNumber(value.confidence),
+    trackingState: typeof (value.trackingState ?? value.tracking_state) === 'string' ? String(value.trackingState ?? value.tracking_state) : null,
+    source: typeof value.source === 'string' ? value.source : 'visual-roomplan-registration',
+    ...(isRecord(value.intrinsics) ? { intrinsics: value.intrinsics } : {}),
+    ...(isRecord(value.metrics) ? { metrics: value.metrics } : {}),
+  };
+}
+
 function zonesFromGeometry(geometry: RoomGeometry | undefined): Zone[] {
   return geometry?.polygons.flatMap((polygon) => {
     const bounds = boundsForPoints(polygon.points);
@@ -304,6 +468,14 @@ function sceneFromResponse(result: SceneResponse, geometryRaw?: unknown, resolut
   const geometry = normalizeGeometry(geometryRaw ?? result.geometry, resolutionWidth, resolutionHeight);
   const geometryZones = zonesFromGeometry(geometry);
   const zones = normalizeZones(result.zones ?? []).length ? normalizeZones(result.zones ?? []) : geometryZones;
+  const scale = normalizeMapScale(result.scale);
+  const cameraRegistration = normalizeCameraRegistration(result.cameraRegistration);
+  const cameraRegistrations = Array.isArray(result.cameraRegistrations)
+    ? result.cameraRegistrations.flatMap((item) => {
+      const registration = normalizeCameraRegistration(item);
+      return registration ? [registration] : [];
+    })
+    : [];
   return {
     sceneId: result.sceneId ?? 'scene-empty',
     version: result.version,
@@ -314,8 +486,11 @@ function sceneFromResponse(result: SceneResponse, geometryRaw?: unknown, resolut
     source,
     confidence: result.confidence,
     metricScaleKnown: result.metricScaleKnown ?? source === 'roomplan-lidar-3d',
+    ...(scale ? { scale } : {}),
     ...(geometry ? { geometry, walls: geometry.walls } : {}),
     ...(normalizeCameraPose(result.camera) ? { camera: normalizeCameraPose(result.camera) } : {}),
+    ...(cameraRegistration ? { cameraRegistration } : {}),
+    ...(cameraRegistrations.length ? { cameraRegistrations } : {}),
     ...(result.geometryStatus ? { geometryStatus: result.geometryStatus } : {}),
     ...(result.modelVersion ? { modelVersion: result.modelVersion } : {}),
   };
@@ -326,6 +501,7 @@ export function sceneFromMapResponse(map: MapResponse, baseScene?: Scene): Scene
   const geometry = normalizeGeometry(map.map_data?.geometry ?? map.map_data);
   const geometryStatus = map.geometry_status ?? baseScene?.geometryStatus;
   const modelVersion = map.model_version ?? baseScene?.modelVersion;
+  const scale = normalizeMapScale(map.scale ?? map.metadata?.scale ?? (isRecord(map.map_data) ? map.map_data.scale : undefined));
   const geometryZones = zonesFromGeometry(geometry);
   return {
     ...(baseScene ?? { sceneId: map.id, zones: [], version: map.revision }),
@@ -337,6 +513,7 @@ export function sceneFromMapResponse(map: MapResponse, baseScene?: Scene): Scene
     source,
     confidence: baseScene?.confidence ?? map.confidence ?? null,
     metricScaleKnown: map.dimension === '3d' && source === 'roomplan-lidar-3d' ? true : baseScene?.metricScaleKnown ?? false,
+    ...(scale ? { scale } : {}),
     ...(geometry ? { geometry, walls: geometry.walls } : {}),
     zones: geometryZones.length ? geometryZones : baseScene?.zones ?? [],
     ...(geometryStatus ? { geometryStatus } : {}),
@@ -392,20 +569,44 @@ export const api = {
       source: 'camera-cv-2d',
       dimension: '2d',
       metadata: { demo: true },
+      scale: demoMapScale,
       map_data: { geometry: demoScene.geometry },
     };
     try { return await request<MapResponse>(`/homes/${homeId()}/maps/current`); } catch (error) { if (error instanceof Error && error.message === 'API_404') return null; throw error; }
   },
   getObjects: async (): Promise<LastSeenObject[]> => demoMode ? demoObjects : (await request<ObjectResponse>(`/homes/${homeId()}/objects/last-seen`)).data,
   getEvents: async (): Promise<HomeEvent[]> => demoMode ? demoEvents : request<{ data: BackendEvent[] }>(`/homes/${homeId()}/events?limit=50`).then((r) => r.data.map(mapBackendEvent)),
-  getDevice: async (): Promise<Device | null> => {
-    if (demoMode) return demoDevice;
-    const result = await request<CameraResponse>(`/homes/${homeId()}/cameras`);
-    return result.data[0] ?? null;
+  getCameras: async (): Promise<Device[]> => {
+    if (demoMode) return [demoDevice];
+    return (await request<CameraResponse>(`/homes/${homeId()}/cameras`)).data;
   },
+  getDevice: async (): Promise<Device | null> => (await api.getCameras())[0] ?? null,
   updateCamera: async (cameraId: string, input: { name?: string; room_id?: string | null; metadata?: Record<string, unknown> }) => {
     if (demoMode) return { status: 'saved' };
     return request(`/homes/${homeId()}/cameras/${encodeURIComponent(cameraId)}`, { method: 'PATCH', body: JSON.stringify(input) });
+  },
+  deleteCamera: async (cameraId: string): Promise<{ id: string; status: string; revoked_sessions?: number }> => {
+    if (demoMode) return { id: cameraId, status: 'deleted', revoked_sessions: 0 };
+    return request(`/homes/${homeId()}/cameras/${encodeURIComponent(cameraId)}`, { method: 'DELETE' });
+  },
+  measureMapScale: async (mapId: string, input: { start: Point2D; end: Point2D; length_m: number; label: string }): Promise<MapResponse> => {
+    if (demoMode) {
+      const distance = Math.hypot(input.end.x - input.start.x, input.end.y - input.start.y);
+      demoMapScale = {
+        status: 'measured_reference',
+        method: 'caregiver_reference',
+        metersPerNormalizedUnit: input.length_m / distance,
+        referenceLengthM: input.length_m,
+        referenceLabel: input.label,
+        referencePoints: { start: input.start, end: input.end },
+        measuredAt: new Date().toISOString(),
+      };
+      return { ...(await api.getCurrentMap())!, scale: demoMapScale };
+    }
+    return request<MapResponse>(`/homes/${homeId()}/maps/${encodeURIComponent(mapId)}/scale`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
   },
   startMapGeneration: async (cameraId: string, input: StartMapGenerationInput): Promise<MapGenerationStartResponse> => {
     if (demoMode) return { job_id: `job-${cameraId}`, status: 'collecting' };
@@ -421,6 +622,20 @@ export const api = {
       body: JSON.stringify({ frames }),
     });
   },
+  localizeRoomPlanCamera: async (cameraId: string, frames: MapGenerationFrame[], fovDegrees = 60): Promise<CameraLocalizationResponse> => {
+    if (demoMode) return { id: `registration-${cameraId}`, status: 'positioned', camera_id: cameraId, map_id: demoScene.sceneId, coordinate_frame: 'roomplan-local', camera_to_world: [[1, 0, 0, 0], [0, 1, 0, 1.5], [0, 0, 1, 0], [0, 0, 0, 1]], confidence: 0.95, tracking_state: 'visual-pnp', source: 'visual-roomplan-registration', inlier_count: 32, match_count: 40, reprojection_error_px: 1.2, intrinsics_source: 'estimated-fov' };
+    return request<CameraLocalizationResponse>(`/homes/${homeId()}/cameras/${encodeURIComponent(cameraId)}/localize-roomplan`, {
+      method: 'POST',
+      body: JSON.stringify({ frames, fov_degrees: fovDegrees }),
+    });
+  },
+  submitVisionFrame: async (cameraId: string, frame: MapGenerationFrame): Promise<VisionFrameResponse> => {
+    if (demoMode) return { data: [], detector_version: 'demo', observations: [], frames_persisted: false };
+    return request<VisionFrameResponse>(`/homes/${homeId()}/vision/frames`, {
+      method: 'POST',
+      body: JSON.stringify({ camera_id: cameraId, ...frame, candidate_labels: [] }),
+    });
+  },
   getMapGeneration: async (cameraId: string, jobId: string): Promise<MapGenerationResponse> => {
     if (demoMode) return { job_id: jobId, status: 'ready', progress: 100, map_id: demoScene.sceneId, geometry_status: 'ready', model_version: 'demo-camera-room-layout' };
     return request<MapGenerationResponse>(`/homes/${homeId()}/cameras/${encodeURIComponent(cameraId)}/map-generation/${encodeURIComponent(jobId)}`);
@@ -434,12 +649,12 @@ export const api = {
       throw error;
     }
   },
-  startPairing: async (displayName: string, homeName = 'ONE Home', role: 'resident' | 'caregiver' = 'resident'): Promise<PairStartResponse> => demoMode ? { pairing_code: '482701', expires_in_seconds: 600, home_id: 'home-demo', user_id: 'user-demo', role } : request('/pairing/start', { method: 'POST', auth: false, body: JSON.stringify({ display_name: displayName, home_name: homeName, role } satisfies PairStartInput) }),
+  startPairing: async (displayName: string, homeName = 'ONE Home', role: 'resident' | 'caregiver' = 'resident'): Promise<PairStartResponse> => demoMode ? { pairing_code: '482701', expires_in_seconds: 600, home_id: 'home-demo', user_id: 'user-demo', role } : request('/pairing/start', { method: 'POST', auth: false, body: JSON.stringify({ display_name: displayName, home_name: homeName, care_setting: 'home', support_focus: 'general', role } satisfies PairStartInput) }),
   createAccount: async (displayName: string, email: string, homeName: string): Promise<PairStartResponse> => {
     if (demoMode) return api.startPairing(displayName, homeName, 'caregiver');
-    return request('/pairing/start', { method: 'POST', auth: false, body: JSON.stringify({ display_name: displayName, email: email || null, home_name: homeName || 'ONE Home', role: 'admin' } satisfies PairStartInput) });
+    return request('/pairing/start', { method: 'POST', auth: false, body: JSON.stringify({ display_name: displayName, email: email || null, home_name: homeName || 'ONE Home', care_setting: 'home', support_focus: 'general', role: 'admin' } satisfies PairStartInput) });
   },
-  requestEmailCode: async (purpose: 'create' | 'login', email: string, displayName?: string, homeName?: string): Promise<EmailChallenge> => demoMode ? { verification_id: 'email-demo', expires_in_seconds: 600, delivery: 'development_outbox', dev_code: '482701', email: email.trim().toLowerCase(), purpose, home_id: 'home-demo', user_id: 'user-demo', role: 'admin' } : request<EmailChallenge>('/auth/email/request', { method: 'POST', auth: false, body: JSON.stringify({ purpose, email, display_name: displayName || null, home_name: homeName || 'ONE Home', role: 'admin' }) }),
+  requestEmailCode: async (purpose: 'create' | 'login', email: string, displayName?: string, homeName?: string, careSetting: 'home' | 'residence' = 'home', supportFocus: 'general' | 'mci' = 'general'): Promise<EmailChallenge> => demoMode ? { verification_id: 'email-demo', expires_in_seconds: 600, delivery: 'development_outbox', dev_code: '482701', email: email.trim().toLowerCase(), purpose, home_id: 'home-demo', user_id: 'user-demo', role: 'admin' } : request<EmailChallenge>('/auth/email/request', { method: 'POST', auth: false, body: JSON.stringify({ purpose, email, display_name: displayName || null, home_name: homeName || 'ONE Home', care_setting: careSetting, support_focus: supportFocus, role: 'admin' }) }),
   verifyEmailCode: async (email: string, code: string): Promise<EmailSession> => {
     const result = demoMode ? { access_token: 'demo', token_type: 'bearer', expires_in: 3600, home_id: 'home-demo', user_id: 'user-demo', role: 'admin', email } : await request<EmailSession>('/auth/email/verify', { method: 'POST', auth: false, body: JSON.stringify({ email, code }) });
     sessionStorage.setItem('one_access_token', result.access_token); sessionStorage.setItem('one_home_id', result.home_id); sessionStorage.setItem('one_user_id', result.user_id); return result;

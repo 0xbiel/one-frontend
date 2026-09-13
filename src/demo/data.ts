@@ -31,6 +31,15 @@ export const demoScene: Scene = {
       { id: 'wall-south', points: [{ x: 5, y: 74 }, { x: 91, y: 74 }] },
       { id: 'wall-east', points: [{ x: 91, y: 18 }, { x: 91, y: 74 }] },
     ],
+    furniture: [
+      { id: 'demo-bed', label: 'Bed', center: { x: 83.5, y: 30 }, size: { x: 10, y: 9 }, confidence: 0.86 },
+      { id: 'demo-table', label: 'Table', center: { x: 35, y: 47 }, size: { x: 9, y: 8 }, confidence: 0.8 },
+      { id: 'demo-sofa', label: 'Sofa', center: { x: 28, y: 67 }, size: { x: 19, y: 5 }, confidence: 0.78 },
+    ],
+    openings: [
+      { id: 'demo-door', kind: 'door', start: { x: 58, y: 74 }, end: { x: 66, y: 74 }, confidence: 0.84 },
+      { id: 'demo-window', kind: 'window', start: { x: 16, y: 18 }, end: { x: 30, y: 18 }, confidence: 0.89 },
+    ],
   },
 };
 export const demoObjects: LastSeenObject[] = [

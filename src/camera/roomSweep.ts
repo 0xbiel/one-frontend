@@ -1,5 +1,9 @@
-export const ROOM_SWEEP_FRAME_COUNT = 16;
-export const ROOM_SWEEP_DURATION_MS = 10_000;
+// Treat the browser capture as a short room walkthrough rather than a
+// calibration pose.  Twenty spaced keyframes is still inside the backend's
+// bounded request contract, but gives moving phones more visual coverage than
+// the old "hold steady and pan" flow.
+export const ROOM_SWEEP_FRAME_COUNT = 20;
+export const ROOM_SWEEP_DURATION_MS = 14_000;
 export const ROOM_SWEEP_MAX_DIMENSION = 640;
 export const ROOM_SWEEP_JPEG_QUALITY = 0.58;
 
@@ -136,6 +140,37 @@ function captureFrame(
     width: canvas.width,
     height: canvas.height,
   };
+}
+
+export function captureCurrentCameraFrame(
+  video: HTMLVideoElement,
+  maxDimension = ROOM_SWEEP_MAX_DIMENSION,
+  jpegQuality = ROOM_SWEEP_JPEG_QUALITY,
+): RoomSweepFrame {
+  return captureFrame(video, 0, new Date().toISOString(), maxDimension, jpegQuality);
+}
+
+export async function captureFixedCameraFrames(
+  video: HTMLVideoElement,
+  stream: MediaStream,
+  options: Pick<RoomSweepOptions, 'signal' | 'onProgress' | 'maxDimension' | 'jpegQuality'> & { frameCount?: number; durationMs?: number } = {},
+): Promise<RoomSweepFrame[]> {
+  const frameCount = Math.min(8, Math.max(3, options.frameCount ?? 6));
+  const durationMs = Math.max(0, options.durationMs ?? 1_600);
+  await waitForVideo(video, options.signal);
+  videoDimensions(video, stream);
+  const interval = frameCount > 1 ? durationMs / (frameCount - 1) : 0;
+  const startedAt = performance.now();
+  const frames: RoomSweepFrame[] = [];
+  for (let index = 0; index < frameCount; index += 1) {
+    const targetTime = index * interval;
+    const elapsed = performance.now() - startedAt;
+    if (targetTime > elapsed) await wait(targetTime - elapsed, options.signal);
+    throwIfAborted(options.signal);
+    frames.push(captureFrame(video, index, new Date().toISOString(), options.maxDimension ?? 640, options.jpegQuality ?? 0.68));
+    options.onProgress?.(frames.length, frameCount);
+  }
+  return frames;
 }
 
 export async function captureRoomSweep(

@@ -52,6 +52,58 @@ function addRoomPlanGeometry(group: THREE.Group, geometry: RoomGeometry): void {
     const wallGeometry = new THREE.BufferGeometry().setFromPoints(points);
     group.add(new THREE.Line(wallGeometry, new THREE.LineBasicMaterial({ color: 0xbed2e2 })));
   });
+
+  geometry.roomZones?.forEach((zone, index) => {
+    if (zone.polygon.length < 3) return;
+    const vertices = zone.polygon.flatMap((point) => [point.x, zone.floorY + 0.012, point.z]);
+    const indices: number[] = [];
+    for (let vertex = 1; vertex < zone.polygon.length - 1; vertex += 1) indices.push(0, vertex, vertex + 1);
+    const zoneGeometry = new THREE.BufferGeometry();
+    zoneGeometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
+    zoneGeometry.setIndex(indices);
+    zoneGeometry.computeVertexNormals();
+    group.add(new THREE.Mesh(zoneGeometry, new THREE.MeshStandardMaterial({ color: index % 2 ? 0x285f78 : 0x254d72, transparent: true, opacity: 0.26, side: THREE.DoubleSide, roughness: 1 })));
+    const boundary = [...zone.polygon, zone.polygon[0]].map((point) => new THREE.Vector3(point.x, zone.floorY + 0.025, point.z));
+    group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(boundary), new THREE.LineBasicMaterial({ color: 0x6fe0de, transparent: true, opacity: 0.75 })));
+  });
+}
+
+function addRegisteredCameras(group: THREE.Group, scene: Scene): void {
+  const registrations = scene.cameraRegistrations?.length
+    ? scene.cameraRegistrations
+    : scene.cameraRegistration ? [scene.cameraRegistration] : [];
+  registrations.forEach((registration) => {
+    const matrix = registration.cameraToWorld;
+    if (registration.status !== "positioned" || !matrix || matrix.length !== 4 || matrix.some((row) => row.length !== 4)) return;
+    const transform = new THREE.Matrix4().set(
+      matrix[0][0], matrix[0][1], matrix[0][2], matrix[0][3],
+      matrix[1][0], matrix[1][1], matrix[1][2], matrix[1][3],
+      matrix[2][0], matrix[2][1], matrix[2][2], matrix[2][3],
+      matrix[3][0], matrix[3][1], matrix[3][2], matrix[3][3],
+    );
+    const cameraGroup = new THREE.Group();
+    cameraGroup.applyMatrix4(transform);
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.12, 0.08), new THREE.MeshStandardMaterial({ color: 0x6fe0de, roughness: 0.4, metalness: 0.08 }));
+    body.position.z = -0.02;
+    cameraGroup.add(body);
+
+    const distance = 1.35;
+    const halfWidth = Math.tan(THREE.MathUtils.degToRad(30)) * distance;
+    const halfHeight = halfWidth * 0.65;
+    const origin = new THREE.Vector3(0, 0, 0);
+    const corners = [
+      new THREE.Vector3(-halfWidth, halfHeight, -distance),
+      new THREE.Vector3(halfWidth, halfHeight, -distance),
+      new THREE.Vector3(halfWidth, -halfHeight, -distance),
+      new THREE.Vector3(-halfWidth, -halfHeight, -distance),
+    ];
+    const frustumPoints = [
+      origin, corners[0], origin, corners[1], origin, corners[2], origin, corners[3],
+      corners[0], corners[1], corners[1], corners[2], corners[2], corners[3], corners[3], corners[0],
+    ];
+    cameraGroup.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(frustumPoints), new THREE.LineBasicMaterial({ color: 0x6fe0de, transparent: true, opacity: 0.72 })));
+    group.add(cameraGroup);
+  });
 }
 
 export function LiDARRoomScene3D({ scene }: { scene: Scene }) {
@@ -76,6 +128,7 @@ export function LiDARRoomScene3D({ scene }: { scene: Scene }) {
     world.add(keyLight);
     const model = new THREE.Group();
     addRoomPlanGeometry(model, scene.geometry!);
+    addRegisteredCameras(model, scene);
     world.add(model);
 
     const bounds = new THREE.Box3().setFromObject(model);

@@ -6,11 +6,12 @@ import {
   ChevronRight,
   Copy,
   Map,
+  Video,
   X,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { api } from "../api/client";
-import type { HomeEvent, LastSeenObject } from "../models/domain";
+import { api, demoMode } from "../api/client";
+import type { HomeEvent, LastSeenObject, Session } from "../models/domain";
 import { EventRow, ObjectCard } from "./shared";
 
 type Pairing = { pairing_id: string; code: string; expires_at: string };
@@ -19,10 +20,12 @@ export function OverviewPage({
   events,
   objects,
   onEvent,
+  session,
 }: {
   events: HomeEvent[];
   objects: LastSeenObject[];
   onEvent: (event: HomeEvent) => void;
+  session?: Session;
 }) {
   const navigate = useNavigate();
   const query = useQueryClient();
@@ -35,6 +38,13 @@ export function OverviewPage({
   const [cameraRoom, setCameraRoom] = useState("Hallway");
   const [cameraSetupBusy, setCameraSetupBusy] = useState(false);
   const [cameraSetupSaved, setCameraSetupSaved] = useState(false);
+  const [resumeCameraId, setResumeCameraId] = useState<string | null>(null);
+  const camerasQuery = useQuery({
+    queryKey: ["cameras"],
+    queryFn: api.getCameras,
+    retry: false,
+  });
+  const savedCamera = camerasQuery.data?.[0] ?? null;
   const pairingStatusQuery = useQuery({
     queryKey: ["pairing-status", pairing?.pairing_id],
     queryFn: () => api.getPairingStatus(pairing!.pairing_id),
@@ -42,7 +52,14 @@ export function OverviewPage({
     refetchInterval: pairingOpen && pairing ? 3000 : false,
     retry: false,
   });
-  const cameraConnected = pairingStatusQuery.data?.status === "connected";
+  const resumedCamera = camerasQuery.data?.find((camera) => camera.id === resumeCameraId) ?? null;
+  const pairedCamera = pairingStatusQuery.data?.status === "connected" ? pairingStatusQuery.data.device : null;
+  const activeCamera = pairedCamera
+    ? { id: pairedCamera.id, label: pairedCamera.label, metadata: {} as Record<string, unknown> }
+    : resumedCamera
+      ? { id: resumedCamera.id, label: resumedCamera.label, metadata: resumedCamera.metadata ?? {} }
+      : null;
+  const cameraConnected = Boolean(activeCamera);
   const pairingExpired = pairingStatusQuery.data?.status === "expired";
   const currentMapQuery = useQuery({
     queryKey: ["current-map", "pairing"],
@@ -52,9 +69,9 @@ export function OverviewPage({
     retry: false,
   });
   const mapGenerationQuery = useQuery({
-    queryKey: ["map-generation", "pairing", pairingStatusQuery.data?.device.id],
-    queryFn: () => api.getLatestMapGeneration(pairingStatusQuery.data!.device.id),
-    enabled: pairingOpen && cameraConnected && Boolean(pairingStatusQuery.data?.device.id),
+    queryKey: ["map-generation", "pairing", activeCamera?.id],
+    queryFn: () => api.getLatestMapGeneration(activeCamera!.id),
+    enabled: pairingOpen && Boolean(activeCamera?.id),
     refetchInterval: (query) => {
       const status = query.state.data?.status;
       return status && ["ready", "needs_rescan", "unavailable", "failed"].includes(status) ? false : 1500;
@@ -78,12 +95,18 @@ export function OverviewPage({
   const cameraMapDescription = cameraMapReady
     ? "The camera-derived geometry is saved and available in Home map."
     : mapGenerationStatus === "needs_rescan"
-      ? "The sweep was not confident enough. Retry the guided sweep on the camera device."
+      ? "The last walkthrough did not make a confident map. The camera itself is still saved and usable; retry only when you want better room context."
       : mapGenerationStatus === "unavailable"
-        ? "The local GPU room-layout service is unavailable. No replacement map was saved."
+        ? "Room mapping is temporarily unavailable. The paired camera remains saved and can still be used."
         : mapGenerationStatus === "failed"
-          ? "The room-layout request failed. Retry the guided sweep on the camera device."
-          : "After consent, the camera device takes a short guided sweep. No anchor taps are needed.";
+          ? "The room draft could not be built. You can retry the walkthrough later without pairing the camera again."
+          : "On the camera device, preview first and record a short room walkthrough when convenient. Mapping is optional for basic live and object vision.";
+  const homeName = session?.home.name ?? "The García home";
+  const residentName = session?.home.residentName ?? "María";
+  const careSetting = session?.home.careSetting === "residence" ? "residential care setting" : "home";
+  const supportCopy = session?.home.supportFocus === "mci"
+    ? "MCI support stays grounded in the person’s own baseline and human follow-up."
+    : "Support stays grounded in the person’s own baseline and human follow-up.";
 
   useEffect(() => {
     if (!pairingOpen) return;
@@ -98,6 +121,16 @@ export function OverviewPage({
     setPairingOpen(true);
     setPairingError("");
     if (!forceNew && pairing) return;
+    if (!forceNew && savedCamera && !demoMode) {
+      setPairing(null);
+      setResumeCameraId(savedCamera.id);
+      setCameraSetupSaved(true);
+      setCameraLabel(savedCamera.label);
+      const room = savedCamera.metadata?.room;
+      setCameraRoom(typeof room === "string" && room ? room : "Hallway");
+      return;
+    }
+    setResumeCameraId(null);
     setPairing(null);
     setPairingCopied(false);
     setCameraSetupSaved(false);
@@ -127,17 +160,18 @@ export function OverviewPage({
   };
 
   const saveCameraSetup = async () => {
-    const cameraId = pairingStatusQuery.data?.device.id;
+    const cameraId = activeCamera?.id;
     if (cameraSetupBusy || !cameraId || !cameraLabel.trim()) return;
     setCameraSetupBusy(true);
     setPairingError("");
     try {
       await api.updateCamera(cameraId, {
         name: cameraLabel.trim(),
-        metadata: { room: cameraRoom },
+        metadata: { ...(activeCamera?.metadata ?? {}), room: cameraRoom, setup_state: "configured" },
       });
       setCameraSetupSaved(true);
       void query.invalidateQueries({ queryKey: ["camera"] });
+      void query.invalidateQueries({ queryKey: ["cameras"] });
     } catch {
       setPairingError(
         "We could not save this camera setup. Check the local connection and try again.",
@@ -150,28 +184,28 @@ export function OverviewPage({
   return (
     <div className="home-page">
       <section className="home-intro">
-        <span className="eyebrow">ONE · THE GARCÍA HOME</span>
+        <span className="eyebrow">ONE · {homeName.toUpperCase()}</span>
         <h2>
           A little support.
           <br />A more independent day.
         </h2>
         <p>
-          Stay close to what matters with gentle, explainable observations from
-          home.
+          Stay close to what matters with gentle, explainable observations in this {careSetting}. {supportCopy}
         </p>
       </section>
 
       <section className="pairing-card">
         <div>
           <span className="eyebrow">CAMERA CONNECTION</span>
-          <h3>Bring one more set of eyes into the room.</h3>
+          <h3>{savedCamera ? `${savedCamera.label} is saved to this home.` : "Bring one more set of eyes into the room."}</h3>
           <p>
-            Pair a phone or laptop camera in under a minute. Consent comes
-            before anything is shared.
+            {savedCamera
+              ? "Continue naming, placement, or room mapping at any time. Reloading does not remove the paired camera."
+              : "Pair a phone or laptop camera in under a minute. Consent comes before anything is shared."}
           </p>
         </div>
         <button className="primary-button" onClick={() => void openPairing()}>
-          <Camera size={17} /> Pair a camera <ChevronRight size={16} />
+          <Camera size={17} /> {savedCamera ? "Continue camera setup" : "Pair a camera"} <ChevronRight size={16} />
         </button>
       </section>
 
@@ -204,11 +238,11 @@ export function OverviewPage({
                 <span className="pairing-modal-device">Caregiver setup</span>
               </div>
             </div>
-            <h2 id="camera-pairing-title">Connect a phone or laptop</h2>
+            <h2 id="camera-pairing-title">{resumedCamera ? "Continue saved camera" : "Connect a phone or laptop"}</h2>
             <p className="muted">
-              Share this one-time code with the camera device. Keep this screen
-              open while it connects; once it is accepted, its name and placement
-              can be finished right here.
+              {resumedCamera
+                ? "This camera is already paired to the household. You can finish its name, placement, or room context without creating a new code."
+                : "Share this one-time code with the camera device. As soon as it is accepted, the camera is saved; room mapping can be finished now or later."}
             </p>
             <div className="pairing-progress" aria-label="Camera pairing progress">
               <span className={cameraConnected ? "complete" : "current"}>
@@ -220,7 +254,7 @@ export function OverviewPage({
               </span>
               <i />
               <span className={cameraMapReady ? "complete" : cameraSetupSaved ? "current" : ""}>
-                3 <b>Map</b>
+                3 <b>Room context</b>
               </span>
             </div>
             {pairingBusy && (
@@ -265,7 +299,7 @@ export function OverviewPage({
               <span>
                 <strong>
                   {cameraConnected
-                    ? "Camera connected"
+                    ? resumedCamera ? "Camera already saved" : "Camera connected and saved"
                     : pairingExpired
                       ? "Code expired"
                       : pairingStatusQuery.isError
@@ -276,7 +310,7 @@ export function OverviewPage({
                 </strong>
                 <small>
                   {cameraConnected
-                    ? `${pairingStatusQuery.data?.device.label ?? "The device"} is linked. Finish its setup below.`
+                    ? `${activeCamera?.label ?? "The device"} is linked to this household. Mapping is optional and can be resumed later.`
                     : pairingExpired
                       ? "Create a new code to start another device setup."
                       : pairingStatusQuery.isError
@@ -288,13 +322,13 @@ export function OverviewPage({
             {cameraConnected ? (
               <div className="pairing-setup-panel">
                 <div className="pairing-setup-intro">
-                  <span className="pairing-setup-icon" aria-hidden="true"><Camera size={17} /></span>
+                    <span className="pairing-setup-icon" aria-hidden="true"><Camera size={17} /></span>
                   <div>
-                    <span className="eyebrow">FINISH SETUP HERE</span>
+                    <span className="eyebrow">SAVED CAMERA</span>
                     <h3>Make this camera easy to recognize.</h3>
                     <p>
-                      Give it a clear name and familiar placement for the
-                      household map.
+                      Name and placement are independent from room mapping, so
+                      this camera stays on the account even if mapping is unfinished.
                     </p>
                   </div>
                 </div>
@@ -345,15 +379,18 @@ export function OverviewPage({
                     <div className="pairing-setup-intro">
                       <span className="pairing-setup-icon" aria-hidden="true"><Map size={17} /></span>
                       <div>
-                        <span className="eyebrow">AUTOMATIC 2D MAP</span>
+                        <span className="eyebrow">ROOM CONTEXT · OPTIONAL</span>
                         <h3>{cameraMapTitle}</h3>
                         <p>{cameraMapDescription}</p>
                       </div>
                     </div>
                     <div className={`room-sweep-status ${cameraMapReady ? "ready" : ["needs_rescan", "unavailable", "failed"].includes(mapGenerationStatus ?? "") ? "failed" : "processing"}`} role="status">
                       <span className="status-dot" />
-                      <span><strong>{cameraMapReady ? "Map data is ready" : mapGenerationStatus === "collecting" ? "The camera is sweeping" : mapGenerationStatus === "processing" ? "The camera is processing" : mapGenerationStatus ? mapGenerationStatus.replace("_", " ") : "Waiting for the camera sweep"}</strong><small>{cameraMapReady ? "Relative camera geometry · no measured scale" : mapGenerationQuery.data?.error ?? "Keep the camera page open until processing finishes."}</small></span>
+                      <span><strong>{cameraMapReady ? "Room context is ready" : mapGenerationStatus === "collecting" ? "Walkthrough is ready to record" : mapGenerationStatus === "processing" ? "Building the room draft" : mapGenerationStatus ? mapGenerationStatus.replace("_", " ") : "No room walkthrough yet"}</strong><small>{cameraMapReady ? "Relative visual geometry · no measured scale" : mapGenerationQuery.data?.error ?? "The camera remains saved whether or not you create a map."}</small></span>
                     </div>
+                    <button className="secondary-button full-width" onClick={() => { setPairingOpen(false); navigate("/dashboard/live"); }}>
+                      <Video size={16} /> Open live view & manage camera <ChevronRight size={16} />
+                    </button>
                   </div>
                 )}
               </div>
@@ -387,9 +424,9 @@ export function OverviewPage({
                 type="button"
                 className="secondary-button"
                 onClick={() => void openPairing(true)}
-                disabled={pairingBusy || cameraConnected}
+                disabled={pairingBusy || Boolean(pairedCamera)}
               >
-                New code
+                {resumedCamera ? "Pair another camera" : "New code"}
               </button>
               <button
                 type="button"
@@ -434,7 +471,7 @@ export function OverviewPage({
           <span className="eyebrow">HOUSEHOLD PLAN · TODAY</span>
           <h3>Morning check-in is complete.</h3>
           <p>
-            María answered 4 of 4 prompts at 08:42. Her signal is within her
+            {residentName} completed 4 of 4 prompts at 08:42. The signal is within the
             personal baseline.
           </p>
         </div>
