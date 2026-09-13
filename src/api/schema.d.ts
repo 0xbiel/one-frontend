@@ -354,6 +354,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/homes/{home_id}/family/members/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Family Member Remove
+         * @description Revoke a person's membership and all sessions for this household.
+         */
+        delete: operations["family_member_remove_api_v1_homes__home_id__family_members__user_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Family Member Update
+         * @description Change a person's household role without ever granting admin access.
+         */
+        patch: operations["family_member_update_api_v1_homes__home_id__family_members__user_id__patch"];
+        trace?: never;
+    };
     "/api/v1/homes/{home_id}/livekit/token": {
         parameters: {
             query?: never;
@@ -1038,6 +1062,26 @@ export interface components {
              * Role
              * @default caregiver
              */
+            role: string;
+        };
+        /** FamilyMemberMutationResponse */
+        FamilyMemberMutationResponse: {
+            /** Data */
+            data: {
+                [key: string]: unknown;
+            };
+            /**
+             * Invalidated Sessions
+             * @default 0
+             */
+            invalidated_sessions: number;
+        };
+        /**
+         * FamilyMemberUpdateIn
+         * @description Editable access for an existing, non-device household member.
+         */
+        FamilyMemberUpdateIn: {
+            /** Role */
             role: string;
         };
         /** HTTPValidationError */
@@ -2007,6 +2051,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    family_member_remove_api_v1_homes__home_id__family_members__user_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FamilyMemberMutationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    family_member_update_api_v1_homes__home_id__family_members__user_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FamilyMemberUpdateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FamilyMemberMutationResponse"];
                 };
             };
             /** @description Validation Error */

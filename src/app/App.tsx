@@ -4,7 +4,7 @@ import { ShieldCheck, X } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, clearSession, demoMode } from "../api/client";
 import { consentDefaults, demoEvents, demoObjects, demoScene } from "../demo/data";
-import type { HomeEvent } from "../models/domain";
+import type { HomeEvent, Scene } from "../models/domain";
 import { streamHomeEvents } from "../api/sse";
 import { clearPublisherRegistry, stopActivePublisher } from "../livekit/registry";
 import { Shell, formatTime } from "./shared";
@@ -20,6 +20,8 @@ import { FamilyPage } from "./family";
 import { JoinPage, PublisherPage } from "./pages/CameraPairingPage";
 import { HouseholdInvitePage } from "./pages/HouseholdInvitePage";
 
+const emptyLiveScene: Scene = { sceneId: "scene-empty", version: 0, zones: [] };
+
 function App() {
   const query = useQueryClient();
   const navigate = useNavigate();
@@ -27,9 +29,12 @@ function App() {
   const hasToken = Boolean(sessionStorage.getItem("one_access_token"));
   const sessionQuery = useQuery({ queryKey: ["session"], queryFn: api.getSession, enabled: demoMode || hasToken, retry: false });
   const session = sessionQuery.data;
-  const { data: events = demoEvents } = useQuery({ queryKey: ["events"], queryFn: api.getEvents, enabled: demoMode || Boolean(session) });
-  const { data: objects = demoObjects } = useQuery({ queryKey: ["objects"], queryFn: api.getObjects, enabled: demoMode || Boolean(session) });
-  const { data: scene = demoScene } = useQuery({ queryKey: ["scene"], queryFn: api.getScene, enabled: demoMode || Boolean(session) });
+  const { data: fetchedEvents } = useQuery({ queryKey: ["events"], queryFn: api.getEvents, enabled: demoMode || Boolean(session) });
+  const { data: fetchedObjects } = useQuery({ queryKey: ["objects"], queryFn: api.getObjects, enabled: demoMode || Boolean(session) });
+  const { data: fetchedScene } = useQuery({ queryKey: ["scene"], queryFn: api.getScene, enabled: demoMode || Boolean(session) });
+  const events = fetchedEvents ?? (demoMode ? demoEvents : []);
+  const objects = fetchedObjects ?? (demoMode ? demoObjects : []);
+  const scene = fetchedScene ?? (demoMode ? demoScene : emptyLiveScene);
   const [paused, setPaused] = useState(false);
   const [consents, setConsents] = useState(consentDefaults);
   const [selectedEvent, setSelectedEvent] = useState<HomeEvent | null>(null);
