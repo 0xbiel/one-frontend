@@ -57,7 +57,7 @@ function stepClass(index: number, current: number): string {
 function phaseCopy(phase: SweepPhase): { title: string; description: string } {
   switch (phase) {
     case "preview":
-      return { title: "Preview first. Map when you are ready.", description: "The camera is already paired and saved. Check the view now, then record a short room walkthrough when it is convenient." };
+      return { title: "Keep this camera fixed. Map when you are ready.", description: "The camera is already paired and can publish now. A 2D walkthrough is optional; after an iPhone LiDAR scan, ONE can position this fixed view directly inside the 3D RoomPlan map." };
     case "sweeping":
       return { title: "Walk ONE around the room.", description: "Move naturally around the room and turn slowly through the corners. Include the floor-wall boundary and large furniture; you do not need to hold the phone perfectly still." };
     case "submitting":
@@ -68,7 +68,7 @@ function phaseCopy(phase: SweepPhase): { title: string; description: string } {
     case "localizing":
       return { title: "Finding this camera in 3D.", description: "Keep the camera still while ONE matches this view against the private RoomPlan visual landmark index." };
     case "ready":
-      return { title: "Camera setup is ready.", description: "Object vision can run locally now. A room map improves spatial context, and a LiDAR RoomPlan scan can later upgrade positioning to metric 3D." };
+      return { title: "Camera setup is ready.", description: "Object vision can run locally now. Keep this camera fixed, scan the room with the iPhone LiDAR app, then match this live view into the metric 3D RoomPlan map." };
     default:
       return { title: "A clear view, with consent.", description: "Give ONE permission only after you know what this device will share. Pairing is already saved separately from room mapping." };
   }
@@ -316,7 +316,7 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
       const frames = await captureFixedCameraFrames(videoRef.current, stream, { frameCount: 6, durationMs: demoMode ? 120 : 1_600 });
       const localization = await api.localizeRoomPlanCamera(resolvedCameraId, frames);
       if (localization.status !== "positioned") {
-        setConnectionNotice("The camera is ready with the 2D room draft. Automatic 3D placement could not be confirmed, so you can add or refresh a LiDAR RoomPlan scan later.");
+        setConnectionNotice("The camera is saved and publishing. Automatic 3D placement could not be confirmed, so add or refresh the iPhone LiDAR RoomPlan scan and try again from this same fixed view.");
         setPhase("ready");
         return;
       }
@@ -324,7 +324,7 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
       setPhase("ready");
     } catch (error) {
       if (error instanceof Error && error.message === "API_409") {
-        setConnectionNotice("Camera setup is ready in 2D. Add or refresh the iPhone RoomPlan scan to enable automatic 3D positioning.");
+        setConnectionNotice("Camera setup is ready. Add or refresh the iPhone LiDAR RoomPlan scan, then use Position this camera in 3D while the Mac stays in this fixed view.");
         setPhase("ready");
         return;
       }
@@ -414,7 +414,7 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
 
       {phase === "preview" ? (
         <div className="room-sweep-status" role="status">
-          <Video size={17} /><span><strong>Preview is ready.</strong><small>Check the rear-camera view. Record the walkthrough when convenient, or keep the paired camera saved and finish mapping later.</small></span>
+          <Video size={17} /><span><strong>Preview is ready.</strong><small>Keep this Mac in its fixed camera position. You can scan the room separately with the iPhone LiDAR app, then match this live view into that 3D map. The 2D walkthrough is optional.</small></span>
         </div>
       ) : phase === "processing" || phase === "submitting" ? (
         <div className="room-sweep-status processing" role="status">
@@ -431,7 +431,7 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
         </div>
       ) : phase === "ready" ? (
         <div className="room-sweep-status ready" role="status">
-          <CheckCircle2 size={17} /><span><strong>Camera saved and ready.</strong><small>A visual room draft is optional. When LiDAR RoomPlan is available, ONE can use its metric 3D frame for higher-quality positioning.</small></span>
+          <CheckCircle2 size={17} /><span><strong>Camera saved and ready.</strong><small>Keep this camera fixed. After the iPhone LiDAR scan is saved, use Position this camera in 3D to localize this exact live view in the RoomPlan coordinate frame.</small></span>
         </div>
       ) : null}
 
@@ -442,8 +442,13 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
           </button>
         ) : (
           <>
+            {["preview", "ready", "needs-rescan", "unavailable", "failed"].includes(phase) && (
+              <button className="primary-button" onClick={() => void confirmPlacement()}>
+                <Map size={16} /> Position this camera in 3D
+              </button>
+            )}
             {["preview", "needs-rescan", "unavailable", "failed", "ready"].includes(phase) && (
-              <button className="primary-button" onClick={() => void recordWalkthrough()}>
+              <button className="secondary-button" onClick={() => void recordWalkthrough()}>
                 <Video size={16} /> {phase === "ready" ? "Refresh room walkthrough" : "Record room walkthrough"}
               </button>
             )}
