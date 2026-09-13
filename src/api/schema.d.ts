@@ -166,6 +166,58 @@ export interface paths {
         patch: operations["camera_update_api_v1_homes__home_id__cameras__camera_id__patch"];
         trace?: never;
     };
+    "/api/v1/homes/{home_id}/cameras/{camera_id}/map-generation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Map Generation Status */
+        get: operations["map_generation_status_api_v1_homes__home_id__cameras__camera_id__map_generation_get"];
+        put?: never;
+        /** Map Generation Start */
+        post: operations["map_generation_start_api_v1_homes__home_id__cameras__camera_id__map_generation_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/homes/{home_id}/cameras/{camera_id}/map-generation/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Map Generation Job */
+        get: operations["map_generation_job_api_v1_homes__home_id__cameras__camera_id__map_generation__job_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/homes/{home_id}/cameras/{camera_id}/map-generation/{job_id}/frames": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Map Generation Frames */
+        post: operations["map_generation_frames_api_v1_homes__home_id__cameras__camera_id__map_generation__job_id__frames_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/homes/{home_id}/caregiver-summary": {
         parameters: {
             query?: never;
@@ -474,6 +526,27 @@ export interface paths {
         /** Map Detail */
         get: operations["map_detail_api_v1_homes__home_id__maps__map_id__get"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/homes/{home_id}/maps/{map_id}/usdz": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Roomplan Usdz Download */
+        get: operations["roomplan_usdz_download_api_v1_homes__home_id__maps__map_id__usdz_get"];
+        /**
+         * Roomplan Usdz Upload
+         * @description Attach a bounded USDZ export to an already validated 3D map.
+         */
+        put: operations["roomplan_usdz_upload_api_v1_homes__home_id__maps__map_id__usdz_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -913,6 +986,38 @@ export interface components {
             /** Room Id */
             room_id?: string | null;
         };
+        /** CameraMapFrameIn */
+        CameraMapFrameIn: {
+            /** Captured At */
+            captured_at?: string | null;
+            /** Frame Base64 */
+            frame_base64: string;
+            /** Height */
+            height: number;
+            /** Width */
+            width: number;
+        };
+        /** CameraMapFramesIn */
+        CameraMapFramesIn: {
+            /** Frames */
+            frames: components["schemas"]["CameraMapFrameIn"][];
+        };
+        /** CameraMapGenerationStartIn */
+        CameraMapGenerationStartIn: {
+            /**
+             * Orientation
+             * @default portrait
+             */
+            orientation: string;
+            /** Resolution Height */
+            resolution_height: number;
+            /** Resolution Width */
+            resolution_width: number;
+            /** Room Id */
+            room_id?: string | null;
+            /** Room Label */
+            room_label?: string | null;
+        };
         /** CameraUpdate */
         CameraUpdate: {
             /** Metadata */
@@ -1101,7 +1206,7 @@ export interface components {
         MapIn: {
             /**
              * Coordinate Frame
-             * @default roomplan-local
+             * @default manual-2d
              */
             coordinate_frame: string;
             /** Map Data */
@@ -1272,18 +1377,154 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** RoomPlanDimensions3D */
+        RoomPlanDimensions3D: {
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+            /** Z */
+            z: number;
+        };
+        /** RoomPlanElement */
+        RoomPlanElement: {
+            /** Attributes */
+            attributes?: string[];
+            /** Category */
+            category: string;
+            center: components["schemas"]["RoomPlanPoint3D"];
+            /**
+             * Confidence
+             * @enum {string}
+             */
+            confidence: "high" | "medium" | "low";
+            dimensions: components["schemas"]["RoomPlanDimensions3D"];
+            /** Id */
+            id: string;
+            /** Transform */
+            transform: number[][];
+            /** Vertices */
+            vertices?: components["schemas"]["RoomPlanPoint3D"][];
+        };
         /** RoomPlanMapIn */
         RoomPlanMapIn: {
-            /** Normalized Scan */
-            normalized_scan: {
-                [key: string]: unknown;
-            };
+            normalized_scan: components["schemas"]["RoomPlanNormalizedScan"];
             /** Room Id */
             room_id?: string | null;
-            /** Scan Metadata */
-            scan_metadata?: {
-                [key: string]: unknown;
-            };
+            scan_metadata: components["schemas"]["RoomPlanScanMetadata"];
+        };
+        /**
+         * RoomPlanNormalizedScan
+         * @description Canonical payload produced by the native iOS RoomPlan normalizer.
+         */
+        RoomPlanNormalizedScan: {
+            /** Captured At */
+            captured_at?: string | null;
+            /**
+             * Coordinate Frame
+             * @constant
+             */
+            coordinate_frame: "roomplan-local";
+            /** Doors */
+            doors?: components["schemas"]["RoomPlanElement"][];
+            /** Floors */
+            floors?: components["schemas"]["RoomPlanElement"][];
+            /**
+             * Framework
+             * @constant
+             */
+            framework: "RoomPlan";
+            /**
+             * Geometry Type
+             * @constant
+             */
+            geometry_type: "3d";
+            /** Objects */
+            objects?: components["schemas"]["RoomPlanElement"][];
+            /** Openings */
+            openings?: components["schemas"]["RoomPlanElement"][];
+            /**
+             * Producer
+             * @constant
+             */
+            producer: "native-ios";
+            /** Room Id */
+            room_id?: string | null;
+            /**
+             * Schema Version
+             * @constant
+             */
+            schema_version: "roomplan-normalized.v1";
+            /** Sections */
+            sections?: components["schemas"]["RoomPlanSection"][];
+            /**
+             * Units
+             * @constant
+             */
+            units: "m";
+            /**
+             * Up Axis
+             * @constant
+             */
+            up_axis: "Y";
+            /** Walls */
+            walls?: components["schemas"]["RoomPlanElement"][];
+            /** Windows */
+            windows?: components["schemas"]["RoomPlanElement"][];
+        };
+        /** RoomPlanPoint3D */
+        RoomPlanPoint3D: {
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+            /** Z */
+            z: number;
+        };
+        /**
+         * RoomPlanScanMetadata
+         * @description Provenance asserted by a native RoomPlan/LiDAR producer.
+         */
+        RoomPlanScanMetadata: {
+            /** Device Model */
+            device_model: string;
+            /**
+             * Geometry Type
+             * @constant
+             */
+            geometry_type: "3d";
+            /**
+             * Lidar
+             * @constant
+             */
+            lidar: true;
+            /**
+             * Provenance
+             * @constant
+             */
+            provenance: "native-roomplan";
+            /** Roomplan Version */
+            roomplan_version: string;
+            /**
+             * Units
+             * @enum {string}
+             */
+            units: "m" | "meter" | "meters";
+            /**
+             * Up Axis
+             * @enum {string}
+             */
+            up_axis: "Y" | "y";
+        };
+        /** RoomPlanSection */
+        RoomPlanSection: {
+            center: components["schemas"]["RoomPlanPoint3D"];
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Story */
+            story: number;
         };
         /** ValidationError */
         ValidationError: {
@@ -1644,6 +1885,144 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    map_generation_status_api_v1_homes__home_id__cameras__camera_id__map_generation_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    map_generation_start_api_v1_homes__home_id__cameras__camera_id__map_generation_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CameraMapGenerationStartIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    map_generation_job_api_v1_homes__home_id__cameras__camera_id__map_generation__job_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+                camera_id: string;
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    map_generation_frames_api_v1_homes__home_id__cameras__camera_id__map_generation__job_id__frames_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+                camera_id: string;
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CameraMapFramesIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2335,6 +2714,70 @@ export interface operations {
         };
     };
     map_detail_api_v1_homes__home_id__maps__map_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+                map_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    roomplan_usdz_download_api_v1_homes__home_id__maps__map_id__usdz_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+                map_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    roomplan_usdz_upload_api_v1_homes__home_id__maps__map_id__usdz_put: {
         parameters: {
             query?: never;
             header?: never;

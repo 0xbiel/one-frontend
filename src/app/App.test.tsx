@@ -73,6 +73,16 @@ describe('ONE dashboard', () => {
     expect(screen.getByText('Needs confirmation')).toBeInTheDocument();
   });
 
+  it('renders camera geometry as accessible 2D and hides the 3D control', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { container } = render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/dashboard/map']}><App /></MemoryRouter></QueryClientProvider>);
+    await waitFor(() => expect(screen.getByText(/CAMERA-DERIVED 2D MAP/)).toBeInTheDocument());
+    expect(screen.getByRole('img', { name: /Camera-derived 2D room map/ })).toBeInTheDocument();
+    expect(container.querySelectorAll('.camera-map-polygon')).toHaveLength(4);
+    expect(screen.getByText(/relative geometry · not to scale/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '3D' })).not.toBeInTheDocument();
+  });
+
   it('opens the medication plan form and preserves a recurrence rule', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/dashboard/family']}><App /></MemoryRouter></QueryClientProvider>);
@@ -95,18 +105,16 @@ describe('ONE dashboard', () => {
     await waitFor(() => expect(screen.getByText('Camera connected')).toBeInTheDocument());
   });
 
-  it('saves the connected camera and records its three room anchors inline', async () => {
+  it('saves the connected camera and describes automatic mapping inline', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/dashboard']}><App /></MemoryRouter></QueryClientProvider>);
     await waitFor(() => expect(screen.getByRole('button', { name: /pair a camera/i })).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: /pair a camera/i }));
     const saveButton = await screen.findByRole('button', { name: /save camera setup/i });
     fireEvent.click(saveButton);
-    await waitFor(() => expect(screen.getByText('Teach ONE this view.')).toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: /start calibration/i }));
-    fireEvent.click(screen.getByRole('button', { name: /confirm center anchor/i }));
-    fireEvent.click(screen.getByRole('button', { name: /confirm right anchor/i }));
-    await waitFor(() => expect(screen.getByText(/Calibration active/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('AUTOMATIC 2D MAP')).toBeInTheDocument());
+    expect(screen.getByText(/camera-derived geometry is saved/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /start calibration/i })).not.toBeInTheDocument();
   });
 
   it('exposes account settings with an explicit sign-out action', async () => {

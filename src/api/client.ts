@@ -1,8 +1,28 @@
-import type { Device, HomeEvent, LastSeenObject, Scene, Session } from '../models/domain';
+import type {
+  CameraPose,
+  Device,
+  GeometryStatus,
+  HomeEvent,
+  LastSeenObject,
+  MapDimension,
+  MapSource,
+  Point2D,
+  PolygonGeometry,
+  RoomGeometry,
+  Scene,
+  Session,
+  WallGeometry,
+  Zone,
+} from '../models/domain';
 import { demoDevice, demoEvents, demoObjects, demoScene, demoSession } from '../demo/data';
 import type { paths } from './schema';
 
-export const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api/v1';
+const configuredApiBase = import.meta.env.VITE_API_BASE_URL;
+export const API_BASE = configuredApiBase && configuredApiBase !== '/api/v1'
+  ? configuredApiBase
+  : import.meta.env.DEV
+    ? 'http://localhost:8000/api/v1'
+    : '/api/v1';
 // Live API is the safe default. Demo data must be explicitly enabled.
 export const demoMode = import.meta.env.VITE_DEMO_MODE === 'true';
 
@@ -13,36 +33,315 @@ type LiveKitInput = JsonBody<'/api/v1/homes/{home_id}/livekit/token', 'post'>;
 interface PairStartResponse { pairing_id?: string; pairing_code: string; code?: string; expires_in_seconds: number; home_id: string; user_id: string; role?: 'admin' | 'resident' | 'caregiver' | 'publisher' | string; }
 interface PairCompleteResponse { access_token: string; token_type: string; expires_in: number; home_id: string; user_id: string; }
 export interface PairingStatus { pairing_id: string; home_id: string; status: 'pending' | 'connected' | 'expired'; expires_at: string; connected_at?: string | null; device: { id: string; label: string; role: string }; }
-export interface CameraCalibration { id: string; camera_id: string; map_id: string; status: 'active' | 'invalidated'; accuracy_m?: number | null; source?: string; camera_metadata?: Record<string, unknown>; }
 export interface EmailChallenge { verification_id: string; expires_in_seconds: number; delivery: string; dev_code?: string | null; email: string; purpose: 'create' | 'login'; home_id: string; user_id: string; role: string; }
 export interface EmailSession extends PairCompleteResponse { role?: string; email?: string; }
 interface InviteAcceptResponse extends PairCompleteResponse { role?: string; }
 interface LiveKitResponse { url: string; token: string; expires_in: number; mode?: 'auto' | 'publish' | 'subscribe'; }
 interface BackendEvent { id: string; event_type: string; status?: string; explanation?: string; confidence?: number; evidence_ids?: string; evidence_json?: string; first_seen_at?: string; last_seen_at?: string; }
 interface MeResponse { actor: Session['actor']; home: Session['home']; device: Device | null; paused: boolean; }
-interface SceneResponse { sceneId: string | null; version: number; zones: Scene['zones']; mapId?: string | null; coordinateFrame?: string | null; }
-interface MapResponse { id: string; revision: number; coordinate_frame: string; room_id?: string | null; created_at?: string; map_data?: Record<string, unknown>; }
+interface SceneResponse {
+  sceneId: string | null;
+  version: number;
+  zones?: Array<Partial<Zone> & { polygon?: unknown }>;
+  mapId?: string | null;
+  coordinateFrame?: string | null;
+  source?: MapSource;
+  dimension?: MapDimension;
+  confidence?: number | null;
+  metricScaleKnown?: boolean;
+  walls?: unknown;
+  camera?: unknown;
+  geometry?: unknown;
+  geometryStatus?: GeometryStatus;
+  rescanRequired?: boolean;
+  modelVersion?: string | null;
+}
+export interface MapResponse {
+  id: string;
+  revision: number;
+  coordinate_frame: string;
+  room_id?: string | null;
+  created_at?: string;
+  source?: MapSource;
+  dimension?: MapDimension;
+  metadata?: Record<string, unknown>;
+  geometry_status?: GeometryStatus;
+  rescan_required?: boolean;
+  confidence?: number | null;
+  model_version?: string | null;
+  map_data?: {
+    geometry?: unknown;
+    [key: string]: unknown;
+  };
+}
+export type MapGenerationStatus = 'collecting' | 'processing' | 'ready' | 'needs_rescan' | 'unavailable' | 'failed';
+export interface MapGenerationFrame { frame_base64: string; width: number; height: number; captured_at?: string; }
+export interface StartMapGenerationInput { room_id?: string | null; room_label?: string | null; orientation?: string; resolution_width: number; resolution_height: number; }
+export interface MapGenerationStartResponse { job_id: string; status: MapGenerationStatus; }
+export interface MapGenerationResponse {
+  id?: string;
+  job_id: string;
+  home_id?: string;
+  camera_id?: string;
+  room_id?: string | null;
+  room_label?: string;
+  orientation?: string;
+  status: MapGenerationStatus;
+  progress: number;
+  frame_count?: number;
+  resolution_width?: number;
+  resolution_height?: number;
+  map_id?: string;
+  source?: MapSource;
+  dimension?: MapDimension;
+  metric_scale_known?: boolean;
+  metrics?: Record<string, number>;
+  error_code?: string | null;
+  error_message?: string | null;
+  error?: string;
+  geometry_status?: GeometryStatus;
+  model_version?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  completed_at?: string | null;
+}
 interface ObjectResponse { data: LastSeenObject[]; }
 interface CameraResponse { data: Device[]; }
 
-export function normalizeZones(zones: Array<Partial<Scene['zones'][number]>>): Scene['zones'] {
-  const count = zones.length;
-  return zones.map((zone, index) => {
-    const id = zone.id ?? `zone-${index + 1}`;
-    const fallback = count === 1
-      ? { x: 8, y: 12, width: 84, height: 76 }
-      : { x: 8 + (index % 2) * 47, y: 12 + Math.floor(index / 2) * 40, width: 40, height: 30 };
-    const label = zone.name ?? id.replace(/[-_]+/g, ' ');
-    const number = (value: number | undefined, fallbackValue: number) => typeof value === 'number' && Number.isFinite(value) ? value : fallbackValue;
-    return {
-      id,
-      name: label,
-      x: number(zone.x, fallback.x),
-      y: number(zone.y, fallback.y),
-      width: number(zone.width, fallback.width),
-      height: number(zone.height, fallback.height),
-    };
+type RawRecord = Record<string, unknown>;
+
+function isRecord(value: unknown): value is RawRecord {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function finiteNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function rawPoint(value: unknown): { x: number; y: number } | null {
+  if (Array.isArray(value) && value.length >= 2) {
+    const x = finiteNumber(value[0]);
+    const y = finiteNumber(value[1]);
+    return x === null || y === null ? null : { x, y };
+  }
+  if (!isRecord(value)) return null;
+  const x = finiteNumber(value.x ?? value.u ?? value.normalized_x);
+  const y = finiteNumber(value.y ?? value.v ?? value.normalized_y);
+  return x === null || y === null ? null : { x, y };
+}
+
+function geometryScale(rawGeometry: RawRecord, point: { x: number; y: number }, resolutionWidth?: number, resolutionHeight?: number): Point2D {
+  const coordinateSpace = typeof rawGeometry.coordinate_space === 'string' ? rawGeometry.coordinate_space : '';
+  if (coordinateSpace === 'normalized' || (point.x >= 0 && point.x <= 1 && point.y >= 0 && point.y <= 1)) {
+    return { x: point.x * 100, y: point.y * 100 };
+  }
+  if (coordinateSpace === 'image' && resolutionWidth && resolutionHeight) {
+    return { x: (point.x / resolutionWidth) * 100, y: (point.y / resolutionHeight) * 100 };
+  }
+  return point;
+}
+
+function rawPoints(value: unknown, rawGeometry: RawRecord, resolutionWidth?: number, resolutionHeight?: number): Point2D[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((point) => {
+    const parsed = rawPoint(point);
+    return parsed ? [geometryScale(rawGeometry, parsed, resolutionWidth, resolutionHeight)] : [];
   });
+}
+
+function boundsForPoints(points: Point2D[]): Pick<Zone, 'x' | 'y' | 'width' | 'height'> | null {
+  if (points.length < 3) return null;
+  const xs = points.map((point) => point.x);
+  const ys = points.map((point) => point.y);
+  const x = Math.min(...xs);
+  const y = Math.min(...ys);
+  return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y };
+}
+
+function normalizedGeometryPoint(value: unknown): { x: number; y: number; z: number } | null {
+  if (Array.isArray(value) && value.length >= 3) {
+    const x = finiteNumber(value[0]);
+    const y = finiteNumber(value[1]);
+    const z = finiteNumber(value[2]);
+    return x === null || y === null || z === null ? null : { x, y, z };
+  }
+  if (!isRecord(value)) return null;
+  const x = finiteNumber(value.x);
+  const y = finiteNumber(value.y);
+  const z = finiteNumber(value.z);
+  return x === null || y === null || z === null ? null : { x, y, z };
+}
+
+function normalizeThreeDimensionalList(value: unknown): Array<{ x: number; y: number; z: number }> {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((point) => {
+    const parsed = normalizedGeometryPoint(point);
+    return parsed ? [parsed] : [];
+  });
+}
+
+function normalizeFaces(value: unknown): number[] | number[][] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  if (value.every((face) => typeof face === 'number')) return value as number[];
+  const faces = value.filter((face): face is number[] => Array.isArray(face) && face.every((index) => typeof index === 'number'));
+  return faces.length ? faces : undefined;
+}
+
+export function normalizeZones(zones: Array<Partial<Zone> & { polygon?: unknown }>): Scene['zones'] {
+  return zones.flatMap((zone, index) => {
+    const id = zone.id ?? `zone-${index + 1}`;
+    const label = zone.name ?? id.replace(/[-_]+/g, ' ');
+    const polygon = Array.isArray(zone.polygon) ? rawPoints(zone.polygon, {}) : [];
+    const explicitBounds = [zone.x, zone.y, zone.width, zone.height].every((value) => finiteNumber(value) !== null);
+    const bounds = polygon.length >= 3 ? boundsForPoints(polygon) : explicitBounds
+      ? { x: zone.x as number, y: zone.y as number, width: zone.width as number, height: zone.height as number }
+      : null;
+    if (!bounds) return [];
+    return [{ id, name: label, ...bounds, ...(polygon.length >= 3 ? { polygon } : {}), ...(finiteNumber(zone.confidence) !== null ? { confidence: zone.confidence } : {}) }];
+  });
+}
+
+export function normalizeGeometry(raw: unknown, resolutionWidth?: number, resolutionHeight?: number): RoomGeometry | undefined {
+  if (!isRecord(raw)) return undefined;
+  const polygonSource = raw.polygons ?? raw.rooms ?? raw.zones;
+  const polygons: PolygonGeometry[] = Array.isArray(polygonSource)
+    ? polygonSource.flatMap((item, index) => {
+      if (!isRecord(item)) return [];
+      const points = rawPoints(item.points ?? item.polygon, raw, resolutionWidth, resolutionHeight);
+      if (points.length < 3) return [];
+      const confidence = finiteNumber(item.confidence);
+      return [{ id: typeof item.id === 'string' ? item.id : `polygon-${index + 1}`, label: typeof (item.label ?? item.name) === 'string' ? String(item.label ?? item.name) : undefined, points, ...(confidence === null ? {} : { confidence }) }];
+    })
+    : [];
+  const wallSource = raw.walls;
+  const walls: WallGeometry[] = Array.isArray(wallSource)
+    ? wallSource.flatMap((item, index) => {
+      if (!isRecord(item)) return [];
+      const explicitPoints = rawPoints(item.points, raw, resolutionWidth, resolutionHeight);
+      const start2d = rawPoint(item.start);
+      const end2d = rawPoint(item.end);
+      const start = normalizedGeometryPoint(item.start);
+      const end = normalizedGeometryPoint(item.end);
+      const points = explicitPoints.length >= 2
+        ? explicitPoints
+        : start2d && end2d && !start && !end
+          ? [geometryScale(raw, start2d, resolutionWidth, resolutionHeight), geometryScale(raw, end2d, resolutionWidth, resolutionHeight)]
+          : [];
+      if (points.length < 2 && !(start && end)) return [];
+      const confidence = finiteNumber(item.confidence);
+      return [{ id: typeof item.id === 'string' ? item.id : `wall-${index + 1}`, points, ...(start ? { start } : {}), ...(end ? { end } : {}), ...(finiteNumber(item.height) === null ? {} : { height: item.height as number }), ...(confidence === null ? {} : { confidence }) }];
+    })
+    : [];
+  const surfaces = Array.isArray(raw.surfaces)
+    ? raw.surfaces.flatMap((item, index) => {
+      if (!isRecord(item)) return [];
+      const vertices = normalizeThreeDimensionalList(item.vertices);
+      if (vertices.length < 3) return [];
+      const confidence = finiteNumber(item.confidence);
+      return [{ id: typeof item.id === 'string' ? item.id : `surface-${index + 1}`, kind: typeof item.kind === 'string' ? item.kind : undefined, vertices, faces: normalizeFaces(item.faces), ...(confidence === null ? {} : { confidence }) }];
+    })
+    : [];
+  const mesh = isRecord(raw.mesh)
+    ? (() => {
+      const vertices = normalizeThreeDimensionalList(raw.mesh.vertices);
+      const faces = normalizeFaces(raw.mesh.faces) ?? [];
+      return vertices.length >= 3 && faces.length ? { vertices, faces } : undefined;
+    })()
+    : undefined;
+  const objects = Array.isArray(raw.objects)
+    ? raw.objects.flatMap((item, index) => {
+      if (!isRecord(item)) return [];
+      const position = normalizedGeometryPoint(item.position ?? item.center);
+      const dimensions = normalizedGeometryPoint(item.dimensions ?? item.size);
+      if (!position || !dimensions) return [];
+      return [{ id: typeof item.id === 'string' ? item.id : `object-${index + 1}`, label: typeof item.label === 'string' ? item.label : typeof item.name === 'string' ? item.name : undefined, position, dimensions, ...(finiteNumber(item.confidence) === null ? {} : { confidence: item.confidence as number }) }];
+    })
+    : undefined;
+  if (!polygons.length && !walls.length && !surfaces.length && !mesh && !objects?.length) return undefined;
+  return { coordinateSpace: typeof raw.coordinate_space === 'string' ? raw.coordinate_space : undefined, polygons, walls, ...(surfaces.length ? { surfaces } : {}), ...(mesh ? { mesh } : {}), ...(objects?.length ? { objects } : {}) };
+}
+
+function inferSource(source: MapSource | undefined, coordinateFrame?: string | null): MapSource {
+  if (source) return source;
+  return coordinateFrame === 'camera-room-2d' ? 'camera-cv-2d' : 'legacy-2d';
+}
+
+function inferDimension(dimension: MapDimension | undefined, source: MapSource): MapDimension {
+  return dimension ?? (source === 'roomplan-lidar-3d' ? '3d' : '2d');
+}
+
+function normalizeCameraPose(value: unknown): CameraPose | undefined {
+  if (!isRecord(value)) return undefined;
+  const rawPosition = isRecord(value.position) ? value.position : undefined;
+  const position = rawPosition && finiteNumber(rawPosition.z) !== null ? undefined : rawPoint(value.position);
+  const position3d = normalizedGeometryPoint(value.position3d ?? (rawPosition && finiteNumber(rawPosition.z) !== null ? rawPosition : undefined));
+  if (!position && !position3d) return undefined;
+  return {
+    ...(position ? { position } : {}),
+    ...(position3d ? { position3d } : {}),
+    ...(finiteNumber(value.heading_degrees ?? value.headingDegrees) === null ? {} : { headingDegrees: (value.heading_degrees ?? value.headingDegrees) as number }),
+    ...(finiteNumber(value.fov_degrees ?? value.fovDegrees) === null ? {} : { fovDegrees: (value.fov_degrees ?? value.fovDegrees) as number }),
+    ...(finiteNumber(value.confidence) === null ? {} : { confidence: value.confidence as number }),
+  };
+}
+
+function zonesFromGeometry(geometry: RoomGeometry | undefined): Zone[] {
+  return geometry?.polygons.flatMap((polygon) => {
+    const bounds = boundsForPoints(polygon.points);
+    if (!bounds) return [];
+    return [{
+      id: polygon.id,
+      name: polygon.label ?? polygon.id,
+      ...bounds,
+      polygon: polygon.points,
+      ...(polygon.confidence === undefined ? {} : { confidence: polygon.confidence }),
+    }];
+  }) ?? [];
+}
+
+function sceneFromResponse(result: SceneResponse, geometryRaw?: unknown, resolutionWidth?: number, resolutionHeight?: number): Scene {
+  const source = inferSource(result.source, result.coordinateFrame);
+  const geometry = normalizeGeometry(geometryRaw ?? result.geometry, resolutionWidth, resolutionHeight);
+  const geometryZones = zonesFromGeometry(geometry);
+  const zones = normalizeZones(result.zones ?? []).length ? normalizeZones(result.zones ?? []) : geometryZones;
+  return {
+    sceneId: result.sceneId ?? 'scene-empty',
+    version: result.version,
+    zones,
+    mapId: result.mapId,
+    coordinateFrame: result.coordinateFrame,
+    dimension: inferDimension(result.dimension, source),
+    source,
+    confidence: result.confidence,
+    metricScaleKnown: result.metricScaleKnown ?? source === 'roomplan-lidar-3d',
+    ...(geometry ? { geometry, walls: geometry.walls } : {}),
+    ...(normalizeCameraPose(result.camera) ? { camera: normalizeCameraPose(result.camera) } : {}),
+    ...(result.geometryStatus ? { geometryStatus: result.geometryStatus } : {}),
+    ...(result.modelVersion ? { modelVersion: result.modelVersion } : {}),
+  };
+}
+
+export function sceneFromMapResponse(map: MapResponse, baseScene?: Scene): Scene {
+  const source = inferSource(map.source, map.coordinate_frame);
+  const geometry = normalizeGeometry(map.map_data?.geometry ?? map.map_data);
+  const geometryStatus = map.geometry_status ?? baseScene?.geometryStatus;
+  const modelVersion = map.model_version ?? baseScene?.modelVersion;
+  const geometryZones = zonesFromGeometry(geometry);
+  return {
+    ...(baseScene ?? { sceneId: map.id, zones: [], version: map.revision }),
+    sceneId: baseScene?.sceneId ?? map.id,
+    version: map.revision,
+    mapId: map.id,
+    coordinateFrame: map.coordinate_frame,
+    dimension: inferDimension(map.dimension, source),
+    source,
+    confidence: baseScene?.confidence ?? map.confidence ?? null,
+    metricScaleKnown: map.dimension === '3d' && source === 'roomplan-lidar-3d' ? true : baseScene?.metricScaleKnown ?? false,
+    ...(geometry ? { geometry, walls: geometry.walls } : {}),
+    zones: geometryZones.length ? geometryZones : baseScene?.zones ?? [],
+    ...(geometryStatus ? { geometryStatus } : {}),
+    ...(modelVersion ? { modelVersion } : {}),
+  };
 }
 export interface FamilyMember { id: string; display_name: string; email?: string | null; role: 'admin' | 'resident' | 'caregiver'; created_at: string; representation_status?: string; synthetic_demo?: boolean; }
 export type EditableFamilyRole = Exclude<FamilyMember['role'], 'admin'>;
@@ -83,10 +382,18 @@ export const api = {
   getScene: async (): Promise<Scene> => {
     if (demoMode) return demoScene;
     const result = await request<SceneResponse>(`/homes/${homeId()}/scene`);
-    return { sceneId: result.sceneId ?? 'scene-empty', version: result.version, zones: normalizeZones(result.zones ?? []), mapId: result.mapId, coordinateFrame: result.coordinateFrame };
+    return sceneFromResponse(result, result.geometry);
   },
   getCurrentMap: async (): Promise<MapResponse | null> => {
-    if (demoMode) return { id: demoScene.sceneId, revision: demoScene.version, coordinate_frame: 'roomplan-local', map_data: { zones: demoScene.zones } };
+    if (demoMode) return {
+      id: demoScene.sceneId,
+      revision: demoScene.version,
+      coordinate_frame: 'camera-relative-image',
+      source: 'camera-cv-2d',
+      dimension: '2d',
+      metadata: { demo: true },
+      map_data: { geometry: demoScene.geometry },
+    };
     try { return await request<MapResponse>(`/homes/${homeId()}/maps/current`); } catch (error) { if (error instanceof Error && error.message === 'API_404') return null; throw error; }
   },
   getObjects: async (): Promise<LastSeenObject[]> => demoMode ? demoObjects : (await request<ObjectResponse>(`/homes/${homeId()}/objects/last-seen`)).data,
@@ -100,15 +407,33 @@ export const api = {
     if (demoMode) return { status: 'saved' };
     return request(`/homes/${homeId()}/cameras/${encodeURIComponent(cameraId)}`, { method: 'PATCH', body: JSON.stringify(input) });
   },
-  createProvisionalMap: async (cameraId: string, room: string, resolutionWidth = 1280, resolutionHeight = 720): Promise<MapResponse> => {
-    if (demoMode) return { id: 'map-camera-demo', revision: 1, coordinate_frame: 'camera-zone-local', room_id: null, map_data: { zones: [{ id: room.toLowerCase().replace(/[^a-z0-9]+/g, '-'), name: room }] } };
-    return request<MapResponse>(`/homes/${homeId()}/maps/provisional`, { method: 'POST', body: JSON.stringify({ camera_id: cameraId, room_id: null, resolution_width: resolutionWidth, resolution_height: resolutionHeight, zones: [{ id: room.toLowerCase().replace(/[^a-z0-9]+/g, '-'), name: room, confidence: 1 }] }) });
+  startMapGeneration: async (cameraId: string, input: StartMapGenerationInput): Promise<MapGenerationStartResponse> => {
+    if (demoMode) return { job_id: `job-${cameraId}`, status: 'collecting' };
+    return request<MapGenerationStartResponse>(`/homes/${homeId()}/cameras/${encodeURIComponent(cameraId)}/map-generation`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
   },
-  createCalibration: async (cameraId: string, mapId: string, room: string, anchors: string[], resolutionWidth = 1280, resolutionHeight = 720): Promise<CameraCalibration> => {
-    if (demoMode) return { id: 'calibration-camera-demo', camera_id: cameraId, map_id: mapId, status: 'active', accuracy_m: 0.18, source: 'manual', camera_metadata: { room, anchors } };
-    return request<CameraCalibration>(`/homes/${homeId()}/calibrations`, { method: 'POST', body: JSON.stringify({ camera_id: cameraId, map_id: mapId, intrinsics: { model: 'browser-estimated' }, extrinsics: { placement: room, anchors }, accuracy_m: 0.18, resolution_width: resolutionWidth, resolution_height: resolutionHeight, camera_metadata: { room, anchors }, source: 'manual' }) });
+  submitMapGenerationFrames: async (cameraId: string, jobId: string, frames: MapGenerationFrame[]): Promise<void> => {
+    if (demoMode) return;
+    await request<unknown>(`/homes/${homeId()}/cameras/${encodeURIComponent(cameraId)}/map-generation/${encodeURIComponent(jobId)}/frames`, {
+      method: 'POST',
+      body: JSON.stringify({ frames }),
+    });
   },
-  getCalibrations: async (): Promise<CameraCalibration[]> => demoMode ? [{ id: 'calibration-camera-demo', camera_id: demoDevice.id, map_id: 'map-camera-demo', status: 'active', accuracy_m: 0.18, source: 'manual', camera_metadata: { room: 'Hallway', anchors: ['left', 'center', 'right'] } }] : (await request<{ data: CameraCalibration[] }>(`/homes/${homeId()}/calibrations`)).data,
+  getMapGeneration: async (cameraId: string, jobId: string): Promise<MapGenerationResponse> => {
+    if (demoMode) return { job_id: jobId, status: 'ready', progress: 100, map_id: demoScene.sceneId, geometry_status: 'ready', model_version: 'demo-camera-room-layout' };
+    return request<MapGenerationResponse>(`/homes/${homeId()}/cameras/${encodeURIComponent(cameraId)}/map-generation/${encodeURIComponent(jobId)}`);
+  },
+  getLatestMapGeneration: async (cameraId: string): Promise<MapGenerationResponse | null> => {
+    if (demoMode) return { job_id: `job-${cameraId}`, status: 'ready', progress: 100, map_id: demoScene.sceneId, geometry_status: 'ready', model_version: 'demo-camera-room-layout' };
+    try {
+      return await request<MapGenerationResponse>(`/homes/${homeId()}/cameras/${encodeURIComponent(cameraId)}/map-generation`);
+    } catch (error) {
+      if (error instanceof Error && error.message === 'API_404') return null;
+      throw error;
+    }
+  },
   startPairing: async (displayName: string, homeName = 'ONE Home', role: 'resident' | 'caregiver' = 'resident'): Promise<PairStartResponse> => demoMode ? { pairing_code: '482701', expires_in_seconds: 600, home_id: 'home-demo', user_id: 'user-demo', role } : request('/pairing/start', { method: 'POST', auth: false, body: JSON.stringify({ display_name: displayName, home_name: homeName, role } satisfies PairStartInput) }),
   createAccount: async (displayName: string, email: string, homeName: string): Promise<PairStartResponse> => {
     if (demoMode) return api.startPairing(displayName, homeName, 'caregiver');

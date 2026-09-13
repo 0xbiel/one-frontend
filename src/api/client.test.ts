@@ -29,7 +29,7 @@ describe('FastAPI contract mapping', () => {
   it('keeps map revisions and invite codes on the explicit demo contract', async () => {
     const map = await api.getCurrentMap();
     expect(map?.revision).toBeGreaterThan(0);
-    expect(map?.coordinate_frame).toBe('roomplan-local');
+    expect(map?.coordinate_frame).toBe('camera-relative-image');
     const invite = await api.createFamilyInvite('Test caregiver', 'test@example.com');
     expect(invite.code).toMatch(/^\d{6}$/);
   });

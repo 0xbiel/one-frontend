@@ -41,19 +41,19 @@ For the backend, set `VITE_API_BASE_URL` to the FastAPI `/api/v1` origin. LiveKi
 ### Open the website through Docker
 
 From the sibling backend repository, `docker compose up --build api frontend`
-starts the API and the static web container. Open <http://127.0.0.1:4173>.
+starts the API and the static web container. Open <http://127.0.0.1:4175>.
 The container uses `/api/v1` on the same origin and proxies it to FastAPI, so
 the browser never needs a hard-coded host address. Set `VITE_DEMO_MODE=true`
 only for the deterministic demo; use `false` with a seeded backend home.
 
 For a Tailscale-only HTTPS URL, install Tailscale on the host and run
-`tailscale serve --bg http://127.0.0.1:4173`. Use the HTTPS URL printed by
+`tailscale serve --bg http://127.0.0.1:4175`. Use the HTTPS URL printed by
 `tailscale serve status` as the iOS API base URL with the `/api/v1` suffix.
 
 ## Routes
 
 - `/dashboard` caregiver overview
-- `/dashboard/map` RoomPlan-derived map with a 2D accessible fallback
+- `/dashboard/map` camera-derived 2D map, with native LiDAR-only RoomPlan 3D
 - `/dashboard/events` meaningful-event timeline
 - `/dashboard/assistant` evidence-aware assistant
 - `/dashboard/family` household circle, least-privilege roles, and today’s reminder plan

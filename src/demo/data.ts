@@ -5,12 +5,33 @@ export const demoDevice: Device = { id: 'device-demo', label: 'Hallway iPhone', 
 export const demoSession: Session = { actor: { id: 'caregiver-demo', role: 'caregiver', name: 'Clara García' }, home: demoHome, device: demoDevice };
 export const demoScene: Scene = {
   sceneId: 'scene-demo', version: 3,
+  dimension: '2d',
+  source: 'camera-cv-2d',
+  confidence: 0.88,
+  metricScaleKnown: false,
+  geometryStatus: 'ready',
+  modelVersion: 'demo-camera-room-layout',
   zones: [
-    { id: 'living', name: 'Living room', x: 5, y: 18, width: 47, height: 56 },
-    { id: 'entry', name: 'Entryway', x: 54, y: 18, width: 19, height: 28 },
-    { id: 'kitchen', name: 'Kitchen', x: 54, y: 50, width: 37, height: 24 },
-    { id: 'bedroom', name: 'Bedroom', x: 76, y: 18, width: 15, height: 24 },
+    { id: 'living', name: 'Living room', x: 5, y: 18, width: 47, height: 56, polygon: [{ x: 5, y: 18 }, { x: 52, y: 18 }, { x: 52, y: 74 }, { x: 5, y: 74 }], confidence: 0.92 },
+    { id: 'entry', name: 'Entryway', x: 54, y: 18, width: 19, height: 28, polygon: [{ x: 54, y: 18 }, { x: 73, y: 18 }, { x: 73, y: 46 }, { x: 54, y: 46 }], confidence: 0.84 },
+    { id: 'kitchen', name: 'Kitchen', x: 54, y: 50, width: 37, height: 24, polygon: [{ x: 54, y: 50 }, { x: 91, y: 50 }, { x: 91, y: 74 }, { x: 54, y: 74 }], confidence: 0.86 },
+    { id: 'bedroom', name: 'Bedroom', x: 76, y: 18, width: 15, height: 24, polygon: [{ x: 76, y: 18 }, { x: 91, y: 18 }, { x: 91, y: 42 }, { x: 76, y: 42 }], confidence: 0.79 },
   ],
+  geometry: {
+    coordinateSpace: 'percentage',
+    polygons: [
+      { id: 'living', label: 'Living room', points: [{ x: 5, y: 18 }, { x: 52, y: 18 }, { x: 52, y: 74 }, { x: 5, y: 74 }], confidence: 0.92 },
+      { id: 'entry', label: 'Entryway', points: [{ x: 54, y: 18 }, { x: 73, y: 18 }, { x: 73, y: 46 }, { x: 54, y: 46 }], confidence: 0.84 },
+      { id: 'kitchen', label: 'Kitchen', points: [{ x: 54, y: 50 }, { x: 91, y: 50 }, { x: 91, y: 74 }, { x: 54, y: 74 }], confidence: 0.86 },
+      { id: 'bedroom', label: 'Bedroom', points: [{ x: 76, y: 18 }, { x: 91, y: 18 }, { x: 91, y: 42 }, { x: 76, y: 42 }], confidence: 0.79 },
+    ],
+    walls: [
+      { id: 'wall-north', points: [{ x: 5, y: 18 }, { x: 91, y: 18 }] },
+      { id: 'wall-west', points: [{ x: 5, y: 18 }, { x: 5, y: 74 }] },
+      { id: 'wall-south', points: [{ x: 5, y: 74 }, { x: 91, y: 74 }] },
+      { id: 'wall-east', points: [{ x: 91, y: 18 }, { x: 91, y: 74 }] },
+    ],
+  },
 };
 export const demoObjects: LastSeenObject[] = [
   { id: 'keys', label: 'Keys', icon: '⌁', status: 'seen', lastSeenAt: new Date(Date.now() - 1000 * 60 * 18).toISOString(), point: { x: 64, y: 33 }, confidenceRadiusM: 0.8, confidence: 0.74, zone: demoScene.zones[1], sourceEventId: 'evt-keys' },

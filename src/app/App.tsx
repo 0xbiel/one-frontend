@@ -12,7 +12,7 @@ import { OverviewPage } from "./overview";
 import { MapPage } from "./map";
 import { EventsPage } from "./events";
 import { AssistantPage } from "./assistant";
-import { LivePage, CalibrationPage } from "./publisher";
+import { LivePage } from "./publisher";
 import { LoginPage, AccountPage, OnboardingPage, onboardingKey } from "./auth";
 import { PrivacyPage } from "./privacy";
 import { AccountSettingsPage } from "./account";
@@ -20,7 +20,15 @@ import { FamilyPage } from "./family";
 import { JoinPage, PublisherPage } from "./pages/CameraPairingPage";
 import { HouseholdInvitePage } from "./pages/HouseholdInvitePage";
 
-const emptyLiveScene: Scene = { sceneId: "scene-empty", version: 0, zones: [] };
+const emptyLiveScene: Scene = {
+  sceneId: "scene-empty",
+  version: 0,
+  zones: [],
+  dimension: "2d",
+  source: "legacy-2d",
+  metricScaleKnown: false,
+  geometryStatus: "unavailable",
+};
 
 function App() {
   const query = useQueryClient();
@@ -74,7 +82,6 @@ function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/join/:code?" element={<JoinPage />} />
       <Route path="/publisher" element={<PublisherPage paused={paused} onTogglePause={togglePause} />} />
-      <Route path="/publisher/calibrate" element={<CalibrationPage />} />
       <Route path="/publisher/live" element={<PublisherPage paused={paused} onTogglePause={togglePause} />} />
       <Route path="*" element={<Shell paused={paused} onTogglePause={togglePause} onLogout={logout}><Routes>
         <Route index element={<Navigate to="/dashboard" replace />} />
