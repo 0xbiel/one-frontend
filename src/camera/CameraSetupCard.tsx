@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Camera,
   Check,
@@ -98,6 +98,8 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
   const [connectionNotice, setConnectionNotice] = useState("");
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const sweepControllerRef = useRef<AbortController | null>(null);
+  const autoLocalizationRef = useRef<{ mapId: string; attempts: number; lastAttemptAt: number } | null>(null);
+  const autoLocalizationRunningRef = useRef(false);
   const generationQuery = useMapGeneration(cameraId ?? undefined, jobId ?? undefined);
   const setupStage = stageFor(consented, phase);
   const copy = phaseCopy(phase);
@@ -305,8 +307,8 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
     setPhase("ready");
   };
 
-  const confirmPlacement = async () => {
-    if (!stream || !videoRef.current) return;
+  const confirmPlacement = useCallback(async (automatic = false): Promise<boolean> => {
+    if (!stream || !videoRef.current) return false;
     setPhase("localizing");
     setMapError("");
     try {
@@ -318,20 +320,56 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
       if (localization.status !== "positioned") {
         setConnectionNotice("The camera is saved and publishing. Automatic 3D placement could not be confirmed, so add or refresh the iPhone LiDAR RoomPlan scan and try again from this same fixed view.");
         setPhase("ready");
-        return;
+        return false;
       }
       setConnectionNotice(`Positioned in the RoomPlan 3D map · ${localization.inlier_count} inliers${localization.confidence == null ? "" : ` · ${Math.round(localization.confidence * 100)}% confidence`}.`);
       setPhase("ready");
+      return true;
     } catch (error) {
       if (error instanceof Error && error.message === "API_409") {
-        setConnectionNotice("Camera setup is ready. Add or refresh the iPhone LiDAR RoomPlan scan, then use Position this camera in 3D while the Mac stays in this fixed view.");
+        setConnectionNotice(automatic
+          ? "A LiDAR map is available. ONE is waiting for its visual landmark index, then it will retry this fixed camera automatically."
+          : "Camera setup is ready. Add or refresh the iPhone LiDAR RoomPlan scan, then use Position this camera in 3D while the Mac stays in this fixed view.");
         setPhase("ready");
-        return;
+        return false;
       }
       setPhase("failed");
       setMapError(describeCameraError(error));
+      return false;
     }
-  };
+  }, [cameraId, stream]);
+
+  useEffect(() => {
+    if (!stream || !cameraId || paused || demoMode || phase === "localizing") return;
+    let cancelled = false;
+    const checkForLiDARMap = async () => {
+      if (cancelled || autoLocalizationRunningRef.current) return;
+      try {
+        const map = await api.getCurrentMap();
+        if (!map || map.source !== "roomplan-lidar-3d" || map.dimension !== "3d") return;
+        const now = Date.now();
+        const previous = autoLocalizationRef.current;
+        const state = previous?.mapId === map.id ? previous : { mapId: map.id, attempts: 0, lastAttemptAt: 0 };
+        if (state.attempts >= 6 || now - state.lastAttemptAt < 3_500) return;
+        autoLocalizationRef.current = { mapId: map.id, attempts: state.attempts + 1, lastAttemptAt: now };
+        autoLocalizationRunningRef.current = true;
+        const positioned = await confirmPlacement(true);
+        if (positioned) autoLocalizationRef.current = { mapId: map.id, attempts: 6, lastAttemptAt: Date.now() };
+      } catch (error) {
+        if (!(error instanceof Error && error.message === "API_401")) {
+          setMapError(describeCameraError(error));
+        }
+      } finally {
+        autoLocalizationRunningRef.current = false;
+      }
+    };
+    void checkForLiDARMap();
+    const interval = window.setInterval(() => { void checkForLiDARMap(); }, 4_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [cameraId, confirmPlacement, paused, phase, stream]);
 
   const togglePublisher = () => {
     if (onTogglePause) {
@@ -423,7 +461,7 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
       ) : phase === "place-camera" ? (
         <div className="room-sweep-status place-camera" role="status">
           <CheckCircle2 size={17} /><span><strong>Relative 2D geometry is ready.</strong><small>Place the camera in its fixed position to finish setup.</small></span>
-          <button type="button" className="secondary-button" disabled={!stream} onClick={() => void confirmPlacement()}>{stream ? "Camera is in its fixed spot" : "Start preview to confirm placement"} <Check size={14} /></button>
+          <button type="button" className="secondary-button" disabled={!stream} onClick={() => void confirmPlacement(false)}>{stream ? "Camera is in its fixed spot" : "Start preview to confirm placement"} <Check size={14} /></button>
         </div>
       ) : phase === "localizing" ? (
         <div className="room-sweep-status processing" role="status">
@@ -443,7 +481,7 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
         ) : (
           <>
             {["preview", "ready", "needs-rescan", "unavailable", "failed"].includes(phase) && (
-              <button className="primary-button" onClick={() => void confirmPlacement()}>
+              <button className="primary-button" onClick={() => void confirmPlacement(false)}>
                 <Map size={16} /> Position this camera in 3D
               </button>
             )}

@@ -50,6 +50,18 @@ function App() {
   useEffect(() => {
     if (sessionQuery.isError && !demoMode) { clearSession(); void query.invalidateQueries(); }
   }, [sessionQuery.isError, query]);
+  useEffect(() => {
+    if (demoMode) return;
+    const onSessionExpired = () => {
+      stopActivePublisher();
+      clearPublisherRegistry();
+      clearSession();
+      query.clear();
+      navigate('/login', { replace: true });
+    };
+    window.addEventListener('one:session-expired', onSessionExpired);
+    return () => window.removeEventListener('one:session-expired', onSessionExpired);
+  }, [navigate, query]);
   useEffect(() => { if (session?.paused !== undefined) setPaused(session.paused); }, [session?.paused]);
   useEffect(() => {
     if (demoMode || !session) return;

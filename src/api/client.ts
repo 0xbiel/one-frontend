@@ -545,7 +545,12 @@ async function request<T>(path: string, init?: RequestOptions): Promise<T> {
   headers.set('Content-Type', 'application/json');
   if (init?.auth !== false && token()) headers.set('Authorization', `Bearer ${token()}`);
   const response = await fetch(`${API_BASE}${path}`, { ...init, headers, credentials: 'include' });
-  if (!response.ok) throw new Error(`API_${response.status}`);
+  if (!response.ok) {
+    if (response.status === 401 && init?.auth !== false && typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('one:session-expired'));
+    }
+    throw new Error(`API_${response.status}`);
+  }
   return response.status === 204 ? (undefined as T) : response.json() as Promise<T>;
 }
 
