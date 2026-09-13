@@ -171,7 +171,8 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
   }, []);
 
   useEffect(() => {
-    if (!stream || !cameraId || phase !== "ready" || paused || demoMode) return;
+    const visionCanRun = ["preview", "place-camera", "ready", "needs-rescan", "unavailable", "failed"].includes(phase);
+    if (!stream || !cameraId || !visionCanRun || paused || demoMode) return;
     let disposed = false;
     let running = false;
     const tick = async () => {
@@ -441,9 +442,14 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
           </button>
         ) : (
           <>
-            {["preview", "needs-rescan", "unavailable", "failed"].includes(phase) && (
+            {["preview", "needs-rescan", "unavailable", "failed", "ready"].includes(phase) && (
               <button className="primary-button" onClick={() => void recordWalkthrough()}>
-                <Video size={16} /> Record room walkthrough
+                <Video size={16} /> {phase === "ready" ? "Refresh room walkthrough" : "Record room walkthrough"}
+              </button>
+            )}
+            {phase === "preview" && (
+              <button className="secondary-button" onClick={continueWithoutMap}>
+                <Check size={16} /> Use camera without map
               </button>
             )}
             <button className="secondary-button" onClick={togglePublisher}>
