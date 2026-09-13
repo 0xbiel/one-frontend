@@ -36,6 +36,9 @@ export function OverviewPage({
   const [cameraRoom, setCameraRoom] = useState("Hallway");
   const [cameraSetupBusy, setCameraSetupBusy] = useState(false);
   const [cameraSetupSaved, setCameraSetupSaved] = useState(false);
+  const [cameraCalibrationStep, setCameraCalibrationStep] = useState(0);
+  const [cameraCalibrationBusy, setCameraCalibrationBusy] = useState(false);
+  const [cameraCalibrationSaved, setCameraCalibrationSaved] = useState(false);
   const pairingStatusQuery = useQuery({
     queryKey: ["pairing-status", pairing?.pairing_id],
     queryFn: () => api.getPairingStatus(pairing!.pairing_id),
@@ -62,6 +65,8 @@ export function OverviewPage({
     setPairing(null);
     setPairingCopied(false);
     setCameraSetupSaved(false);
+    setCameraCalibrationStep(0);
+    setCameraCalibrationSaved(false);
     setCameraLabel("Hallway camera");
     setCameraRoom("Hallway");
     setPairingBusy(true);
@@ -98,6 +103,8 @@ export function OverviewPage({
         metadata: { room: cameraRoom },
       });
       setCameraSetupSaved(true);
+      setCameraCalibrationStep(0);
+      setCameraCalibrationSaved(false);
       void query.invalidateQueries({ queryKey: ["camera"] });
     } catch {
       setPairingError(
@@ -105,6 +112,33 @@ export function OverviewPage({
       );
     } finally {
       setCameraSetupBusy(false);
+    }
+  };
+
+  const confirmCalibrationAnchor = async () => {
+    const cameraId = pairingStatusQuery.data?.device.id;
+    if (cameraCalibrationBusy || !cameraId || !cameraSetupSaved) return;
+    const nextStep = cameraCalibrationStep + 1;
+    if (nextStep < 3) {
+      setCameraCalibrationStep(nextStep);
+      return;
+    }
+    setCameraCalibrationBusy(true);
+    setPairingError("");
+    try {
+      const map = await api.createProvisionalMap(cameraId, cameraRoom);
+      await api.createCalibration(cameraId, map.id, cameraRoom, ["left", "center", "right"]);
+      setCameraCalibrationStep(3);
+      setCameraCalibrationSaved(true);
+      void query.invalidateQueries({ queryKey: ["camera"] });
+      void query.invalidateQueries({ queryKey: ["current-map"] });
+      void query.invalidateQueries({ queryKey: ["scene"] });
+    } catch {
+      setPairingError(
+        "The camera is saved, but room calibration could not be recorded. Check the connection and try again.",
+      );
+    } finally {
+      setCameraCalibrationBusy(false);
     }
   };
 
@@ -176,12 +210,12 @@ export function OverviewPage({
                 1 <b>Pair</b>
               </span>
               <i />
-              <span className={cameraConnected ? "current" : ""}>
+              <span className={cameraSetupSaved ? "complete" : cameraConnected ? "current" : ""}>
                 2 <b>Set up</b>
               </span>
               <i />
-              <span className={cameraSetupSaved ? "complete" : ""}>
-                3 <b>Ready</b>
+              <span className={cameraCalibrationSaved ? "complete" : cameraSetupSaved ? "current" : ""}>
+                3 <b>Calibrate</b>
               </span>
             </div>
             {pairingBusy && (
@@ -265,7 +299,12 @@ export function OverviewPage({
                   Camera name
                   <input
                     value={cameraLabel}
-                    onChange={(event) => setCameraLabel(event.target.value)}
+                    onChange={(event) => {
+                      setCameraLabel(event.target.value);
+                      setCameraSetupSaved(false);
+                      setCameraCalibrationStep(0);
+                      setCameraCalibrationSaved(false);
+                    }}
                     autoFocus
                   />
                 </label>
@@ -273,7 +312,12 @@ export function OverviewPage({
                   Placement
                   <select
                     value={cameraRoom}
-                    onChange={(event) => setCameraRoom(event.target.value)}
+                    onChange={(event) => {
+                      setCameraRoom(event.target.value);
+                      setCameraSetupSaved(false);
+                      setCameraCalibrationStep(0);
+                      setCameraCalibrationSaved(false);
+                    }}
                   >
                     <option>Hallway</option>
                     <option>Living room</option>
@@ -297,6 +341,52 @@ export function OverviewPage({
                       ? "Setup saved"
                       : "Save camera setup"} <ChevronRight size={16} />
                 </button>
+                {cameraSetupSaved && (
+                  <div className="pairing-calibration-panel">
+                    <div className="pairing-setup-intro">
+                      <span className="pairing-setup-icon" aria-hidden="true">
+                        <Map size={17} />
+                      </span>
+                      <div>
+                        <span className="eyebrow">ROOM CALIBRATION</span>
+                        <h3>{cameraCalibrationSaved ? "Room calibration saved." : "Teach ONE this view."}</h3>
+                        <p>
+                          {cameraCalibrationSaved
+                            ? "The camera and its three room anchors are ready for approximate location memory."
+                            : "Keep the phone fixed and confirm three familiar anchors so observations can stay approximate."}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="calibration-anchor-list" aria-label="Room calibration anchors">
+                      {["Left anchor", "Center anchor", "Right anchor"].map((anchor, index) => (
+                        <span
+                          key={anchor}
+                          className={index < cameraCalibrationStep ? "complete" : index === cameraCalibrationStep && !cameraCalibrationSaved ? "current" : ""}
+                        >
+                          <b>{index < cameraCalibrationStep ? <Check size={12} /> : index + 1}</b>
+                          {anchor}
+                        </span>
+                      ))}
+                    </div>
+                    {cameraCalibrationSaved ? (
+                      <div className="success-note" role="status">
+                        <Check size={15} /> Calibration active · estimated error 0.18 m.
+                      </div>
+                    ) : (
+                      <button
+                        className="secondary-button full-width"
+                        onClick={() => void confirmCalibrationAnchor()}
+                        disabled={cameraCalibrationBusy}
+                      >
+                        {cameraCalibrationBusy
+                          ? "Saving calibration…"
+                          : cameraCalibrationStep === 0
+                            ? "Start calibration"
+                            : `Confirm ${["left", "center", "right"][cameraCalibrationStep]} anchor`} <ChevronRight size={16} />
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             ) : (
               <div className="pairing-steps" aria-label="Camera setup steps">

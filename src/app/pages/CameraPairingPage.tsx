@@ -66,23 +66,19 @@ function CameraSetupCard({
     setStarting(true);
     setError("");
     try {
+      const livekit = !demoMode ? await api.getLiveKitToken("publish") : null;
+      if (!navigator.mediaDevices?.getUserMedia) throw new Error("SECURE_CONTEXT_REQUIRED");
       const media = await navigator.mediaDevices.getUserMedia({
         video: true,
         audio: true,
       });
       registerPublisherStream(media);
       setStream(media);
-      if (!demoMode) {
-        const livekit = await api.getLiveKitToken("publish");
-        if (livekit.url && livekit.token) {
-          const { connectPublisher } = await import("../../livekit/publisher");
-          const liveConnection = await connectPublisher(
-            livekit.url,
-            livekit.token,
-          );
-          registerPublisherConnection(liveConnection.disconnect);
-          setConnection(liveConnection);
-        }
+      if (livekit?.url && livekit.token) {
+        const { connectPublisher } = await import("../../livekit/publisher");
+        const liveConnection = await connectPublisher(livekit.url, livekit.token, media);
+        registerPublisherConnection(liveConnection.disconnect);
+        setConnection(liveConnection);
       }
     } catch {
       stopActivePublisher();

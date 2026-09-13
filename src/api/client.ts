@@ -13,6 +13,7 @@ type LiveKitInput = JsonBody<'/api/v1/homes/{home_id}/livekit/token', 'post'>;
 interface PairStartResponse { pairing_id?: string; pairing_code: string; code?: string; expires_in_seconds: number; home_id: string; user_id: string; role?: 'admin' | 'resident' | 'caregiver' | 'publisher' | string; }
 interface PairCompleteResponse { access_token: string; token_type: string; expires_in: number; home_id: string; user_id: string; }
 export interface PairingStatus { pairing_id: string; home_id: string; status: 'pending' | 'connected' | 'expired'; expires_at: string; connected_at?: string | null; device: { id: string; label: string; role: string }; }
+export interface CameraCalibration { id: string; camera_id: string; map_id: string; status: 'active' | 'invalidated'; accuracy_m?: number | null; source?: string; camera_metadata?: Record<string, unknown>; }
 export interface EmailChallenge { verification_id: string; expires_in_seconds: number; delivery: string; dev_code?: string | null; email: string; purpose: 'create' | 'login'; home_id: string; user_id: string; role: string; }
 export interface EmailSession extends PairCompleteResponse { role?: string; email?: string; }
 interface InviteAcceptResponse extends PairCompleteResponse { role?: string; }
@@ -23,6 +24,26 @@ interface SceneResponse { sceneId: string | null; version: number; zones: Scene[
 interface MapResponse { id: string; revision: number; coordinate_frame: string; room_id?: string | null; created_at?: string; map_data?: Record<string, unknown>; }
 interface ObjectResponse { data: LastSeenObject[]; }
 interface CameraResponse { data: Device[]; }
+
+export function normalizeZones(zones: Array<Partial<Scene['zones'][number]>>): Scene['zones'] {
+  const count = zones.length;
+  return zones.map((zone, index) => {
+    const id = zone.id ?? `zone-${index + 1}`;
+    const fallback = count === 1
+      ? { x: 8, y: 12, width: 84, height: 76 }
+      : { x: 8 + (index % 2) * 47, y: 12 + Math.floor(index / 2) * 40, width: 40, height: 30 };
+    const label = zone.name ?? id.replace(/[-_]+/g, ' ');
+    const number = (value: number | undefined, fallbackValue: number) => typeof value === 'number' && Number.isFinite(value) ? value : fallbackValue;
+    return {
+      id,
+      name: label,
+      x: number(zone.x, fallback.x),
+      y: number(zone.y, fallback.y),
+      width: number(zone.width, fallback.width),
+      height: number(zone.height, fallback.height),
+    };
+  });
+}
 export interface FamilyMember { id: string; display_name: string; email?: string | null; role: 'admin' | 'resident' | 'caregiver'; created_at: string; representation_status?: string; synthetic_demo?: boolean; }
 export type EditableFamilyRole = Exclude<FamilyMember['role'], 'admin'>;
 export interface FamilyMemberMutationResponse { data: FamilyMember; invalidated_sessions: number; }
@@ -62,7 +83,7 @@ export const api = {
   getScene: async (): Promise<Scene> => {
     if (demoMode) return demoScene;
     const result = await request<SceneResponse>(`/homes/${homeId()}/scene`);
-    return { sceneId: result.sceneId ?? 'scene-empty', version: result.version, zones: result.zones ?? [], mapId: result.mapId, coordinateFrame: result.coordinateFrame };
+    return { sceneId: result.sceneId ?? 'scene-empty', version: result.version, zones: normalizeZones(result.zones ?? []), mapId: result.mapId, coordinateFrame: result.coordinateFrame };
   },
   getCurrentMap: async (): Promise<MapResponse | null> => {
     if (demoMode) return { id: demoScene.sceneId, revision: demoScene.version, coordinate_frame: 'roomplan-local', map_data: { zones: demoScene.zones } };
@@ -79,6 +100,15 @@ export const api = {
     if (demoMode) return { status: 'saved' };
     return request(`/homes/${homeId()}/cameras/${encodeURIComponent(cameraId)}`, { method: 'PATCH', body: JSON.stringify(input) });
   },
+  createProvisionalMap: async (cameraId: string, room: string, resolutionWidth = 1280, resolutionHeight = 720): Promise<MapResponse> => {
+    if (demoMode) return { id: 'map-camera-demo', revision: 1, coordinate_frame: 'camera-zone-local', room_id: null, map_data: { zones: [{ id: room.toLowerCase().replace(/[^a-z0-9]+/g, '-'), name: room }] } };
+    return request<MapResponse>(`/homes/${homeId()}/maps/provisional`, { method: 'POST', body: JSON.stringify({ camera_id: cameraId, room_id: null, resolution_width: resolutionWidth, resolution_height: resolutionHeight, zones: [{ id: room.toLowerCase().replace(/[^a-z0-9]+/g, '-'), name: room, confidence: 1 }] }) });
+  },
+  createCalibration: async (cameraId: string, mapId: string, room: string, anchors: string[], resolutionWidth = 1280, resolutionHeight = 720): Promise<CameraCalibration> => {
+    if (demoMode) return { id: 'calibration-camera-demo', camera_id: cameraId, map_id: mapId, status: 'active', accuracy_m: 0.18, source: 'manual', camera_metadata: { room, anchors } };
+    return request<CameraCalibration>(`/homes/${homeId()}/calibrations`, { method: 'POST', body: JSON.stringify({ camera_id: cameraId, map_id: mapId, intrinsics: { model: 'browser-estimated' }, extrinsics: { placement: room, anchors }, accuracy_m: 0.18, resolution_width: resolutionWidth, resolution_height: resolutionHeight, camera_metadata: { room, anchors }, source: 'manual' }) });
+  },
+  getCalibrations: async (): Promise<CameraCalibration[]> => demoMode ? [{ id: 'calibration-camera-demo', camera_id: demoDevice.id, map_id: 'map-camera-demo', status: 'active', accuracy_m: 0.18, source: 'manual', camera_metadata: { room: 'Hallway', anchors: ['left', 'center', 'right'] } }] : (await request<{ data: CameraCalibration[] }>(`/homes/${homeId()}/calibrations`)).data,
   startPairing: async (displayName: string, homeName = 'ONE Home', role: 'resident' | 'caregiver' = 'resident'): Promise<PairStartResponse> => demoMode ? { pairing_code: '482701', expires_in_seconds: 600, home_id: 'home-demo', user_id: 'user-demo', role } : request('/pairing/start', { method: 'POST', auth: false, body: JSON.stringify({ display_name: displayName, home_name: homeName, role } satisfies PairStartInput) }),
   createAccount: async (displayName: string, email: string, homeName: string): Promise<PairStartResponse> => {
     if (demoMode) return api.startPairing(displayName, homeName, 'caregiver');

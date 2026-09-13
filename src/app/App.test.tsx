@@ -95,6 +95,20 @@ describe('ONE dashboard', () => {
     await waitFor(() => expect(screen.getByText('Camera connected')).toBeInTheDocument());
   });
 
+  it('saves the connected camera and records its three room anchors inline', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/dashboard']}><App /></MemoryRouter></QueryClientProvider>);
+    await waitFor(() => expect(screen.getByRole('button', { name: /pair a camera/i })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /pair a camera/i }));
+    const saveButton = await screen.findByRole('button', { name: /save camera setup/i });
+    fireEvent.click(saveButton);
+    await waitFor(() => expect(screen.getByText('Teach ONE this view.')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /start calibration/i }));
+    fireEvent.click(screen.getByRole('button', { name: /confirm center anchor/i }));
+    fireEvent.click(screen.getByRole('button', { name: /confirm right anchor/i }));
+    await waitFor(() => expect(screen.getByText(/Calibration active/)).toBeInTheDocument());
+  });
+
   it('exposes account settings with an explicit sign-out action', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/dashboard/account']}><App /></MemoryRouter></QueryClientProvider>);
