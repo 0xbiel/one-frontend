@@ -43,16 +43,32 @@ function objectLocationCopy(object: LastSeenObject, scene: Scene): string {
 export function MapPage({ objects, scene }: { objects: LastSeenObject[]; scene: Scene }) {
   const hasSession = demoMode || Boolean(sessionStorage.getItem("one_access_token"));
   const queryClient = useQueryClient();
+  const sceneQuery = useQuery({
+    queryKey: ["scene"],
+    queryFn: api.getScene,
+    enabled: hasSession,
+    retry: false,
+    refetchInterval: !demoMode && hasSession ? 2_000 : false,
+    refetchIntervalInBackground: false,
+  });
+  const objectsQuery = useQuery({
+    queryKey: ["objects"],
+    queryFn: api.getObjects,
+    enabled: hasSession,
+    retry: false,
+    refetchInterval: !demoMode && hasSession ? 2_000 : false,
+    refetchIntervalInBackground: false,
+  });
   const mapQuery = useQuery({
     queryKey: ["current-map"],
     queryFn: api.getCurrentMap,
     enabled: hasSession,
     retry: false,
-    refetchInterval: hasSession ? 4_000 : false,
+    refetchInterval: !demoMode && hasSession ? 2_000 : false,
     refetchIntervalInBackground: false,
   });
   const cameraQuery = useQuery({ queryKey: ["camera"], queryFn: api.getDevice, enabled: hasSession, retry: false });
-  const [selected, setSelected] = useState(objects[0]?.id);
+  const [selected, setSelected] = useState<string | undefined>(objects[0]?.id);
   const [view, setView] = useState<"3d" | "2d">(hasRenderableSpatial3D(scene) ? "3d" : "2d");
   const [measureMode, setMeasureMode] = useState(false);
   const [measurePoints, setMeasurePoints] = useState<Point2D[]>([]);
@@ -60,18 +76,30 @@ export function MapPage({ objects, scene }: { objects: LastSeenObject[]; scene: 
   const [referenceLabel, setReferenceLabel] = useState("Measured reference");
   const [scaleError, setScaleError] = useState("");
   const [savingScale, setSavingScale] = useState(false);
-  const displayScene = mapQuery.data ? sceneFromMapResponse(mapQuery.data, scene) : scene;
+  const liveScene = sceneQuery.data ?? scene;
+  const liveObjects = objectsQuery.data ?? objects;
+  const displayScene = mapQuery.data ? sceneFromMapResponse(mapQuery.data, liveScene) : liveScene;
   const hasReal3D = hasRenderableSpatial3D(displayScene);
   const positionedCameraCount = (displayScene.cameraRegistrations?.length
     ? displayScene.cameraRegistrations
     : displayScene.cameraRegistration ? [displayScene.cameraRegistration] : [])
     .filter((registration) => registration.status === "positioned").length;
-  const current = objects.find((object) => object.id === selected);
+  const current = liveObjects.find((object) => object.id === selected);
   const canMeasureScale = displayScene.source === "camera-cv-2d" && Boolean(displayScene.mapId);
 
   useEffect(() => {
     setView(hasReal3D ? "3d" : "2d");
   }, [displayScene.mapId, hasReal3D]);
+
+  useEffect(() => {
+    if (!liveObjects.length) {
+      setSelected(undefined);
+      return;
+    }
+    if (!selected || !liveObjects.some((object) => object.id === selected)) {
+      setSelected(liveObjects[0].id);
+    }
+  }, [liveObjects, selected]);
 
   const handleMeasurePoint = (point: Point2D) => {
     setScaleError("");
@@ -146,14 +174,14 @@ export function MapPage({ objects, scene }: { objects: LastSeenObject[]; scene: 
         <div className="scene-wrap">
           {view === "3d" && hasReal3D ? (
             <Suspense fallback={<div className="three-scene loading-scene">Loading 3D room model…</div>}>
-              <LiDARRoomScene3D scene={displayScene} objects={objects} />
+              <LiDARRoomScene3D scene={displayScene} objects={liveObjects} />
             </Suspense>
           ) : hasReal3D ? (
             <Suspense fallback={<div className="three-scene loading-scene">Building native floor plan…</div>}>
-              <RoomPlanFloorPlan2D scene={displayScene} objects={objects} />
+              <RoomPlanFloorPlan2D scene={displayScene} objects={liveObjects} />
             </Suspense>
           ) : (
-            <CameraMap2D scene={displayScene} objects={objects} selectedId={selected} onSelect={setSelected} measurement={measureMode ? { points: measurePoints, onPoint: handleMeasurePoint } : undefined} />
+            <CameraMap2D scene={displayScene} objects={liveObjects} selectedId={selected} onSelect={setSelected} measurement={measureMode ? { points: measurePoints, onPoint: handleMeasurePoint } : undefined} />
           )}
           <div className="scene-legend">
             {hasReal3D ? (
