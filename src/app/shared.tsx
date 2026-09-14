@@ -269,7 +269,7 @@ export function Shell({ children, paused, onTogglePause, onLogout, session }: { 
                 return <button key={person.id} className={`recipient-option ${isSelected ? "is-selected" : ""}`} type="button" role="option" aria-selected={isSelected} onClick={() => careRecipientChanged(person.id)}>
                   <span>{person.display_name}</span><small>{person.room_label || person.relationship || "baseline"}</small>{isSelected && <Check size={15} aria-hidden="true" />}
                 </button>;
-              }) : <div className="recipient-option-empty">No care recipients yet. Add one in Family.</div>}
+              }) : <div className="recipient-option-empty"><span>No care recipients yet.</span><button type="button" className="recipient-option-add" onClick={() => { setRecipientMenuOpen(false); closeMenu(); nav("/dashboard/family?addCareRecipient=1"); }}><Plus size={14} /> Add person</button></div>}
             </div>}
           </div>
           {careSpaceMenuOpen && <div id="care-space-menu" className="care-space-menu" role="dialog" aria-label="Manage care spaces">

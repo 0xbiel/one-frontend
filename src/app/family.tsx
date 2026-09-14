@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ChevronRight, MessageCircle, Pencil, Plus, ShieldCheck, Sparkles, Trash2, Users, X } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, demoMode, type CareRecipient, type EditableFamilyRole, type FamilyMember, type MedicationCheckInStatus, type MedicationPlan, type MedicationReminder } from "../api/client";
 import type { Session } from "../models/domain";
@@ -21,6 +21,8 @@ const emptyRecipientForm = { display_name: "", relationship: "", room_label: "" 
 
 function CareRecipientManager({ session }: { session?: Session }) {
   const queryClient = useQueryClient();
+  const location = useLocation();
+  const nav = useNavigate();
   const hasBackendSession = !demoMode && Boolean(sessionStorage.getItem("one_access_token") && sessionStorage.getItem("one_home_id"));
   const recipientsQuery = useQuery({ queryKey: ["care-recipients"], queryFn: api.getCareRecipients, enabled: demoMode || hasBackendSession, retry: false });
   const [formOpen, setFormOpen] = useState(false);
@@ -37,6 +39,18 @@ function CareRecipientManager({ session }: { session?: Session }) {
     window.addEventListener("one:care-recipient-change", handle);
     return () => window.removeEventListener("one:care-recipient-change", handle);
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get("addCareRecipient") !== "1") return;
+    setEditing(null);
+    setForm(emptyRecipientForm);
+    setError("");
+    setFormOpen(true);
+    params.delete("addCareRecipient");
+    const nextSearch = params.toString();
+    nav({ pathname: location.pathname, search: nextSearch ? `?${nextSearch}` : "" }, { replace: true });
+  }, [location.pathname, location.search, nav]);
 
   const openCreate = () => { setEditing(null); setForm(emptyRecipientForm); setError(""); setFormOpen(true); };
   const openEdit = (recipient: CareRecipient) => { setEditing(recipient); setForm({ display_name: recipient.display_name, relationship: recipient.relationship ?? "", room_label: recipient.room_label ?? "" }); setError(""); setFormOpen(true); };
