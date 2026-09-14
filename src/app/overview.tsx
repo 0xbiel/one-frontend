@@ -103,10 +103,7 @@ export function OverviewPage({
           : "On the camera device, preview first and record a short room walkthrough when convenient. Mapping is optional for basic live and object vision.";
   const homeName = session?.home.name ?? "The García home";
   const residentName = session?.home.residentName ?? "María";
-  const careSetting = session?.home.careSetting === "residence" ? "residential care setting" : "home";
-  const supportCopy = session?.home.supportFocus === "mci"
-    ? "MCI support stays grounded in the person’s own baseline and human follow-up."
-    : "Support stays grounded in the person’s own baseline and human follow-up.";
+  const checkInEvent = events.find((event) => /check[- ]?in/i.test(`${event.title} ${event.detail}`));
 
   useEffect(() => {
     if (!pairingOpen) return;
@@ -183,30 +180,28 @@ export function OverviewPage({
 
   return (
     <div className="home-page">
-      <section className="home-intro">
-        <span className="eyebrow">ONE · {homeName.toUpperCase()}</span>
-        <h2>
-          A little support.
-          <br />A more independent day.
-        </h2>
-        <p>
-          Stay close to what matters with gentle, explainable observations in this {careSetting}. {supportCopy}
-        </p>
+      <section className="home-heading">
+        <span className="eyebrow">{homeName.toUpperCase()}</span>
+        <h2>Your home, in view.</h2>
       </section>
 
-      <section className="pairing-card">
-        <div>
-          <span className="eyebrow">CAMERA CONNECTION</span>
-          <h3>{savedCamera ? `${savedCamera.label} is saved to this home.` : "Bring one more set of eyes into the room."}</h3>
-          <p>
-            {savedCamera
-              ? "Continue naming, placement, or room mapping at any time. Reloading does not remove the paired camera."
-              : "Pair a phone or laptop camera in under a minute. Consent comes before anything is shared."}
-          </p>
+      <section className="home-camera-hero">
+        <div className="home-camera-hero-top">
+          <span className="home-camera-label"><Camera size={15} /> ROOM CAMERA</span>
+          <span className={`home-camera-state ${savedCamera?.status === "online" ? "online" : ""}`}>
+            <span className="status-dot" /> {savedCamera ? savedCamera.status.toUpperCase() : "NOT PAIRED"}
+          </span>
         </div>
-        <button className="primary-button" onClick={() => void openPairing()}>
-          <Camera size={17} /> {savedCamera ? "Continue camera setup" : "Pair a camera"} <ChevronRight size={16} />
-        </button>
+        <div className="home-camera-mark" aria-hidden="true"><Camera size={64} strokeWidth={1.35} /></div>
+        <div className="home-camera-hero-bottom">
+          <div>
+            <h3>{savedCamera ? savedCamera.label : "No room camera connected"}</h3>
+            <p>{savedCamera ? "Review the camera name, placement, or room map." : "Pair a phone or laptop to add a room view."}</p>
+          </div>
+          <button className="home-camera-action" onClick={() => void openPairing()}>
+            {savedCamera ? "Camera setup" : "Pair camera"} <ChevronRight size={16} />
+          </button>
+        </div>
       </section>
 
       {pairingOpen && (
@@ -388,7 +383,7 @@ export function OverviewPage({
                       <span className="status-dot" />
                       <span><strong>{cameraMapReady ? "Room context is ready" : mapGenerationStatus === "collecting" ? "Walkthrough is ready to record" : mapGenerationStatus === "processing" ? "Building the room draft" : mapGenerationStatus ? mapGenerationStatus.replace("_", " ") : "No room walkthrough yet"}</strong><small>{cameraMapReady ? "Relative visual geometry · no measured scale" : mapGenerationQuery.data?.error ?? "The camera remains saved whether or not you create a map."}</small></span>
                     </div>
-                    <button className="secondary-button full-width" onClick={() => { setPairingOpen(false); navigate("/dashboard/live"); }}>
+                    <button className="secondary-button full-width" onClick={() => { setPairingOpen(false); navigate("/dashboard/cameras"); }}>
                       <Video size={16} /> Open live view & manage camera <ChevronRight size={16} />
                     </button>
                   </div>
@@ -440,20 +435,11 @@ export function OverviewPage({
         </div>
       )}
 
-      <div className="status-chips" aria-label="Home status filters">
-        <button className="chip active">
-          <span className="status-dot" /> All home
-        </button>
-        <button className="chip">Calm today</button>
-        <button className="chip">3 observations</button>
-        <button className="chip">Camera online</button>
-      </div>
-
       <section className="home-section">
         <div className="section-heading">
           <div>
             <span className="eyebrow">RECENT OBSERVATIONS</span>
-            <h3>Small moments, kept meaningful.</h3>
+            <h3>Recent observations</h3>
           </div>
           <button className="text-button" onClick={() => navigate("/dashboard/events")}>
             See all <ChevronRight size={15} />
@@ -468,22 +454,19 @@ export function OverviewPage({
 
       <section className="household-card">
         <div>
-          <span className="eyebrow">HOUSEHOLD PLAN · TODAY</span>
-          <h3>Morning check-in is complete.</h3>
-          <p>
-            {residentName} completed 4 of 4 prompts at 08:42. The signal is within the
-            personal baseline.
-          </p>
+          <span className="eyebrow">TODAY’S CHECK-IN</span>
+          <h3>{checkInEvent ? "A check-in is recorded." : "Waiting for today’s check-in."}</h3>
+          <p>{checkInEvent ? checkInEvent.detail : `${residentName} has no recorded check-in yet today. ONE will keep the result in context with the personal baseline when it arrives.`}</p>
         </div>
         <div className="plan-status">
-          <strong>4 / 4</strong>
-          <span>calm check-in</span>
+          <strong>{checkInEvent ? "Done" : "—"}</strong>
+          <span>{checkInEvent ? "human signal" : "not recorded"}</span>
           <div className="progress-line">
-            <span />
+            <span style={{ width: checkInEvent ? "100%" : "12%" }} />
           </div>
         </div>
-        <button className="secondary-button" onClick={() => navigate("/dashboard/assistant")}>
-          Explore context <ChevronRight size={16} />
+        <button className="secondary-button" onClick={() => navigate("/dashboard/live")}>
+          Open check-in <ChevronRight size={16} />
         </button>
       </section>
 
@@ -491,7 +474,7 @@ export function OverviewPage({
         <div className="section-heading">
           <div>
             <span className="eyebrow">OBJECT MEMORY</span>
-            <h3>Where things were last seen</h3>
+            <h3>Last-seen objects</h3>
           </div>
           <button className="text-button" onClick={() => navigate("/dashboard/map")}>
             Open map <Map size={15} />

@@ -12,12 +12,13 @@ import { OverviewPage } from "./overview";
 import { MapPage } from "./map";
 import { EventsPage } from "./events";
 import { AssistantPage } from "./assistant";
-import { LivePage } from "./publisher";
+import { CameraManagerPage } from "./publisher";
+import { CheckInPage } from "./checkIn";
 import { LoginPage, AccountPage, OnboardingPage, onboardingKey } from "./auth";
 import { PrivacyPage } from "./privacy";
 import { AccountSettingsPage } from "./account";
 import { FamilyPage } from "./family";
-import { JoinPage, PublisherPage } from "./pages/CameraPairingPage";
+import { CameraReconnectPage, JoinPage, PublisherPage } from "./pages/CameraPairingPage";
 import { HouseholdInvitePage } from "./pages/HouseholdInvitePage";
 
 const emptyLiveScene: Scene = {
@@ -35,7 +36,8 @@ function App() {
   const navigate = useNavigate();
   const location = useLocation();
   const hasToken = Boolean(sessionStorage.getItem("one_access_token"));
-  const sessionQuery = useQuery({ queryKey: ["session"], queryFn: api.getSession, enabled: demoMode || hasToken, retry: false });
+  const isCameraReconnect = location.pathname.startsWith("/camera/");
+  const sessionQuery = useQuery({ queryKey: ["session"], queryFn: api.getSession, enabled: (demoMode || hasToken) && !isCameraReconnect, retry: false });
   const session = sessionQuery.data;
   const { data: fetchedEvents } = useQuery({ queryKey: ["events"], queryFn: api.getEvents, enabled: demoMode || Boolean(session) });
   const { data: fetchedObjects } = useQuery({ queryKey: ["objects"], queryFn: api.getObjects, enabled: demoMode || Boolean(session) });
@@ -79,9 +81,9 @@ function App() {
   };
   const logout = async () => { stopActivePublisher(); clearPublisherRegistry(); await api.logout(); query.clear(); navigate("/login", { replace: true }); };
 
-  if (!demoMode && !hasToken && !["/create-account", "/join-household"].includes(location.pathname) && location.pathname !== "/join" && !location.pathname.startsWith("/join/")) return <LoginPage />;
-  if (!demoMode && hasToken && sessionQuery.isPending) return <div className="join-page"><div className="join-card panel"><img className="one-logo large" src="/one-logo.png" alt="" aria-hidden="true" /><p className="muted">Checking your secure session…</p></div></div>;
-  if (!demoMode && hasToken && sessionQuery.isError) return <LoginPage />;
+  if (!demoMode && !hasToken && !["/create-account", "/join-household"].includes(location.pathname) && location.pathname !== "/join" && !location.pathname.startsWith("/join/") && !location.pathname.startsWith("/camera/")) return <LoginPage />;
+  if (!demoMode && hasToken && sessionQuery.isPending && !isCameraReconnect) return <div className="join-page"><div className="join-card panel"><img className="one-logo large" src="/one-logo.png" alt="" aria-hidden="true" /><p className="muted">Checking your secure session…</p></div></div>;
+  if (!demoMode && hasToken && sessionQuery.isError && !isCameraReconnect) return <LoginPage />;
   const isPublisher = session?.actor.role === "publisher";
   if (!demoMode && hasToken && session && !isPublisher && !localStorage.getItem(onboardingKey()) && location.pathname !== "/onboarding" && !location.pathname.startsWith("/join")) return <Navigate to="/onboarding" replace />;
   if (location.pathname === "/create-account") return <AccountPage />;
@@ -93,13 +95,15 @@ function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/join/:code?" element={<JoinPage />} />
+      <Route path="/camera/:cameraId" element={<CameraReconnectPage paused={paused} onTogglePause={togglePause} />} />
       <Route path="/publisher" element={<PublisherPage paused={paused} onTogglePause={togglePause} />} />
       <Route path="/publisher/live" element={<PublisherPage paused={paused} onTogglePause={togglePause} />} />
       <Route path="*" element={<Shell paused={paused} onTogglePause={togglePause} onLogout={logout} session={session}><Routes>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<OverviewPage events={events} objects={objects} onEvent={setSelectedEvent} session={session} />} />
-        <Route path="dashboard/live" element={<LivePage />} />
+        <Route path="dashboard/live" element={<CheckInPage events={events} session={session} onEvent={setSelectedEvent} />} />
         <Route path="dashboard/map" element={<MapPage objects={objects} scene={scene} />} />
+        <Route path="dashboard/cameras" element={<CameraManagerPage />} />
         <Route path="dashboard/events" element={<EventsPage events={events} onEvent={setSelectedEvent} />} />
         <Route path="dashboard/assistant" element={<AssistantPage session={session} />} />
         <Route path="dashboard/family" element={<FamilyPage session={session} />} />

@@ -4,19 +4,22 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, demoMode, sceneFromMapResponse } from "../api/client";
 import type { LastSeenObject, Point2D, Scene } from "../models/domain";
 import { CameraMap2D } from "../map/CameraMap2D";
-import { hasRealLidarGeometry } from "../map/lidarGeometry";
+import { hasRenderableSpatial3D } from "../map/lidarGeometry";
 import { formatTime } from "./shared";
 
 const LiDARRoomScene3D = lazy(() => import("../map/LiDARRoomScene3D").then((module) => ({ default: module.LiDARRoomScene3D })));
+const RoomPlanFloorPlan2D = lazy(() => import("../map/RoomPlanFloorPlan2D").then((module) => ({ default: module.RoomPlanFloorPlan2D })));
 
 function sourceLabel(scene: Scene): string {
   if (scene.source === "roomplan-lidar-3d") return "LIDAR ROOMPLAN MODEL";
+  if (scene.source === "arkit-video-3d") return "ARKIT VIDEO 3D MODEL";
   if (scene.source === "camera-cv-2d") return "CAMERA-DERIVED 2D MAP";
   return "MAP NEEDS A FRESH SWEEP";
 }
 
 function mapDescription(scene: Scene): string {
   if (scene.source === "roomplan-lidar-3d") return "A native iPhone or iPad LiDAR scan is providing this model.";
+  if (scene.source === "arkit-video-3d") return "Generated from a guided iPhone ARKit room video without LiDAR. Scale is metric, while structural geometry remains approximate.";
   if (scene.source === "camera-cv-2d") {
     return scene.scale
       ? `Generated from the room walkthrough · reference-calibrated to ${scene.scale.referenceLengthM} m · still approximate away from that reference.`
@@ -50,7 +53,7 @@ export function MapPage({ objects, scene }: { objects: LastSeenObject[]; scene: 
   });
   const cameraQuery = useQuery({ queryKey: ["camera"], queryFn: api.getDevice, enabled: hasSession, retry: false });
   const [selected, setSelected] = useState(objects[0]?.id);
-  const [view, setView] = useState<"3d" | "2d">(hasRealLidarGeometry(scene) ? "3d" : "2d");
+  const [view, setView] = useState<"3d" | "2d">(hasRenderableSpatial3D(scene) ? "3d" : "2d");
   const [measureMode, setMeasureMode] = useState(false);
   const [measurePoints, setMeasurePoints] = useState<Point2D[]>([]);
   const [referenceLength, setReferenceLength] = useState("1.00");
@@ -58,7 +61,11 @@ export function MapPage({ objects, scene }: { objects: LastSeenObject[]; scene: 
   const [scaleError, setScaleError] = useState("");
   const [savingScale, setSavingScale] = useState(false);
   const displayScene = mapQuery.data ? sceneFromMapResponse(mapQuery.data, scene) : scene;
-  const hasReal3D = hasRealLidarGeometry(displayScene);
+  const hasReal3D = hasRenderableSpatial3D(displayScene);
+  const positionedCameraCount = (displayScene.cameraRegistrations?.length
+    ? displayScene.cameraRegistrations
+    : displayScene.cameraRegistration ? [displayScene.cameraRegistration] : [])
+    .filter((registration) => registration.status === "positioned").length;
   const current = objects.find((object) => object.id === selected);
   const canMeasureScale = displayScene.source === "camera-cv-2d" && Boolean(displayScene.mapId);
 
@@ -116,12 +123,18 @@ export function MapPage({ objects, scene }: { objects: LastSeenObject[]; scene: 
   };
 
   return (
-    <div className="map-layout">
+    <div className="map-page">
+      <header className="page-heading-clean map-page-heading">
+        <span className="eyebrow">HOME MAP</span>
+        <h2>Home map</h2>
+        <p>Review room geometry, camera context, and approximate last-seen locations in one place.</p>
+      </header>
+      <div className="map-layout">
       <section className="map-panel panel">
         <div className="panel-heading">
           <div>
             <span className="eyebrow">{sourceLabel(displayScene)} · REVISION {mapQuery.data?.revision ?? displayScene.version}</span>
-            <h2>Familiar places, gently remembered.</h2>
+            <h2>Map view</h2>
           </div>
           {hasReal3D && (
             <div className="view-toggle" aria-label="Map view">
@@ -132,18 +145,34 @@ export function MapPage({ objects, scene }: { objects: LastSeenObject[]; scene: 
         </div>
         <div className="scene-wrap">
           {view === "3d" && hasReal3D ? (
-            <Suspense fallback={<div className="three-scene loading-scene">Loading LiDAR model…</div>}>
-              <LiDARRoomScene3D scene={displayScene} />
+            <Suspense fallback={<div className="three-scene loading-scene">Loading 3D room model…</div>}>
+              <LiDARRoomScene3D scene={displayScene} objects={objects} />
+            </Suspense>
+          ) : hasReal3D ? (
+            <Suspense fallback={<div className="three-scene loading-scene">Building native floor plan…</div>}>
+              <RoomPlanFloorPlan2D scene={displayScene} objects={objects} />
             </Suspense>
           ) : (
             <CameraMap2D scene={displayScene} objects={objects} selectedId={selected} onSelect={setSelected} measurement={measureMode ? { points: measurePoints, onPoint: handleMeasurePoint } : undefined} />
           )}
           <div className="scene-legend">
-            <span><i className="legend-dot precise" /> Estimated object position</span>
-            <span><i className="legend-dot zone" /> Camera geometry</span>
-            {displayScene.geometry?.furniture?.length ? <span><i className="legend-dot fixture" /> Furniture</span> : null}
-            {displayScene.geometry?.openings?.length ? <span><i className="legend-dot opening" /> Doors & windows</span> : null}
-            <span>{displayScene.metricScaleKnown ? "Measured RoomPlan scale" : displayScene.scale ? `Measured reference · ${formatMeters(displayScene.scale.referenceLengthM)}` : "Scale not measured · measure a reference"}</span>
+            {hasReal3D ? (
+              <>
+                <span><i className="legend-dot precise" /> {displayScene.source === "roomplan-lidar-3d" ? "Native RoomPlan geometry" : "ARKit structural geometry"}</span>
+                {displayScene.source === "roomplan-lidar-3d" ? <span><i className="legend-dot fixture" /> Furniture</span> : null}
+                {displayScene.source === "roomplan-lidar-3d" ? <span><i className="legend-dot opening" /> Door & window openings</span> : null}
+                {displayScene.source === "roomplan-lidar-3d" ? <span><i className="legend-dot zone" /> Registered camera</span> : null}
+                <span>Person markers remain visible for 12 s after the latest detection</span>
+              </>
+            ) : (
+              <>
+                <span><i className="legend-dot precise" /> Estimated object position</span>
+                <span><i className="legend-dot zone" /> Camera geometry</span>
+                {displayScene.geometry?.furniture?.length ? <span><i className="legend-dot fixture" /> Furniture</span> : null}
+                {displayScene.geometry?.openings?.length ? <span><i className="legend-dot opening" /> Doors & windows</span> : null}
+              </>
+            )}
+            <span>{displayScene.metricScaleKnown ? (displayScene.source === "arkit-video-3d" ? "ARKit metric world scale · approximate geometry" : "Measured RoomPlan scale") : displayScene.scale ? `Measured reference · ${formatMeters(displayScene.scale.referenceLengthM)}` : "Scale not measured · measure a reference"}</span>
           </div>
           <div className="map-data-note" role="status">
             <strong>Map data</strong> · {mapDescription(displayScene)}{displayScene.modelVersion ? ` · model ${displayScene.modelVersion}` : ""}
@@ -177,13 +206,19 @@ export function MapPage({ objects, scene }: { objects: LastSeenObject[]; scene: 
           <h3>{cameraQuery.data ? "Camera connection" : "No camera connected"}</h3>
           <p className="muted">{cameraQuery.data ? `${cameraQuery.data.label} · ${cameraQuery.data.status}` : "Connect a fixed camera to generate a 2D room view."}</p>
           {displayScene.source === "roomplan-lidar-3d" && hasReal3D ? (
-            <p className="calibration-state" role="status"><strong>3D model:</strong> Native LiDAR RoomPlan geometry available.</p>
+            positionedCameraCount > 0 ? (
+              <p className="calibration-state" role="status"><strong>3D camera:</strong> {positionedCameraCount} fixed camera{positionedCameraCount === 1 ? " is" : "s are"} positioned in the RoomPlan map.</p>
+            ) : (
+              <p className="calibration-state" role="status"><strong>3D camera:</strong> LiDAR geometry is ready, but the fixed camera is not positioned yet. Keep its publisher view open while a fresh scan builds visual landmarks; ONE will retry placement automatically.</p>
+            )
+          ) : displayScene.source === "arkit-video-3d" && hasReal3D ? (
+            <p className="calibration-state" role="status"><strong>3D map:</strong> ARKit video geometry is ready. Fixed camera setup can be completed later and is not required for this room model.</p>
           ) : displayScene.source === "camera-cv-2d" ? (
-            <p className="calibration-state" role="status"><strong>2D map:</strong> Camera-derived and approximate. 3D requires an iPhone or iPad with LiDAR.</p>
+            <p className="calibration-state" role="status"><strong>2D map:</strong> Camera-derived and approximate. A native iPhone scan can add 3D using RoomPlan/LiDAR or the guided ARKit video fallback.</p>
           ) : (
             <p className="calibration-state" role="status"><strong>2D map:</strong> No current camera geometry is available. Take a new guided sweep.</p>
           )}
-          {!hasReal3D && <p className="muted small-copy">ONE hides 3D until a real native LiDAR RoomPlan model is saved.</p>}
+          {!hasReal3D && <p className="muted small-copy">ONE shows 3D after either a validated native RoomPlan scan or a guided ARKit room video has been saved.</p>}
         </div>
 
         <div className="panel scale-card">
@@ -207,9 +242,10 @@ export function MapPage({ objects, scene }: { objects: LastSeenObject[]; scene: 
               {scaleError && <div className="error-note" role="alert">{scaleError}</div>}
             </div>
           )}
-          {!canMeasureScale && <p className="muted small-copy">A camera-derived map is required. Native RoomPlan maps already carry metric scale.</p>}
+          {!canMeasureScale && <p className="muted small-copy">A camera-derived 2D map is required. Native RoomPlan and ARKit video 3D maps already carry metric scale.</p>}
         </div>
       </aside>
+      </div>
     </div>
   );
 }

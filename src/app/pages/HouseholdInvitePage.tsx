@@ -43,7 +43,7 @@ export function HouseholdInvitePage() {
             <Home size={19} />
           </div>
           <span className="eyebrow">ONE · SHARED CARE</span>
-          <h2>A shared home, thoughtfully connected.</h2>
+          <h2>Household access</h2>
           <p>
             Join the people who already help care for this home. Your role stays
             clear, and the home admin remains in control.
@@ -76,7 +76,7 @@ export function HouseholdInvitePage() {
             <Users size={20} />
           </div>
           <span className="eyebrow">JOIN A HOUSEHOLD</span>
-          <h1>Care works better together.</h1>
+          <h1>Join this care space</h1>
           <p className="muted">
             Use the invitation code sent to the email your home admin invited.
             This adds your caregiver or resident account to the household; it does

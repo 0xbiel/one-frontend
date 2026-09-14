@@ -97,6 +97,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/camera/reconnect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Camera Reconnect */
+        post: operations["camera_reconnect_api_v1_camera_reconnect_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/camera/reconnect-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Camera Reconnect Link */
+        post: operations["camera_reconnect_link_api_v1_camera_reconnect_link_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clips/{clip_id}/content": {
         parameters: {
             query?: never;
@@ -293,6 +327,26 @@ export interface paths {
         put?: never;
         /** Map Generation Frames */
         post: operations["map_generation_frames_api_v1_homes__home_id__cameras__camera_id__map_generation__job_id__frames_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/homes/{home_id}/cameras/{camera_id}/roomplan-readiness": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Camera Roomplan Readiness
+         * @description Expose only the RoomPlan state a camera needs for automatic localization.
+         */
+        get: operations["camera_roomplan_readiness_api_v1_homes__home_id__cameras__camera_id__roomplan_readiness_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -576,6 +630,26 @@ export interface paths {
         put?: never;
         /** Room Map */
         post: operations["room_map_api_v1_homes__home_id__maps_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/homes/{home_id}/maps/arkit-video": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Arkit Video Map
+         * @description Create an approximate metric 3D room from a native non-LiDAR ARKit sweep.
+         */
+        post: operations["arkit_video_map_api_v1_homes__home_id__maps_arkit_video_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1103,6 +1177,112 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** ARVideoCaptureDiagnostics */
+        ARVideoCaptureDiagnostics: {
+            /** Frame Sample Count */
+            frame_sample_count: number;
+            /** Normal Tracking Samples */
+            normal_tracking_samples: number;
+            /** Plane Count */
+            plane_count: number;
+            /**
+             * Tracking State
+             * @enum {string}
+             */
+            tracking_state: "normal" | "limited" | "unavailable";
+        };
+        /**
+         * ARVideoMapIn
+         * @description Metric but approximate structural room capture from non-LiDAR iOS ARKit.
+         */
+        ARVideoMapIn: {
+            /** Captured At */
+            captured_at?: string | null;
+            /**
+             * Coordinate Frame
+             * @default arkit-world
+             * @constant
+             */
+            coordinate_frame: "arkit-world";
+            diagnostics: components["schemas"]["ARVideoCaptureDiagnostics"];
+            /**
+             * Framework
+             * @default ARKit
+             * @constant
+             */
+            framework: "ARKit";
+            /**
+             * Geometry Type
+             * @default 3d
+             * @constant
+             */
+            geometry_type: "3d";
+            /**
+             * Lidar
+             * @default false
+             * @constant
+             */
+            lidar: false;
+            /**
+             * Producer
+             * @default native-ios
+             * @constant
+             */
+            producer: "native-ios";
+            /** Room Id */
+            room_id?: string | null;
+            /**
+             * Schema Version
+             * @default arkit-video-room.v1
+             * @constant
+             */
+            schema_version: "arkit-video-room.v1";
+            /** Surfaces */
+            surfaces: components["schemas"]["ARVideoSurface"][];
+            /**
+             * Units
+             * @default m
+             * @constant
+             */
+            units: "m";
+            /**
+             * Up Axis
+             * @default Y
+             * @constant
+             */
+            up_axis: "Y";
+        };
+        /** ARVideoPoint3D */
+        ARVideoPoint3D: {
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+            /** Z */
+            z: number;
+        };
+        /** ARVideoSurface */
+        ARVideoSurface: {
+            /**
+             * Alignment
+             * @enum {string}
+             */
+            alignment: "horizontal" | "vertical";
+            /**
+             * Confidence
+             * @default 0.7
+             */
+            confidence: number;
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "floor" | "wall";
+            /** Vertices */
+            vertices: components["schemas"]["ARVideoPoint3D"][];
+        };
         /** CalibrationIn */
         CalibrationIn: {
             /** Accuracy M */
@@ -1199,6 +1379,13 @@ export interface components {
             room_id?: string | null;
             /** Room Label */
             room_label?: string | null;
+        };
+        /** CameraReconnectIn */
+        CameraReconnectIn: {
+            /** Camera Id */
+            camera_id: string;
+            /** Reconnect Token */
+            reconnect_token: string;
         };
         /** CameraUpdate */
         CameraUpdate: {
@@ -1816,6 +2003,20 @@ export interface components {
              * @enum {string}
              */
             up_axis: "Y" | "y";
+            /** Visual Depth Sample Count */
+            visual_depth_sample_count?: number | null;
+            /** Visual Image Encoding Failure Count */
+            visual_image_encoding_failure_count?: number | null;
+            /** Visual Invalid Matrix Count */
+            visual_invalid_matrix_count?: number | null;
+            /** Visual Last Tracking State */
+            visual_last_tracking_state?: ("normal" | "limited" | "unavailable") | null;
+            /** Visual Missing Frame Count */
+            visual_missing_frame_count?: number | null;
+            /** Visual Sample Count */
+            visual_sample_count?: number | null;
+            /** Visual Sampling Attempts */
+            visual_sampling_attempts?: number | null;
         };
         /** RoomPlanSection */
         RoomPlanSection: {
@@ -2057,6 +2258,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    camera_reconnect_api_v1_camera_reconnect_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CameraReconnectIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    camera_reconnect_link_api_v1_camera_reconnect_link_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
         };
@@ -2536,6 +2790,38 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    camera_roomplan_readiness_api_v1_homes__home_id__cameras__camera_id__roomplan_readiness_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3236,6 +3522,41 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["MapIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    arkit_video_map_api_v1_homes__home_id__maps_arkit_video_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ARVideoMapIn"];
             };
         };
         responses: {

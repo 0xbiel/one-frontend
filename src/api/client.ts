@@ -50,7 +50,7 @@ type JsonBody<Path extends keyof paths, Method extends keyof paths[Path]> = path
 type PairStartInput = JsonBody<'/api/v1/pairing/start', 'post'>;
 type LiveKitInput = JsonBody<'/api/v1/homes/{home_id}/livekit/token', 'post'>;
 interface PairStartResponse { pairing_id?: string; pairing_code: string; code?: string; expires_in_seconds: number; home_id: string; user_id: string; role?: 'admin' | 'resident' | 'caregiver' | 'publisher' | string; }
-interface PairCompleteResponse { access_token: string; token_type: string; expires_in: number; home_id: string; user_id: string; }
+interface PairCompleteResponse { access_token: string; token_type: string; expires_in: number; home_id: string; user_id: string; reconnect_token?: string | null; }
 export interface PairingStatus { pairing_id: string; home_id: string; status: 'pending' | 'connected' | 'expired'; expires_at: string; connected_at?: string | null; device: { id: string; label: string; role: string }; }
 export interface EmailChallenge { verification_id: string; expires_in_seconds: number; delivery: string; dev_code?: string | null; email: string; purpose: 'create' | 'login'; home_id: string; user_id: string; role: string; }
 export interface EmailSession extends PairCompleteResponse { role?: string; email?: string; }
@@ -124,6 +124,14 @@ export interface CameraLocalizationResponse {
   match_count: number;
   reprojection_error_px?: number | null;
   intrinsics_source: string;
+}
+export interface RoomPlanReadinessResponse {
+  camera_id: string;
+  map_id: string | null;
+  source: 'roomplan-lidar-3d' | null;
+  dimension: '3d' | null;
+  visual_landmarks_ready: boolean;
+  ready: boolean;
 }
 export interface VisionFrameResponse {
   data: Array<{
@@ -432,7 +440,7 @@ function inferSource(source: MapSource | undefined, coordinateFrame?: string | n
 }
 
 function inferDimension(dimension: MapDimension | undefined, source: MapSource): MapDimension {
-  return dimension ?? (source === 'roomplan-lidar-3d' ? '3d' : '2d');
+  return dimension ?? (source === 'roomplan-lidar-3d' || source === 'arkit-video-3d' ? '3d' : '2d');
 }
 
 function normalizeCameraPose(value: unknown): CameraPose | undefined {
@@ -510,7 +518,7 @@ function sceneFromResponse(result: SceneResponse, geometryRaw?: unknown, resolut
     dimension: inferDimension(result.dimension, source),
     source,
     confidence: result.confidence,
-    metricScaleKnown: result.metricScaleKnown ?? source === 'roomplan-lidar-3d',
+    metricScaleKnown: result.metricScaleKnown ?? (source === 'roomplan-lidar-3d' || source === 'arkit-video-3d'),
     ...(scale ? { scale } : {}),
     ...(geometry ? { geometry, walls: geometry.walls } : {}),
     ...(normalizeCameraPose(result.camera) ? { camera: normalizeCameraPose(result.camera) } : {}),
@@ -537,7 +545,7 @@ export function sceneFromMapResponse(map: MapResponse, baseScene?: Scene): Scene
     dimension: inferDimension(map.dimension, source),
     source,
     confidence: baseScene?.confidence ?? map.confidence ?? null,
-    metricScaleKnown: map.dimension === '3d' && source === 'roomplan-lidar-3d' ? true : baseScene?.metricScaleKnown ?? false,
+    metricScaleKnown: map.dimension === '3d' && (source === 'roomplan-lidar-3d' || source === 'arkit-video-3d') ? true : baseScene?.metricScaleKnown ?? false,
     ...(scale ? { scale } : {}),
     ...(geometry ? { geometry, walls: geometry.walls } : {}),
     zones: geometryZones.length ? geometryZones : baseScene?.zones ?? [],
@@ -559,6 +567,20 @@ export interface MedicationPlan { id: string; subject_user_id: string; name: str
 const token = () => sessionStorage.getItem('one_access_token');
 const homeId = () => sessionStorage.getItem('one_home_id') ?? 'current';
 export const accessToken = token;
+const cameraReconnectKey = (cameraId: string) => `one_camera_reconnect:${cameraId}`;
+
+export function saveCameraReconnect(cameraId: string, reconnectToken: string): void {
+  localStorage.setItem(cameraReconnectKey(cameraId), reconnectToken);
+}
+
+export function getCameraReconnect(cameraId: string): string | null {
+  return localStorage.getItem(cameraReconnectKey(cameraId));
+}
+
+export function cameraReconnectUrl(cameraId: string, reconnectToken: string): string {
+  const origin = typeof window === 'undefined' ? '' : window.location.origin;
+  return `${origin}/camera/${encodeURIComponent(cameraId)}#key=${encodeURIComponent(reconnectToken)}`;
+}
 
 /** Remove every browser credential used by the ONE session. */
 export function clearSession(): void {
@@ -580,6 +602,19 @@ async function request<T>(path: string, init?: RequestOptions): Promise<T> {
     throw new Error(`API_${response.status}`);
   }
   return response.status === 204 ? (undefined as T) : response.json() as Promise<T>;
+}
+
+async function requestBinary(path: string, init?: RequestOptions): Promise<ArrayBuffer> {
+  const headers = new Headers(init?.headers);
+  if (init?.auth !== false && token()) headers.set('Authorization', `Bearer ${token()}`);
+  const response = await fetch(`${API_BASE}${path}`, { ...init, headers, credentials: 'include' });
+  if (!response.ok) {
+    if (response.status === 401 && init?.auth !== false && typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('one:session-expired'));
+    }
+    throw new Error(`API_${response.status}`);
+  }
+  return response.arrayBuffer();
 }
 
 export function mapBackendEvent(event: BackendEvent): HomeEvent {
@@ -643,6 +678,10 @@ export const api = {
     };
     try { return await request<MapResponse>(`/homes/${homeId()}/maps/current`); } catch (error) { if (error instanceof Error && error.message === 'API_404') return null; throw error; }
   },
+  getRoomPlanUSDZ: async (mapId: string): Promise<ArrayBuffer> => {
+    if (demoMode) throw new Error('API_404');
+    return requestBinary(`/homes/${homeId()}/maps/${encodeURIComponent(mapId)}/usdz`);
+  },
   getObjects: async (): Promise<LastSeenObject[]> => demoMode ? demoObjects : (await request<ObjectResponse>(`/homes/${homeId()}/objects/last-seen`)).data,
   getEvents: async (): Promise<HomeEvent[]> => demoMode ? demoEvents : request<{ data: BackendEvent[] }>(`/homes/${homeId()}/events?limit=50`).then((r) => r.data.map(mapBackendEvent)),
   getCameras: async (): Promise<Device[]> => {
@@ -698,6 +737,10 @@ export const api = {
       body: JSON.stringify({ frames, fov_degrees: fovDegrees }),
     });
   },
+  getRoomPlanReadiness: async (cameraId: string): Promise<RoomPlanReadinessResponse> => {
+    if (demoMode) return { camera_id: cameraId, map_id: null, source: null, dimension: null, visual_landmarks_ready: false, ready: false };
+    return request<RoomPlanReadinessResponse>(`/homes/${homeId()}/cameras/${encodeURIComponent(cameraId)}/roomplan-readiness`);
+  },
   submitVisionFrame: async (cameraId: string, frame: MapGenerationFrame): Promise<VisionFrameResponse> => {
     if (demoMode) return { data: [], detector_version: 'demo', observations: [], frames_persisted: false };
     return request<VisionFrameResponse>(`/homes/${homeId()}/vision/frames`, {
@@ -740,7 +783,33 @@ export const api = {
   getPairingStatus: async (pairingId: string): Promise<PairingStatus> => demoMode
     ? { pairing_id: pairingId, home_id: 'home-demo', status: 'connected', expires_at: new Date(Date.now() + 600_000).toISOString(), connected_at: new Date().toISOString(), device: { id: pairingId, label: 'Hallway phone', role: 'publisher' } }
     : request<PairingStatus>(`/homes/${homeId()}/pairing/${encodeURIComponent(pairingId)}/status`),
-  completePairing: async (code: string): Promise<PairCompleteResponse> => { const result = demoMode ? { access_token: 'demo', token_type: 'bearer', expires_in: 3600, home_id: 'home-demo', user_id: 'user-demo' } : await request<PairCompleteResponse>('/pairing/complete', { method: 'POST', auth: false, body: JSON.stringify({ code }) }); sessionStorage.setItem('one_access_token', result.access_token); sessionStorage.setItem('one_home_id', result.home_id); sessionStorage.setItem('one_user_id', result.user_id); return result; },
+  completePairing: async (code: string): Promise<PairCompleteResponse> => {
+    const result = demoMode
+      ? { access_token: 'demo', token_type: 'bearer', expires_in: 3600, home_id: 'home-demo', user_id: 'user-demo', reconnect_token: 'demo-reconnect-token' }
+      : await request<PairCompleteResponse>('/pairing/complete', { method: 'POST', auth: false, body: JSON.stringify({ code }) });
+    sessionStorage.setItem('one_access_token', result.access_token);
+    sessionStorage.setItem('one_home_id', result.home_id);
+    sessionStorage.setItem('one_user_id', result.user_id);
+    if (result.reconnect_token) saveCameraReconnect(result.user_id, result.reconnect_token);
+    return result;
+  },
+  reconnectCamera: async (cameraId: string, reconnectToken: string): Promise<PairCompleteResponse> => {
+    const result = demoMode
+      ? { access_token: 'demo', token_type: 'bearer', expires_in: 3600, home_id: 'home-demo', user_id: cameraId }
+      : await request<PairCompleteResponse>('/camera/reconnect', { method: 'POST', auth: false, body: JSON.stringify({ camera_id: cameraId, reconnect_token: reconnectToken }) });
+    sessionStorage.setItem('one_access_token', result.access_token);
+    sessionStorage.setItem('one_home_id', result.home_id);
+    sessionStorage.setItem('one_user_id', result.user_id);
+    saveCameraReconnect(cameraId, reconnectToken);
+    return result;
+  },
+  createCameraReconnectLink: async (): Promise<{ camera_id: string; reconnect_token: string }> => {
+    const result = demoMode
+      ? { camera_id: sessionStorage.getItem('one_user_id') ?? 'device-demo', reconnect_token: 'demo-reconnect-token' }
+      : await request<{ camera_id: string; reconnect_token: string }>('/camera/reconnect-link', { method: 'POST' });
+    saveCameraReconnect(result.camera_id, result.reconnect_token);
+    return result;
+  },
   logout: async (): Promise<void> => {
     try {
       if (!demoMode && token()) await request('/sessions/current', { method: 'DELETE' });

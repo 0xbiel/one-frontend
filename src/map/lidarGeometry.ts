@@ -25,11 +25,15 @@ function hasLidarWall(scene: Scene): boolean {
   ));
 }
 
-/** True only for a validated RoomPlan/LiDAR scene containing real 3D geometry. */
-export function hasRealLidarGeometry(scene: Scene): boolean {
-  if (scene.source !== "roomplan-lidar-3d" || scene.dimension !== "3d" || !scene.geometry) return false;
+/** True for a validated native 3D source containing structural geometry. */
+export function hasRenderableSpatial3D(scene: Scene): boolean {
+  if (!["roomplan-lidar-3d", "arkit-video-3d"].includes(scene.source) || scene.dimension !== "3d" || !scene.geometry) return false;
   return hasMeshData(scene.geometry.mesh)
     || Boolean(scene.geometry.surfaces?.some(hasSurfaceData))
     || hasLidarWall(scene)
     || Boolean(scene.geometry.objects?.length);
+}
+
+export function hasRealLidarGeometry(scene: Scene): boolean {
+  return scene.source === "roomplan-lidar-3d" && hasRenderableSpatial3D(scene);
 }

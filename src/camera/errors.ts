@@ -1,7 +1,7 @@
 export function describeCameraError(error: unknown): string {
   const name = error instanceof DOMException ? error.name : error instanceof Error ? error.message : "";
   if (name === "SECURE_CONTEXT_REQUIRED") {
-    return "Camera access needs a secure page. Open the Tailscale HTTPS address on this iPhone instead of localhost, then retry.";
+    return "Camera access needs a secure page. Open the trusted LAN HTTPS address or the Tailscale HTTPS address on this iPhone, then retry.";
   }
   if (name === "NotAllowedError" || name === "PermissionDeniedError") {
     return "Camera access was blocked. In iPhone Settings, allow Camera and Microphone for this browser, then reload this HTTPS page.";
@@ -38,5 +38,5 @@ export function describeCameraError(error: unknown): string {
 }
 
 export function describeLiveKitError(): string {
-  return "Preview is on, but the secure live connection did not complete. On iPhone, use the Tailscale HTTPS address and make sure the LiveKit address is reachable, then retry publishing.";
+  return "Preview is on, but the secure live connection did not complete. On iPhone, use the trusted LAN HTTPS address or Tailscale HTTPS and make sure the LiveKit address is reachable, then retry publishing.";
 }

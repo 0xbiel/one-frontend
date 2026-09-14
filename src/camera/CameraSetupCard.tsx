@@ -345,16 +345,16 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
     const checkForLiDARMap = async () => {
       if (cancelled || autoLocalizationRunningRef.current) return;
       try {
-        const map = await api.getCurrentMap();
-        if (!map || map.source !== "roomplan-lidar-3d" || map.dimension !== "3d") return;
+        const readiness = await api.getRoomPlanReadiness(cameraId);
+        if (!readiness.ready || !readiness.map_id) return;
         const now = Date.now();
         const previous = autoLocalizationRef.current;
-        const state = previous?.mapId === map.id ? previous : { mapId: map.id, attempts: 0, lastAttemptAt: 0 };
+        const state = previous?.mapId === readiness.map_id ? previous : { mapId: readiness.map_id, attempts: 0, lastAttemptAt: 0 };
         if (state.attempts >= 6 || now - state.lastAttemptAt < 3_500) return;
-        autoLocalizationRef.current = { mapId: map.id, attempts: state.attempts + 1, lastAttemptAt: now };
+        autoLocalizationRef.current = { mapId: readiness.map_id, attempts: state.attempts + 1, lastAttemptAt: now };
         autoLocalizationRunningRef.current = true;
         const positioned = await confirmPlacement(true);
-        if (positioned) autoLocalizationRef.current = { mapId: map.id, attempts: 6, lastAttemptAt: Date.now() };
+        if (positioned) autoLocalizationRef.current = { mapId: readiness.map_id, attempts: 6, lastAttemptAt: Date.now() };
       } catch (error) {
         if (!(error instanceof Error && error.message === "API_401")) {
           setMapError(describeCameraError(error));
