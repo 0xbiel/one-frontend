@@ -30,6 +30,20 @@ export const API_BASE = configuredApiBase && configuredApiBase !== '/api/v1'
 // Live API is the safe default. Demo data must be explicitly enabled.
 export const demoMode = import.meta.env.VITE_DEMO_MODE === 'true';
 let demoMapScale: MapScale | undefined;
+let demoActiveCareSpaceId = 'home-demo';
+const demoCareSpaces: CareSpaceSummary[] = [
+  { id: 'home-demo', name: 'The García home', residentName: 'María', careSetting: 'home', supportFocus: 'general', role: 'admin', active: true },
+  { id: 'home-demo-2', name: 'Casa dels avis', residentName: 'Joan', careSetting: 'home', supportFocus: 'general', role: 'caregiver', active: false },
+];
+const demoCareRecipients: Record<string, CareRecipient[]> = {
+  'home-demo': [
+    { id: 'recipient-maria', display_name: 'María García', relationship: 'Mother', room_label: 'Main bedroom', created_at: '2026-01-01T00:00:00Z' },
+    { id: 'recipient-manuel', display_name: 'Manuel García', relationship: 'Partner', room_label: 'Main bedroom', created_at: '2026-01-02T00:00:00Z' },
+  ],
+  'home-demo-2': [
+    { id: 'recipient-joan', display_name: 'Joan', relationship: 'Grandfather', room_label: null, created_at: '2026-01-03T00:00:00Z' },
+  ],
+};
 
 interface RequestOptions extends RequestInit { auth?: boolean; }
 type JsonBody<Path extends keyof paths, Method extends keyof paths[Path]> = paths[Path][Method] extends { requestBody?: { content?: { 'application/json'?: infer Body } } } ? Body : never;
@@ -40,6 +54,17 @@ interface PairCompleteResponse { access_token: string; token_type: string; expir
 export interface PairingStatus { pairing_id: string; home_id: string; status: 'pending' | 'connected' | 'expired'; expires_at: string; connected_at?: string | null; device: { id: string; label: string; role: string }; }
 export interface EmailChallenge { verification_id: string; expires_in_seconds: number; delivery: string; dev_code?: string | null; email: string; purpose: 'create' | 'login'; home_id: string; user_id: string; role: string; }
 export interface EmailSession extends PairCompleteResponse { role?: string; email?: string; }
+export interface CareSpaceSummary {
+  id: string;
+  name: string;
+  residentName: string;
+  careSetting: 'home' | 'residence';
+  supportFocus: 'general' | 'mci';
+  role: 'admin' | 'resident' | 'caregiver';
+  active: boolean;
+}
+export interface CareSpaceCreateInput { name: string; careSetting: 'home' | 'residence'; supportFocus: 'general' | 'mci'; }
+interface CareSpaceSession extends PairCompleteResponse { role: 'admin' | 'resident' | 'caregiver'; }
 interface InviteAcceptResponse extends PairCompleteResponse { role?: string; }
 interface LiveKitResponse { url: string; token: string; expires_in: number; mode?: 'auto' | 'publish' | 'subscribe'; }
 interface BackendEvent { id: string; event_type: string; status?: string; explanation?: string; confidence?: number; evidence_ids?: string; evidence_json?: string; first_seen_at?: string; last_seen_at?: string; }
@@ -523,6 +548,9 @@ export function sceneFromMapResponse(map: MapResponse, baseScene?: Scene): Scene
 export interface FamilyMember { id: string; display_name: string; email?: string | null; role: 'admin' | 'resident' | 'caregiver'; created_at: string; representation_status?: string; synthetic_demo?: boolean; }
 export type EditableFamilyRole = Exclude<FamilyMember['role'], 'admin'>;
 export interface FamilyMemberMutationResponse { data: FamilyMember; invalidated_sessions: number; }
+export interface CareRecipient { id: string; display_name: string; relationship?: string | null; room_label?: string | null; created_at: string; }
+export interface CareRecipientCreateInput { display_name: string; relationship?: string | null; room_label?: string | null; }
+export type CareRecipientUpdateInput = Partial<CareRecipientCreateInput>;
 export interface MedicationReminder { plan_id: string; name: string; dose: string; instructions: string; schedule_rule: string; scheduled_for: string; status: 'pending' | 'taken' | 'skipped' | 'missed'; note: string; updated_at?: string | null; assigned_caregiver_id?: string | null; assigned_caregiver_name?: string | null; }
 export type MedicationCheckInStatus = 'taken' | 'skipped' | 'missed' | 'pending';
 export interface FamilyInviteResponse { id: string; code: string; role: string; expires_in_seconds: number; synthetic_demo?: boolean; }
@@ -560,7 +588,43 @@ export function mapBackendEvent(event: BackendEvent): HomeEvent {
 }
 
 export const api = {
-  getSession: async (): Promise<Session> => demoMode ? demoSession : request<MeResponse>('/me'),
+  getSession: async (): Promise<Session> => {
+    if (!demoMode) return request<MeResponse>('/me');
+    const active = demoCareSpaces.find((space) => space.id === demoActiveCareSpaceId) ?? demoCareSpaces[0];
+    return {
+      ...demoSession,
+      actor: { ...demoSession.actor, role: active.role },
+      home: { id: active.id, name: active.name, residentName: active.residentName, careSetting: active.careSetting, supportFocus: active.supportFocus },
+    };
+  },
+  getCareSpaces: async (): Promise<CareSpaceSummary[]> => demoMode
+    ? demoCareSpaces.map((space) => ({ ...space, active: space.id === demoActiveCareSpaceId }))
+    : (await request<{ data: CareSpaceSummary[] }>('/account/homes')).data,
+  activateCareSpace: async (careSpaceId: string): Promise<CareSpaceSession> => {
+    const result: CareSpaceSession = demoMode
+      ? { access_token: 'demo', token_type: 'bearer', expires_in: 3600, home_id: careSpaceId, user_id: demoSession.actor.id, role: demoCareSpaces.find((space) => space.id === careSpaceId)?.role ?? 'caregiver' }
+      : await request<CareSpaceSession>(`/account/homes/${encodeURIComponent(careSpaceId)}/activate`, { method: 'POST' });
+    if (demoMode) demoActiveCareSpaceId = careSpaceId;
+    sessionStorage.setItem('one_access_token', result.access_token);
+    sessionStorage.setItem('one_home_id', result.home_id);
+    sessionStorage.setItem('one_user_id', result.user_id);
+    return result;
+  },
+  createCareSpace: async (input: CareSpaceCreateInput): Promise<CareSpaceSession> => {
+    let result: CareSpaceSession;
+    if (demoMode) {
+      const id = `home-demo-${demoCareSpaces.length + 1}`;
+      demoCareSpaces.push({ id, name: input.name.trim(), residentName: 'Resident', careSetting: input.careSetting, supportFocus: input.supportFocus, role: 'admin', active: false });
+      result = { access_token: 'demo', token_type: 'bearer', expires_in: 3600, home_id: id, user_id: demoSession.actor.id, role: 'admin' };
+      demoActiveCareSpaceId = id;
+    } else {
+      result = await request<CareSpaceSession>('/account/homes', { method: 'POST', body: JSON.stringify({ name: input.name, care_setting: input.careSetting, support_focus: input.supportFocus }) });
+    }
+    sessionStorage.setItem('one_access_token', result.access_token);
+    sessionStorage.setItem('one_home_id', result.home_id);
+    sessionStorage.setItem('one_user_id', result.user_id);
+    return result;
+  },
   getScene: async (): Promise<Scene> => {
     if (demoMode) return demoScene;
     const result = await request<SceneResponse>(`/homes/${homeId()}/scene`);
@@ -691,6 +755,45 @@ export const api = {
   resume: async () => demoMode ? { status: 'resumed' } : request(`/homes/${homeId()}/consents`, { method: 'POST', body: JSON.stringify({ purpose: 'video_capture', policy_version: '2026-09-01', granted: true }) }),
   exportData: async () => demoMode ? { status: 'complete' } : request(`/homes/${homeId()}/privacy/export`, { method: 'POST' }),
   deleteData: async () => demoMode ? { status: 'queued' } : request(`/homes/${homeId()}/privacy/delete`, { method: 'POST' }),
+  getCareRecipients: async (): Promise<CareRecipient[]> => {
+    if (demoMode) return [...(demoCareRecipients[demoActiveCareSpaceId] ?? [])];
+    return (await request<{ data: CareRecipient[] }>(`/homes/${homeId()}/care-recipients`)).data;
+  },
+  createCareRecipient: async (input: CareRecipientCreateInput): Promise<CareRecipient> => {
+    if (!demoMode) return (await request<{ data: CareRecipient }>(`/homes/${homeId()}/care-recipients`, { method: 'POST', body: JSON.stringify(input) })).data;
+    const recipients = demoCareRecipients[demoActiveCareSpaceId] ?? (demoCareRecipients[demoActiveCareSpaceId] = []);
+    const recipient: CareRecipient = {
+      id: `recipient-${demoActiveCareSpaceId}-${recipients.length + 1}`,
+      display_name: input.display_name.trim(),
+      relationship: input.relationship?.trim() || null,
+      room_label: input.room_label?.trim() || null,
+      created_at: new Date().toISOString(),
+    };
+    recipients.push(recipient);
+    return recipient;
+  },
+  updateCareRecipient: async (recipientId: string, input: CareRecipientUpdateInput): Promise<CareRecipient> => {
+    if (!demoMode) return (await request<{ data: CareRecipient }>(`/homes/${homeId()}/care-recipients/${encodeURIComponent(recipientId)}`, { method: 'PATCH', body: JSON.stringify(input) })).data;
+    const recipients = demoCareRecipients[demoActiveCareSpaceId] ?? [];
+    const index = recipients.findIndex((recipient) => recipient.id === recipientId);
+    if (index < 0) throw new Error('API_404');
+    const current = recipients[index];
+    const updated: CareRecipient = {
+      ...current,
+      ...(input.display_name === undefined ? {} : { display_name: input.display_name.trim() }),
+      ...(input.relationship === undefined ? {} : { relationship: input.relationship?.trim() || null }),
+      ...(input.room_label === undefined ? {} : { room_label: input.room_label?.trim() || null }),
+    };
+    recipients[index] = updated;
+    return updated;
+  },
+  deleteCareRecipient: async (recipientId: string): Promise<CareRecipient> => {
+    if (!demoMode) return (await request<{ data: CareRecipient }>(`/homes/${homeId()}/care-recipients/${encodeURIComponent(recipientId)}`, { method: 'DELETE' })).data;
+    const recipients = demoCareRecipients[demoActiveCareSpaceId] ?? [];
+    const index = recipients.findIndex((recipient) => recipient.id === recipientId);
+    if (index < 0) throw new Error('API_404');
+    return recipients.splice(index, 1)[0];
+  },
   getFamilyMembers: async (): Promise<FamilyMember[]> => demoMode ? [] : (await request<{ data: FamilyMember[] }>(`/homes/${homeId()}/family/members`)).data,
   createFamilyInvite: async (displayName: string, email: string, role: 'resident' | 'caregiver' = 'caregiver'): Promise<FamilyInviteResponse> => demoMode ? { id: 'invite-demo', code: '482701', role, expires_in_seconds: 86400, synthetic_demo: true } : request<FamilyInviteResponse>(`/homes/${homeId()}/family/invites`, { method: 'POST', body: JSON.stringify({ display_name: displayName, email: email || null, role, expires_in_seconds: 86400 }) }),
   updateFamilyMember: async (memberId: string, role: EditableFamilyRole): Promise<FamilyMemberMutationResponse> => demoMode ? { data: { id: memberId, display_name: 'Demo family member', role, created_at: new Date().toISOString(), synthetic_demo: true }, invalidated_sessions: 0 } : request<FamilyMemberMutationResponse>(`/homes/${homeId()}/family/members/${encodeURIComponent(memberId)}`, { method: 'PATCH', body: JSON.stringify({ role }) }),

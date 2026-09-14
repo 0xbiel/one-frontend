@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { Activity, BookOpen, ChevronRight, CircleHelp, HeartHandshake, House, LogOut, Map, Menu, Pause, Play, Settings, ShieldCheck, Sparkles, Users, X } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { Activity, BookOpen, Building2, Check, ChevronsUpDown, ChevronRight, CircleHelp, HeartHandshake, House, LogOut, Map, Menu, Pause, Play, Plus, Settings, ShieldCheck, Sparkles, Users, X } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, demoMode } from "../api/client";
 import type { HomeEvent, LastSeenObject, Session } from "../models/domain";
 
@@ -36,15 +36,28 @@ export function ObjectCard({ object, onClick }: { object: LastSeenObject; onClic
 export function Shell({ children, paused, onTogglePause, onLogout, session }: { children: React.ReactNode; paused: boolean; onTogglePause: () => void; onLogout: () => void; session?: Session }) {
   const location = useLocation();
   const nav = useNavigate();
-  const [recipient, setRecipient] = useState(() => sessionStorage.getItem("one_subject_user_id") ?? "");
+  const queryClient = useQueryClient();
+  const [recipient, setRecipient] = useState(() => sessionStorage.getItem("one_care_recipient_id") ?? "");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [recipientMenuOpen, setRecipientMenuOpen] = useState(false);
   const [isCareToolsOpen, setIsCareToolsOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [careSpaceMenuOpen, setCareSpaceMenuOpen] = useState(false);
+  const [createCareSpaceOpen, setCreateCareSpaceOpen] = useState(false);
+  const [careSpaceName, setCareSpaceName] = useState("");
+  const [careSetting, setCareSetting] = useState<"home" | "residence">("home");
+  const [supportFocus, setSupportFocus] = useState<"general" | "mci">("general");
+  const [careSpaceBusy, setCareSpaceBusy] = useState(false);
+  const [careSpaceError, setCareSpaceError] = useState("");
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+  const recipientMenuRef = useRef<HTMLDivElement>(null);
   const [isLargeScreen, setIsLargeScreen] = useState(() => typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(min-width: 1100px)").matches);
   const hasBackendSession = !demoMode && Boolean(sessionStorage.getItem("one_access_token") && sessionStorage.getItem("one_home_id"));
-  const familyMembersQuery = useQuery({ queryKey: ["family-members"], queryFn: api.getFamilyMembers, enabled: hasBackendSession, retry: false });
-  const residents = (familyMembersQuery.data ?? []).filter((member) => member.role === "resident");
-  const selectedResident = residents.find((member) => member.id === recipient);
+  const careRecipientsQuery = useQuery({ queryKey: ["care-recipients"], queryFn: api.getCareRecipients, enabled: demoMode || hasBackendSession, retry: false });
+  const careSpacesQuery = useQuery({ queryKey: ["care-spaces"], queryFn: api.getCareSpaces, enabled: demoMode || hasBackendSession, retry: false });
+  const careRecipients = careRecipientsQuery.data ?? [];
+  const selectedResident = careRecipients.find((person) => person.id === recipient) ?? careRecipients[0];
   const actorName = session?.actor.name ?? (demoMode ? "Clara García" : "Your account");
   const homeName = session?.home.name ?? (demoMode ? "The García home" : "Your care space");
   const residentName = selectedResident?.display_name ?? session?.home.residentName ?? (demoMode ? "María" : "Resident");
@@ -61,14 +74,93 @@ export function Shell({ children, paused, onTogglePause, onLogout, session }: { 
     { to: "/dashboard/assistant", label: "Assistant", icon: Sparkles },
     { to: "/dashboard/family", label: "Family", icon: Users },
   ];
-  const subjectChanged = (value: string) => {
+  useEffect(() => {
+    const handle = (event: Event) => setRecipient((event as CustomEvent<string>).detail);
+    window.addEventListener("one:care-recipient-change", handle);
+    return () => window.removeEventListener("one:care-recipient-change", handle);
+  }, []);
+  const careRecipientChanged = (value: string) => {
     setRecipient(value);
-    sessionStorage.setItem("one_subject_user_id", value);
-    window.dispatchEvent(new CustomEvent("one:subject-change", { detail: value }));
+    setRecipientMenuOpen(false);
+    sessionStorage.setItem("one_care_recipient_id", value);
+    window.dispatchEvent(new CustomEvent("one:care-recipient-change", { detail: value }));
+  };
+  const finishCareSpaceChange = async () => {
+    setRecipient("");
+    sessionStorage.removeItem("one_care_recipient_id");
+    sessionStorage.removeItem("one_subject_user_id");
+    setRecipientMenuOpen(false);
+    setCareSpaceMenuOpen(false);
+    setCreateCareSpaceOpen(false);
+    setCareSpaceError("");
+    await queryClient.invalidateQueries();
+    nav("/dashboard", { replace: true });
+  };
+  const activateCareSpace = async (careSpaceId: string) => {
+    if (careSpaceId === session?.home.id || careSpaceBusy) { setCareSpaceMenuOpen(false); return; }
+    setCareSpaceBusy(true);
+    setCareSpaceError("");
+    try {
+      await api.activateCareSpace(careSpaceId);
+      await finishCareSpaceChange();
+    } catch {
+      setCareSpaceError("We could not switch care spaces. Your current household is still active.");
+    } finally {
+      setCareSpaceBusy(false);
+    }
+  };
+  const createCareSpace = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!careSpaceName.trim() || careSpaceBusy) return;
+    setCareSpaceBusy(true);
+    setCareSpaceError("");
+    try {
+      await api.createCareSpace({ name: careSpaceName.trim(), careSetting, supportFocus });
+      setCareSpaceName("");
+      setCareSetting("home");
+      setSupportFocus("general");
+      await finishCareSpaceChange();
+    } catch {
+      setCareSpaceError("We could not create that care space. Check the name and try again.");
+    } finally {
+      setCareSpaceBusy(false);
+    }
   };
   useEffect(() => {
     setIsMenuOpen(false);
+    setProfileMenuOpen(false);
+    setRecipientMenuOpen(false);
   }, [location.pathname]);
+  useEffect(() => {
+    if (!profileMenuOpen) return;
+    const closeProfileMenu = (event: PointerEvent) => {
+      if (!profileMenuRef.current?.contains(event.target as Node)) setProfileMenuOpen(false);
+    };
+    const closeProfileMenuOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setProfileMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", closeProfileMenu);
+    document.addEventListener("keydown", closeProfileMenuOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeProfileMenu);
+      document.removeEventListener("keydown", closeProfileMenuOnEscape);
+    };
+  }, [profileMenuOpen]);
+  useEffect(() => {
+    if (!recipientMenuOpen) return;
+    const closeRecipientMenu = (event: PointerEvent) => {
+      if (!recipientMenuRef.current?.contains(event.target as Node)) setRecipientMenuOpen(false);
+    };
+    const closeRecipientMenuOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setRecipientMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", closeRecipientMenu);
+    document.addEventListener("keydown", closeRecipientMenuOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeRecipientMenu);
+      document.removeEventListener("keydown", closeRecipientMenuOnEscape);
+    };
+  }, [recipientMenuOpen]);
   useEffect(() => {
     document.body.classList.toggle("nav-drawer-open", isMenuOpen);
     return () => document.body.classList.remove("nav-drawer-open");
@@ -113,10 +205,26 @@ export function Shell({ children, paused, onTogglePause, onLogout, session }: { 
             <div className="topbar-context"><span className="eyebrow">{context[0]}</span><h1>{context[1]}</h1></div>
           </div>
           <div className="top-actions">
-          <button className={`pause-button ${paused ? "is-paused" : ""}`} onClick={onTogglePause} aria-pressed={paused}>{paused ? <Play size={16} /> : <Pause size={16} />}{paused ? "Resume care" : "Pause care"}</button>
-          <button className="icon-button" aria-label="Help"><CircleHelp size={20} /></button>
-          <button className="icon-button account-shortcut" aria-label="Account settings" onClick={() => nav("/dashboard/account")}><Settings size={18} /></button>
-          <button className="avatar" aria-label={`Sign out ${actorName}`} onClick={onLogout}>{accountInitials}</button>
+          <button
+            className={`pause-button ${paused ? "is-paused" : ""}`}
+            onClick={onTogglePause}
+            aria-pressed={paused}
+            aria-label={paused ? "Resume care" : "Pause care"}
+          >
+            {paused ? <Play size={16} /> : <Pause size={16} />}
+            <span className="pause-button-label">{paused ? "Resume care" : "Pause care"}</span>
+          </button>
+          <div className="profile-menu-wrap" ref={profileMenuRef}>
+            <button className="avatar profile-menu-trigger" aria-label={`Open profile menu for ${actorName}`} aria-haspopup="menu" aria-expanded={profileMenuOpen} onClick={() => setProfileMenuOpen((value) => !value)}>{accountInitials}</button>
+            {profileMenuOpen && <div className="profile-menu" role="menu" aria-label="Profile menu">
+              <div className="profile-menu-account"><span className="avatar" aria-hidden="true">{accountInitials}</span><span><strong>{actorName}</strong><small>{roleLabel}</small></span></div>
+              <div className="profile-menu-divider" />
+              <button role="menuitem" onClick={() => { setProfileMenuOpen(false); nav("/dashboard/assistant"); }}><CircleHelp size={17} /><span>Help</span></button>
+              <button role="menuitem" onClick={() => { setProfileMenuOpen(false); nav("/dashboard/account"); }}><Settings size={17} /><span>Settings</span></button>
+              <div className="profile-menu-divider" />
+              <button className="profile-menu-logout" role="menuitem" onClick={() => { setProfileMenuOpen(false); onLogout(); }}><LogOut size={17} /><span>Log out</span></button>
+            </div>}
+          </div>
           <button className="menu-trigger" aria-controls="one-navigation-drawer" aria-expanded={isMenuOpen} onClick={() => setIsMenuOpen((value) => !value)}><span>{isMenuOpen ? "Close" : "Menu"}</span>{isMenuOpen ? <X size={20} /> : <Menu size={20} />}</button>
           </div>
         </header>
@@ -127,13 +235,65 @@ export function Shell({ children, paused, onTogglePause, onLogout, session }: { 
       <aside id="one-navigation-drawer" className={`care-drawer ${isMenuOpen ? "is-open" : ""}`} aria-label="ONE care navigation" aria-hidden={isLargeScreen ? undefined : !isMenuOpen}>
         <button className="drawer-brand" onClick={() => nav("/dashboard")} aria-label="ONE home"><img className="one-logo" src="/one-logo.png" alt="" aria-hidden="true" /><span className="wordmark">ONE</span></button>
         <button className="drawer-close icon-button" aria-label="Close navigation" onClick={closeMenu}><X size={18} /></button>
-        <div className="drawer-home-card">
-          <div className="drawer-home-icon"><HeartHandshake size={18} /></div>
-          <div className="drawer-home-copy"><span className="eyebrow">CARING FOR</span><strong>{homeName}</strong><span>{hasBackendSession ? connectedLabel : "Demo household"}</span></div>
-          <select id="recipient-switcher" aria-label="Care recipient" value={recipient} onChange={(e) => subjectChanged(e.target.value)}>
-            <option value="">{hasBackendSession ? `${session?.home.residentName ?? "Resident"} · baseline` : "María · Baseline"}</option>
-            {residents.map((member) => <option key={member.id} value={member.id}>{member.display_name} · baseline</option>)}
-          </select>
+        <div className={`drawer-home-card ${careSpaceMenuOpen ? "is-managing" : ""}`}>
+          <button className="drawer-home-summary" aria-expanded={careSpaceMenuOpen} aria-controls="care-space-menu" onClick={() => { setRecipientMenuOpen(false); setCareSpaceMenuOpen((value) => !value); setCreateCareSpaceOpen(false); setCareSpaceError(""); }}>
+            <div className="drawer-home-icon"><HeartHandshake size={18} /></div>
+            <div className="drawer-home-copy"><span className="eyebrow">CARING FOR</span><strong>{homeName}</strong><span className="drawer-connection"><i className="status-dot" />{demoMode ? "Demo care space" : connectedLabel}</span></div>
+            <ChevronsUpDown className="drawer-home-switch-icon" size={16} aria-hidden="true" />
+          </button>
+          <div className="recipient-switcher" ref={recipientMenuRef}>
+            <span className="recipient-switcher-label">Care recipient</span>
+            <button
+              id="recipient-switcher"
+              className="recipient-switcher-trigger"
+              type="button"
+              aria-label="Care recipient"
+              aria-haspopup="listbox"
+              aria-expanded={recipientMenuOpen}
+              aria-controls="recipient-options"
+              onClick={() => { setCareSpaceMenuOpen(false); setRecipientMenuOpen((value) => !value); }}
+              onKeyDown={(event) => {
+                if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                  event.preventDefault();
+                  setCareSpaceMenuOpen(false);
+                  setRecipientMenuOpen(true);
+                }
+              }}
+            >
+              <span>{residentName} · baseline</span>
+              <ChevronRight className={recipientMenuOpen ? "recipient-chevron is-open" : "recipient-chevron"} size={15} aria-hidden="true" />
+            </button>
+            {recipientMenuOpen && <div id="recipient-options" className="recipient-options" role="listbox" aria-label="Care recipient options">
+              {careRecipients.length ? careRecipients.map((person, index) => {
+                const isSelected = recipient ? recipient === person.id : index === 0;
+                return <button key={person.id} className={`recipient-option ${isSelected ? "is-selected" : ""}`} type="button" role="option" aria-selected={isSelected} onClick={() => careRecipientChanged(person.id)}>
+                  <span>{person.display_name}</span><small>{person.room_label || person.relationship || "baseline"}</small>{isSelected && <Check size={15} aria-hidden="true" />}
+                </button>;
+              }) : <div className="recipient-option-empty">No care recipients yet. Add one in Family.</div>}
+            </div>}
+          </div>
+          {careSpaceMenuOpen && <div id="care-space-menu" className="care-space-menu" role="dialog" aria-label="Manage care spaces">
+            <div className="care-space-menu-heading"><span className="eyebrow">YOUR CARE SPACES</span><p>Choose which household or residence you’re managing.</p></div>
+            <div className="care-space-options">
+              {(careSpacesQuery.data ?? []).map((space) => {
+                const isCurrent = space.id === session?.home.id;
+                return <button key={space.id} className={`care-space-option ${isCurrent ? "is-current" : ""}`} onClick={() => void activateCareSpace(space.id)} disabled={careSpaceBusy}>
+                  <span className="care-space-option-icon">{space.careSetting === "residence" ? <Building2 size={16} /> : <House size={16} />}</span>
+                  <span className="care-space-option-copy"><strong>{space.name}</strong><small>{space.role === "admin" ? "Admin" : space.role === "caregiver" ? "Caregiver" : "Resident"} · {space.careSetting === "residence" ? "Residence" : "Household"}</small></span>
+                  {isCurrent && <Check size={16} aria-label="Current care space" />}
+                </button>;
+              })}
+            </div>
+            {careSpacesQuery.isError && <p className="care-space-error" role="alert">Your other care spaces could not be loaded.</p>}
+            {!createCareSpaceOpen ? <button className="care-space-add" onClick={() => setCreateCareSpaceOpen(true)}><Plus size={16} /> Add a care space</button> : <form className="care-space-create" onSubmit={createCareSpace}>
+              <div className="care-space-create-heading"><strong>New care space</strong><button type="button" aria-label="Cancel new care space" onClick={() => setCreateCareSpaceOpen(false)}><X size={15} /></button></div>
+              <label>Name<input value={careSpaceName} onChange={(event) => setCareSpaceName(event.target.value)} placeholder="e.g. Grandma’s home" maxLength={120} autoFocus /></label>
+              <label>Setting<select value={careSetting} onChange={(event) => setCareSetting(event.target.value as "home" | "residence")}><option value="home">Private household</option><option value="residence">Care residence</option></select></label>
+              <label>Support focus<select value={supportFocus} onChange={(event) => setSupportFocus(event.target.value as "general" | "mci")}><option value="general">General daily support</option><option value="mci">MCI-oriented routine support</option></select></label>
+              <button className="primary-button care-space-create-submit" type="submit" disabled={!careSpaceName.trim() || careSpaceBusy}>{careSpaceBusy ? "Creating…" : "Create & switch"}</button>
+            </form>}
+            {careSpaceError && <p className="care-space-error" role="alert">{careSpaceError}</p>}
+          </div>}
         </div>
         <nav className="drawer-nav" aria-label="Care dashboard">
           <span className="drawer-section-label">Care dashboard</span>
@@ -144,9 +304,6 @@ export function Shell({ children, paused, onTogglePause, onLogout, session }: { 
           <button className="drawer-group-toggle" aria-controls="safety-settings-submenu" aria-expanded={isSettingsOpen} onClick={() => setIsSettingsOpen((value) => !value)}><span><ShieldCheck size={18} strokeWidth={1.8} />Safety & settings</span><ChevronRight className={isSettingsOpen ? "rotated" : ""} size={17} /></button>
           {isSettingsOpen && <div id="safety-settings-submenu" className="drawer-group-items" role="group" aria-label="Safety and settings links">{renderNavLink({ to: "/dashboard/privacy", label: "Privacy & consent", icon: ShieldCheck })}{renderNavLink({ to: "/dashboard/account", label: "Account settings", icon: Settings })}</div>}
         </nav>
-        <div className="drawer-footer">
-          <div className="drawer-account"><span className="avatar">{accountInitials}</span><span><strong>{actorName}</strong><small>{roleLabel}</small></span><button aria-label={`Sign out ${actorName}`} onClick={onLogout}><LogOut size={17} /></button></div>
-        </div>
       </aside>
     </div>
   );

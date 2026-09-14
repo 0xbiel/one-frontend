@@ -66,7 +66,7 @@ describe('ONE dashboard', () => {
   it('renders Family mode from the dashboard route', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/dashboard/family']}><App /></MemoryRouter></QueryClientProvider>);
-    await waitFor(() => expect(screen.getByText('Care works better together.')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Family & care team')).toBeInTheDocument());
     expect(screen.getByText('Admin + caregiver')).toBeInTheDocument();
     expect(screen.getByText('Next dose')).toBeInTheDocument();
     expect(screen.getByText('Assigned to Jordi García · No acknowledgement yet')).toBeInTheDocument();
@@ -109,7 +109,7 @@ describe('ONE dashboard', () => {
   it('opens the medication plan form and preserves a recurrence rule', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/dashboard/family']}><App /></MemoryRouter></QueryClientProvider>);
-    await waitFor(() => expect(screen.getByText('Care works better together.')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Family & care team')).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: /add plan/i }));
     expect(screen.getByRole('heading', { name: /add reminder plan/i })).toBeInTheDocument();
     const schedule = screen.getByPlaceholderText(/Mon,Wed,Fri/);
@@ -142,11 +142,15 @@ describe('ONE dashboard', () => {
     expect(screen.queryByRole('button', { name: /start calibration/i })).not.toBeInTheDocument();
   });
 
-  it('exposes account settings with an explicit sign-out action', async () => {
+  it('exposes account actions from the header profile menu', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/dashboard/account']}><App /></MemoryRouter></QueryClientProvider>);
     await waitFor(() => expect(screen.getByText('Keep your access clear.')).toBeInTheDocument());
-    expect(screen.getAllByRole('button', { name: /sign out/i }).length).toBeGreaterThanOrEqual(2);
+    fireEvent.click(screen.getByRole('button', { name: /open profile menu/i }));
+    expect(screen.getByRole('menu', { name: /profile menu/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /^help$/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /^settings$/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /^log out$/i })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^menu$/i }));
     await waitFor(() => expect(screen.getByRole('complementary', { name: /one care navigation/i })).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: /safety & settings/i }));
@@ -176,4 +180,24 @@ describe('ONE dashboard', () => {
     expect(screen.getByRole('link', { name: /privacy & consent/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /account settings/i })).toBeInTheDocument();
   });
+  it('manages the active care space separately from the care recipient', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/dashboard']}><App /></MemoryRouter></QueryClientProvider>);
+    fireEvent.click(screen.getByRole('button', { name: /^menu$/i }));
+    const careSpaceButton = await screen.findByRole('button', { name: /the garcía home/i });
+    const recipientButton = screen.getByRole('button', { name: /care recipient/i });
+    expect(screen.queryByRole('combobox', { name: /care recipient/i })).not.toBeInTheDocument();
+    fireEvent.click(recipientButton);
+    expect(screen.getByRole('listbox', { name: /care recipient options/i })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /maría garcía.*main bedroom/i })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('option', { name: /manuel garcía.*main bedroom/i })).toBeInTheDocument();
+
+    fireEvent.click(careSpaceButton);
+    expect(screen.getByRole('dialog', { name: /manage care spaces/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /casa dels avis/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /add a care space/i }));
+    expect(screen.getByRole('textbox', { name: /^name$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /create & switch/i })).toBeDisabled();
+  });
+
 });

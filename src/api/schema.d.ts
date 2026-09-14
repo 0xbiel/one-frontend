@@ -4,6 +4,41 @@
  */
 
 export interface paths {
+    "/api/v1/account/homes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Account Homes */
+        get: operations["account_homes_api_v1_account_homes_get"];
+        put?: never;
+        /** Account Home Create */
+        post: operations["account_home_create_api_v1_account_homes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/account/homes/{home_id}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Account Home Activate */
+        post: operations["account_home_activate_api_v1_account_homes__home_id__activate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/retention/run": {
         parameters: {
             query?: never;
@@ -262,6 +297,42 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/homes/{home_id}/care-recipients": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Care Recipients */
+        get: operations["care_recipients_api_v1_homes__home_id__care_recipients_get"];
+        put?: never;
+        /** Care Recipient Create */
+        post: operations["care_recipient_create_api_v1_homes__home_id__care_recipients_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/homes/{home_id}/care-recipients/{recipient_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Care Recipient Delete */
+        delete: operations["care_recipient_delete_api_v1_homes__home_id__care_recipients__recipient_id__delete"];
+        options?: never;
+        head?: never;
+        /** Care Recipient Update */
+        patch: operations["care_recipient_update_api_v1_homes__home_id__care_recipients__recipient_id__patch"];
         trace?: never;
     };
     "/api/v1/homes/{home_id}/caregiver-summary": {
@@ -1144,6 +1215,61 @@ export interface components {
             /** Room Id */
             room_id?: string | null;
         };
+        /** CareRecipientCreateIn */
+        CareRecipientCreateIn: {
+            /** Display Name */
+            display_name: string;
+            /** Relationship */
+            relationship?: string | null;
+            /** Room Label */
+            room_label?: string | null;
+        };
+        /** CareRecipientListResponse */
+        CareRecipientListResponse: {
+            /** Data */
+            data: components["schemas"]["CareRecipientOut"][];
+        };
+        /** CareRecipientMutationResponse */
+        CareRecipientMutationResponse: {
+            data: components["schemas"]["CareRecipientOut"];
+        };
+        /** CareRecipientOut */
+        CareRecipientOut: {
+            /** Created At */
+            created_at: string;
+            /** Display Name */
+            display_name: string;
+            /** Id */
+            id: string;
+            /** Relationship */
+            relationship?: string | null;
+            /** Room Label */
+            room_label?: string | null;
+        };
+        /** CareRecipientUpdateIn */
+        CareRecipientUpdateIn: {
+            /** Display Name */
+            display_name?: string | null;
+            /** Relationship */
+            relationship?: string | null;
+            /** Room Label */
+            room_label?: string | null;
+        };
+        /** CareSpaceCreateIn */
+        CareSpaceCreateIn: {
+            /**
+             * Care Setting
+             * @default home
+             */
+            care_setting: string;
+            /** Name */
+            name: string;
+            /**
+             * Support Focus
+             * @default general
+             */
+            support_focus: string;
+        };
         /** CheckInIn */
         CheckInIn: {
             /** Subject User Id */
@@ -1708,11 +1834,11 @@ export interface components {
             /** Captured At */
             captured_at?: string | null;
             /** Depth Base64 */
-            depth_base64: string;
+            depth_base64?: string | null;
             /** Depth Height */
-            depth_height: number;
+            depth_height?: number | null;
             /** Depth Width */
-            depth_width: number;
+            depth_width?: number | null;
             /** Frame Base64 */
             frame_base64: string;
             /** Height */
@@ -1765,6 +1891,90 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    account_homes_api_v1_account_homes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    account_home_create_api_v1_account_homes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CareSpaceCreateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    account_home_activate_api_v1_account_homes__home_id__activate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     retention_run_api_v1_admin_retention_run_post: {
         parameters: {
             query?: never;
@@ -2331,6 +2541,140 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    care_recipients_api_v1_homes__home_id__care_recipients_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CareRecipientListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    care_recipient_create_api_v1_homes__home_id__care_recipients_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CareRecipientCreateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CareRecipientMutationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    care_recipient_delete_api_v1_homes__home_id__care_recipients__recipient_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+                recipient_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CareRecipientMutationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    care_recipient_update_api_v1_homes__home_id__care_recipients__recipient_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+                recipient_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CareRecipientUpdateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CareRecipientMutationResponse"];
                 };
             };
             /** @description Validation Error */
