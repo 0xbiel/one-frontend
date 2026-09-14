@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { Activity, BookOpen, Building2, Check, ChevronsUpDown, ChevronRight, CircleHelp, HeartHandshake, House, LogOut, Map, Menu, Pause, Play, Plus, Settings, ShieldCheck, Sparkles, Users, X } from "lucide-react";
+import { Activity, BookOpen, Building2, Camera, Check, ChevronsUpDown, ChevronRight, CircleHelp, HeartHandshake, House, LogOut, Map, Menu, Pause, Play, Plus, Settings, ShieldCheck, Sparkles, Users, X } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, demoMode } from "../api/client";
 import type { HomeEvent, LastSeenObject, Session } from "../models/domain";
@@ -68,6 +68,7 @@ export function Shell({ children, paused, onTogglePause, onLogout, session }: { 
     { to: "/dashboard", label: "Overview", icon: House },
     { to: "/dashboard/live", label: "Today’s check-in", icon: HeartHandshake },
     { to: "/dashboard/map", label: "Home map", icon: Map },
+    { to: "/dashboard/cameras", label: "Camera Manager", icon: Camera },
     { to: "/dashboard/events", label: "Events", icon: Activity },
   ];
   const careItems = [
@@ -175,26 +176,54 @@ export function Shell({ children, paused, onTogglePause, onLogout, session }: { 
   }, []);
   const closeMenu = () => setIsMenuOpen(false);
   const isActive = (to: string) => to === "/dashboard" ? location.pathname === "/dashboard" : location.pathname.startsWith(to);
-  const renderNavLink = ({ to, label, icon: Icon }: { to: string; label: string; icon: typeof House }) => (
-    <NavLink key={to} to={to} end={to === "/dashboard"} className={`drawer-item ${isActive(to) ? "active" : ""}`} onClick={closeMenu}>
-      <Icon size={18} strokeWidth={1.8} />
+  const renderNavIcon = (to: string, Icon: typeof House, active: boolean) => {
+    if (!active) return <Icon size={18} strokeWidth={1.8} />;
+    if (to === "/dashboard") {
+      return <svg className="nav-icon-filled" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 21v-8a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v8z" fill="currentColor" fillRule="evenodd" clipRule="evenodd" />
+      </svg>;
+    }
+    if (to === "/dashboard/privacy") {
+      return <svg className="nav-icon-filled nav-icon-privacy" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" fill="currentColor" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="m9 12 2 2 4-4" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>;
+    }
+    if (to === "/dashboard/cameras") {
+      return <svg className="nav-icon-filled nav-icon-camera" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z M15.15 13a3.15 3.15 0 1 1-6.3 0 3.15 3.15 0 0 1 6.3 0z" fill="currentColor" fillRule="evenodd" clipRule="evenodd" />
+      </svg>;
+    }
+    if (to === "/dashboard/account") {
+      return <svg className="nav-icon-filled nav-icon-settings" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z M15.15 12a3.15 3.15 0 1 1-6.3 0 3.15 3.15 0 0 1 6.3 0z" fill="currentColor" fillRule="evenodd" clipRule="evenodd" />
+      </svg>;
+    }
+    return <Icon className="nav-icon-filled" size={18} strokeWidth={1.8} fill="currentColor" />;
+  };
+  const renderNavLink = ({ to, label, icon: Icon }: { to: string; label: string; icon: typeof House }) => {
+    const active = isActive(to);
+    return <NavLink key={to} to={to} end={to === "/dashboard"} className={`drawer-item ${active ? "active" : ""}`} onClick={closeMenu}>
+      {renderNavIcon(to, Icon, active)}
       <span>{label}</span>
       {label === "Events" && <span className="nav-badge">3</span>}
-    </NavLink>
-  );
+    </NavLink>;
+  };
   const context = location.pathname.includes("map")
-    ? ["HOME MAP", "See the familiar places"]
+    ? ["HOME MAP", "Home map"]
     : location.pathname.includes("live")
-      ? ["TODAY'S CHECK-IN", `Be here with ${residentName}`]
+      ? ["CHECK-IN", "Today’s check-in"]
+    : location.pathname.includes("cameras")
+      ? ["CAMERAS", "Camera Manager"]
     : location.pathname.includes("events")
-      ? ["EVENTS", "A gentle timeline"]
+      ? ["EVENTS", "Events"]
       : location.pathname.includes("assistant")
-        ? ["RESIDENT ASSISTANT", `Ask about ${residentName}’s day`]
+        ? ["ASSISTANT", "Assistant"]
         : location.pathname.includes("family")
-          ? ["FAMILY MODE", "Care together, clearly"]
+          ? ["FAMILY", "Family"]
           : location.pathname.includes("account")
-            ? ["ACCOUNT", "Your ONE account"]
-            : [`GOOD MORNING, ${actorName.split(/\s+/)[0]?.toUpperCase() || "THERE"}`, homeName];
+            ? ["ACCOUNT", "Account settings"]
+            : ["HOME", homeName];
   return (
     <div className="app-shell">
       <main className="main-content">
