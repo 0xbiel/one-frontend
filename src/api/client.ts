@@ -222,6 +222,7 @@ export interface RoomPlanCalibrationSession {
   map_id: string;
   status: 'waiting_for_person' | 'capture_requested' | 'solving' | 'review' | 'failed' | 'expired';
   current_target_index: number;
+  capture_request_seq: number;
   captured_target_count: number;
   targets: RoomPlanCalibrationTarget[];
   proposal?: RoomPlanCalibrationProposal | null;

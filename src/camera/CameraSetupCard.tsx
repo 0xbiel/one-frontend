@@ -342,8 +342,8 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
         if (session.status === "capture_requested") {
           const activeTarget = session.targets.find((target) => target.index === session.current_target_index);
           const captureKey = activeTarget
-            ? `${session.session_id}:${session.current_target_index}:${activeTarget.x}:${activeTarget.y}:${activeTarget.z}`
-            : `${session.session_id}:${session.current_target_index}`;
+            ? `${session.session_id}:${session.current_target_index}:${session.capture_request_seq}:${activeTarget.x}:${activeTarget.y}:${activeTarget.z}`
+            : `${session.session_id}:${session.current_target_index}:${session.capture_request_seq}`;
           if (remoteCalibrationCaptureRef.current === captureKey) return;
           if (!stream || !videoRef.current) {
             setConnectionNotice(`The iPhone is waiting for calibration point ${session.current_target_index + 1}. Start this camera preview so the fixed camera can capture it.`);
