@@ -340,7 +340,10 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
           return;
         }
         if (session.status === "capture_requested") {
-          const captureKey = `${session.session_id}:${session.current_target_index}`;
+          const activeTarget = session.targets.find((target) => target.index === session.current_target_index);
+          const captureKey = activeTarget
+            ? `${session.session_id}:${session.current_target_index}:${activeTarget.x}:${activeTarget.y}:${activeTarget.z}`
+            : `${session.session_id}:${session.current_target_index}`;
           if (remoteCalibrationCaptureRef.current === captureKey) return;
           if (!stream || !videoRef.current) {
             setConnectionNotice(`The iPhone is waiting for calibration point ${session.current_target_index + 1}. Start this camera preview so the fixed camera can capture it.`);
@@ -357,6 +360,8 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
               setConnectionNotice("iPhone-guided calibration solved the camera pose. Review and save the placement on the iPhone.");
             } else if (updated.status === "failed") {
               setConnectionNotice(updated.error ?? "iPhone-guided calibration needs another attempt.");
+            } else if (updated.status === "waiting_for_person" && updated.current_target_index === session.current_target_index && updated.error) {
+              setConnectionNotice(updated.error);
             } else {
               setConnectionNotice(`Calibration point ${session.current_target_index + 1} captured. Follow the next target on the iPhone.`);
             }
