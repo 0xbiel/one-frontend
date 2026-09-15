@@ -5,6 +5,7 @@ import { api, demoMode, sceneFromMapResponse } from "../api/client";
 import type { LastSeenObject, Point2D, Scene } from "../models/domain";
 import { CameraMap2D } from "../map/CameraMap2D";
 import { hasRenderableSpatial3D } from "../map/lidarGeometry";
+import { LocalizationTemporalTrace } from "../map/LocalizationTemporalTrace";
 import { formatTime } from "./shared";
 
 const LiDARRoomScene3D = lazy(() => import("../map/LiDARRoomScene3D").then((module) => ({ default: module.LiDARRoomScene3D })));
@@ -76,6 +77,7 @@ export function MapPage({ objects, scene }: { objects: LastSeenObject[]; scene: 
   const [referenceLabel, setReferenceLabel] = useState("Measured reference");
   const [scaleError, setScaleError] = useState("");
   const [savingScale, setSavingScale] = useState(false);
+  const [savingLocalizationReference, setSavingLocalizationReference] = useState(false);
   const liveScene = sceneQuery.data ?? scene;
   const liveObjects = objectsQuery.data ?? objects;
   const displayScene = mapQuery.data ? sceneFromMapResponse(mapQuery.data, liveScene) : liveScene;
@@ -84,6 +86,17 @@ export function MapPage({ objects, scene }: { objects: LastSeenObject[]; scene: 
     ? displayScene.cameraRegistrations
     : displayScene.cameraRegistration ? [displayScene.cameraRegistration] : [])
     .filter((registration) => registration.status === "positioned").length;
+  const localizationCameraId = (displayScene.cameraRegistrations?.length
+    ? displayScene.cameraRegistrations.find((registration) => registration.cameraId)?.cameraId
+    : displayScene.cameraRegistration?.cameraId) ?? cameraQuery.data?.id ?? null;
+  const localizationHistoryQuery = useQuery({
+    queryKey: ["camera-localization-history", localizationCameraId],
+    queryFn: () => api.getCameraLocalizationHistory(localizationCameraId!),
+    enabled: hasSession && displayScene.source === "roomplan-lidar-3d" && Boolean(localizationCameraId),
+    retry: false,
+    refetchInterval: !demoMode && hasSession ? 2_000 : false,
+    refetchIntervalInBackground: false,
+  });
   const current = liveObjects.find((object) => object.id === selected);
   const canMeasureScale = displayScene.source === "camera-cv-2d" && Boolean(displayScene.mapId);
 
@@ -147,6 +160,17 @@ export function MapPage({ objects, scene }: { objects: LastSeenObject[]; scene: 
       setScaleError("The measured scale could not be saved. Nothing was changed.");
     } finally {
       setSavingScale(false);
+    }
+  };
+
+  const saveLocalizationReference = async (point: { x: number; z: number }) => {
+    if (!localizationCameraId) return;
+    setSavingLocalizationReference(true);
+    try {
+      await api.setCameraLocalizationReference(localizationCameraId, { ...point, source: "manual-floor-reference" });
+      await queryClient.invalidateQueries({ queryKey: ["camera-localization-history", localizationCameraId] });
+    } finally {
+      setSavingLocalizationReference(false);
     }
   };
 
@@ -248,6 +272,15 @@ export function MapPage({ objects, scene }: { objects: LastSeenObject[]; scene: 
           )}
           {!hasReal3D && <p className="muted small-copy">ONE shows 3D after either a validated native RoomPlan scan or a guided ARKit room video has been saved.</p>}
         </div>
+
+        {displayScene.source === "roomplan-lidar-3d" && localizationCameraId ? (
+          <LocalizationTemporalTrace
+            history={localizationHistoryQuery.data}
+            loading={localizationHistoryQuery.isLoading}
+            savingReference={savingLocalizationReference}
+            onSetReference={saveLocalizationReference}
+          />
+        ) : null}
 
         <div className="panel scale-card">
           <span className="eyebrow">MAP SCALE</span>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import {
   Camera,
   Check,
@@ -11,7 +11,9 @@ import {
   Video,
 } from "lucide-react";
 import { api, demoMode } from "../api/client";
+import type { CameraLocalizationResponse } from "../api/client";
 import type { PublisherConnection } from "../livekit/publisher";
+import type { CameraRegistration, Scene } from "../models/domain";
 import {
   clearPublisherRegistry,
   registerPublisherConnection,
@@ -29,21 +31,32 @@ import {
 } from "./roomSweep";
 import { useMapGeneration } from "./useMapGeneration";
 
+const RoomPlanFloorPlan2D = lazy(() => import("../map/RoomPlanFloorPlan2D").then((module) => ({ default: module.RoomPlanFloorPlan2D })));
+
 type CameraSetupCardProps = {
   embedded?: boolean;
   paused?: boolean;
   onTogglePause?: () => void;
 };
 
-type SweepPhase = "idle" | "preview" | "sweeping" | "submitting" | "processing" | "place-camera" | "localizing" | "ready" | "needs-rescan" | "unavailable" | "failed";
+type SweepPhase = "idle" | "preview" | "sweeping" | "submitting" | "processing" | "place-camera" | "localizing" | "review-placement" | "manual-placement" | "saving-placement" | "ready" | "needs-rescan" | "unavailable" | "failed";
 
-const setupSteps = ["Consent", "Preview", "Walkthrough", "Place camera", "Ready"];
+type ManualPlacement = {
+  x: number;
+  z: number;
+  floorY: number;
+  heightM: number;
+  yawDeg: number;
+  tiltDeg: number;
+};
+
+const setupSteps = ["Consent", "Preview", "Walkthrough", "Review placement", "Ready"];
 
 function stageFor(consented: boolean, phase: SweepPhase): number {
   if (!consented) return 0;
   if (phase === "idle" || phase === "preview") return 1;
   if (["sweeping", "submitting", "processing", "needs-rescan", "unavailable", "failed"].includes(phase)) return 2;
-  if (phase === "place-camera" || phase === "localizing") return 3;
+  if (["place-camera", "localizing", "review-placement", "manual-placement", "saving-placement"].includes(phase)) return 3;
   if (phase === "ready") return 4;
   return 1;
 }
@@ -67,11 +80,72 @@ function phaseCopy(phase: SweepPhase): { title: string; description: string } {
       return { title: "One last placement check.", description: "Put the device in its fixed spot. If this home has an iPhone RoomPlan scan, ONE will locate this camera inside that 3D map automatically." };
     case "localizing":
       return { title: "Finding this camera in 3D.", description: "Keep the camera still while ONE matches this view against the private RoomPlan visual landmark index." };
+    case "review-placement":
+      return { title: "Check where ONE placed the camera.", description: "The automatic result is only a proposal. Confirm it on the top-down RoomPlan map, or move it manually before anything is saved as the camera position." };
+    case "manual-placement":
+      return { title: "Place the camera yourself.", description: "Click the camera's real position on the map, then adjust its viewing direction and height. The amber camera is only a preview until you save it." };
+    case "saving-placement":
+      return { title: "Saving the reviewed camera position.", description: "ONE is applying the position you just confirmed to the active RoomPlan map." };
     case "ready":
       return { title: "Camera setup is ready.", description: "Object vision can run locally now. Keep this camera fixed, scan the room with the iPhone LiDAR app, then match this live view into the metric 3D RoomPlan map." };
     default:
       return { title: "A clear view, with consent.", description: "Give ONE permission only after you know what this device will share. Pairing is already saved separately from room mapping." };
   }
+}
+
+function pointInPolygon(point: { x: number; z: number }, polygon: Array<{ x: number; z: number }>): boolean {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const a = polygon[i];
+    const b = polygon[j];
+    const crosses = ((a.z > point.z) !== (b.z > point.z))
+      && point.x < ((b.x - a.x) * (point.z - a.z)) / ((b.z - a.z) || Number.EPSILON) + a.x;
+    if (crosses) inside = !inside;
+  }
+  return inside;
+}
+
+function floorYForPoint(scene: Scene, point: { x: number; z: number }): number {
+  const zones = scene.geometry?.roomZones ?? [];
+  const containing = zones.find((zone) => pointInPolygon(point, zone.polygon));
+  return containing?.floorY ?? zones[0]?.floorY ?? 0;
+}
+
+function poseFromMatrix(scene: Scene, matrix: number[][]): ManualPlacement {
+  const x = Number(matrix[0]?.[3] ?? 0);
+  const z = Number(matrix[2]?.[3] ?? 0);
+  const floorY = floorYForPoint(scene, { x, z });
+  const y = Number(matrix[1]?.[3] ?? floorY + 1.2);
+  const forwardX = -Number(matrix[0]?.[2] ?? 0);
+  const forwardY = -Number(matrix[1]?.[2] ?? 0);
+  const forwardZ = -Number(matrix[2]?.[2] ?? 1);
+  const yawDeg = Math.atan2(forwardX, -forwardZ) * 180 / Math.PI;
+  const tiltDeg = Math.asin(Math.max(-1, Math.min(1, -forwardY))) * 180 / Math.PI;
+  const heightM = Math.max(0.2, Math.min(3.5, y - floorY));
+  return { x, z, floorY, heightM, yawDeg, tiltDeg };
+}
+
+function matrixFromManualPlacement(placement: ManualPlacement): number[][] {
+  const yaw = placement.yawDeg * Math.PI / 180;
+  const tilt = placement.tiltDeg * Math.PI / 180;
+  const c = Math.cos(yaw);
+  const s = Math.sin(yaw);
+  const ct = Math.cos(tilt);
+  const st = Math.sin(tilt);
+  return [
+    [c, s * st, -s * ct, placement.x],
+    [0, ct, st, placement.floorY + placement.heightM],
+    [s, -c * st, c * ct, placement.z],
+    [0, 0, 0, 1],
+  ];
+}
+
+function defaultManualPlacement(scene: Scene): ManualPlacement {
+  const zone = scene.geometry?.roomZones?.[0];
+  const polygon = zone?.polygon ?? [];
+  const x = polygon.length ? polygon.reduce((sum, point) => sum + point.x, 0) / polygon.length : 0;
+  const z = polygon.length ? polygon.reduce((sum, point) => sum + point.z, 0) / polygon.length : 0;
+  return { x, z, floorY: zone?.floorY ?? 0, heightM: 1.2, yawDeg: 0, tiltDeg: 0 };
 }
 
 function cameraIdFromSession(): Promise<string | null> {
@@ -96,6 +170,9 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
   const [jobId, setJobId] = useState<string | null>(null);
   const [mapError, setMapError] = useState("");
   const [connectionNotice, setConnectionNotice] = useState("");
+  const [placementProposal, setPlacementProposal] = useState<CameraLocalizationResponse | null>(null);
+  const [placementScene, setPlacementScene] = useState<Scene | null>(null);
+  const [manualPlacement, setManualPlacement] = useState<ManualPlacement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const sweepControllerRef = useRef<AbortController | null>(null);
   const autoLocalizationRef = useRef<{ mapId: string; attempts: number; lastAttemptAt: number } | null>(null);
@@ -103,6 +180,21 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
   const generationQuery = useMapGeneration(cameraId ?? undefined, jobId ?? undefined);
   const setupStage = stageFor(consented, phase);
   const copy = phaseCopy(phase);
+  const previewMatrix = manualPlacement
+    ? matrixFromManualPlacement(manualPlacement)
+    : placementProposal?.camera_to_world ?? null;
+  const previewRegistration: CameraRegistration | null = previewMatrix && placementScene?.mapId && cameraId
+    ? {
+        status: "positioned",
+        cameraId,
+        mapId: placementScene.mapId,
+        coordinateFrame: "roomplan-local",
+        cameraToWorld: previewMatrix,
+        confidence: placementProposal?.confidence ?? null,
+        trackingState: "normal",
+        source: "placement-preview",
+      }
+    : null;
 
   useEffect(() => {
     const video = videoRef.current;
@@ -205,9 +297,11 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
     stopActivePublisher();
     setStream(null);
     setConnection(null);
-    if (["idle", "preview", "sweeping", "submitting", "needs-rescan", "unavailable", "failed"].includes(phase)) {
+    if (["idle", "preview", "sweeping", "submitting", "review-placement", "manual-placement", "saving-placement", "needs-rescan", "unavailable", "failed"].includes(phase)) {
       setPhase("idle");
       setSweepProgress(0);
+      setPlacementProposal(null);
+      setManualPlacement(null);
     }
   };
 
@@ -307,6 +401,69 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
     setPhase("ready");
   };
 
+  const loadPlacementScene = useCallback(async (resolvedCameraId?: string): Promise<Scene> => {
+    const targetCameraId = resolvedCameraId ?? cameraId ?? await cameraIdFromSession();
+    if (!targetCameraId) throw new Error("CAMERA_NOT_REGISTERED");
+    if (targetCameraId !== cameraId) setCameraId(targetCameraId);
+    const scene = await api.getRoomPlanPlacementPreview(targetCameraId);
+    if (scene.source !== "roomplan-lidar-3d" || !scene.mapId) throw new Error("ROOMPLAN_MAP_REQUIRED");
+    setPlacementScene(scene);
+    return scene;
+  }, [cameraId]);
+
+  const loadPlacementUSDZ = useCallback(async (_mapId: string): Promise<ArrayBuffer> => {
+    const targetCameraId = cameraId ?? await cameraIdFromSession();
+    if (!targetCameraId) throw new Error("CAMERA_NOT_REGISTERED");
+    return api.getRoomPlanPlacementPreviewUSDZ(targetCameraId);
+  }, [cameraId]);
+
+  const beginManualPlacement = useCallback(async () => {
+    setMapError("");
+    try {
+      const resolvedCameraId = cameraId ?? await cameraIdFromSession();
+      if (!resolvedCameraId) throw new Error("CAMERA_NOT_REGISTERED");
+      setCameraId(resolvedCameraId);
+      const scene = placementScene ?? await loadPlacementScene(resolvedCameraId);
+      const currentRegistration = (scene.cameraRegistrations?.length
+        ? scene.cameraRegistrations.find((registration) => registration.cameraId === resolvedCameraId)
+        : scene.cameraRegistration?.cameraId === resolvedCameraId ? scene.cameraRegistration : null) ?? null;
+      const baseMatrix = placementProposal?.camera_to_world ?? currentRegistration?.cameraToWorld ?? null;
+      setManualPlacement(baseMatrix ? poseFromMatrix(scene, baseMatrix) : defaultManualPlacement(scene));
+      setPhase("manual-placement");
+      setConnectionNotice("Manual placement mode is active. Click the camera's real position on the map, then adjust direction and height before saving.");
+    } catch (error) {
+      setMapError(error instanceof Error && error.message === "ROOMPLAN_MAP_REQUIRED"
+        ? "A native RoomPlan 3D map is required before the camera can be positioned manually."
+        : describeCameraError(error));
+    }
+  }, [cameraId, loadPlacementScene, placementProposal, placementScene]);
+
+  const saveReviewedPlacement = useCallback(async (matrix: number[][], confidence: number | null | undefined) => {
+    const resolvedCameraId = cameraId ?? await cameraIdFromSession();
+    if (!resolvedCameraId || !placementScene?.mapId) return;
+    setPhase("saving-placement");
+    setMapError("");
+    try {
+      const saved = await api.registerRoomPlanCamera({
+        camera_id: resolvedCameraId,
+        map_id: placementScene.mapId,
+        camera_to_world: matrix,
+        confidence: confidence ?? null,
+        tracking_state: "normal",
+      });
+      if (saved.status !== "positioned") throw new Error("CAMERA_POSITION_NOT_ACCEPTED");
+      setPlacementProposal(null);
+      setManualPlacement(null);
+      setConnectionNotice("Camera position confirmed and saved in the RoomPlan map.");
+      setPhase("ready");
+    } catch (error) {
+      setPhase(manualPlacement ? "manual-placement" : "review-placement");
+      setMapError(error instanceof Error && error.message === "CAMERA_POSITION_NOT_ACCEPTED"
+        ? "That camera position could not be saved. Adjust it and try again."
+        : describeCameraError(error));
+    }
+  }, [cameraId, manualPlacement, placementScene]);
+
   const confirmPlacement = useCallback(async (automatic = false): Promise<boolean> => {
     if (!stream || !videoRef.current) return false;
     setPhase("localizing");
@@ -316,19 +473,23 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
       if (!resolvedCameraId) throw new Error("CAMERA_NOT_REGISTERED");
       setCameraId(resolvedCameraId);
       const frames = await captureFixedCameraFrames(videoRef.current, stream, { frameCount: 6, durationMs: demoMode ? 120 : 1_600 });
-      const localization = await api.localizeRoomPlanCamera(resolvedCameraId, frames);
-      if (localization.status !== "positioned") {
-        setConnectionNotice("The camera is saved and publishing. Automatic 3D placement could not be confirmed, so add or refresh the iPhone LiDAR RoomPlan scan and try again from this same fixed view.");
+      const localization = await api.localizeRoomPlanCamera(resolvedCameraId, frames, 60, true);
+      if (localization.status !== "positioned" || !localization.camera_to_world) {
+        setPlacementProposal(null);
+        setConnectionNotice("Automatic 3D placement was not confident enough to propose a position. You can retry once when you want, or place the camera manually on the RoomPlan map.");
         setPhase("ready");
         return false;
       }
-      setConnectionNotice(`Positioned in the RoomPlan 3D map · ${localization.inlier_count} inliers${localization.confidence == null ? "" : ` · ${Math.round(localization.confidence * 100)}% confidence`}.`);
-      setPhase("ready");
+      await loadPlacementScene(resolvedCameraId);
+      setPlacementProposal(localization);
+      setManualPlacement(null);
+      setConnectionNotice(`ONE found a possible camera position${localization.confidence == null ? "" : ` at ${Math.round(localization.confidence * 100)}% confidence`}. Check the amber preview before saving it.`);
+      setPhase("review-placement");
       return true;
     } catch (error) {
       if (error instanceof Error && error.message === "API_409") {
         setConnectionNotice(automatic
-          ? "A LiDAR map is available. ONE is waiting for its visual landmark index, then it will retry this fixed camera automatically."
+          ? "A LiDAR map is available, but its visual landmark index is not ready yet. When it is ready, try automatic placement again or place the camera manually."
           : "Camera setup is ready. Add or refresh the iPhone LiDAR RoomPlan scan, then use Position this camera in 3D while the Mac stays in this fixed view.");
         setPhase("ready");
         return false;
@@ -337,10 +498,10 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
       setMapError(describeCameraError(error));
       return false;
     }
-  }, [cameraId, stream]);
+  }, [cameraId, loadPlacementScene, stream]);
 
   useEffect(() => {
-    if (!stream || !cameraId || paused || demoMode || phase === "localizing") return;
+    if (!stream || !cameraId || paused || demoMode || ["localizing", "review-placement", "manual-placement", "saving-placement"].includes(phase)) return;
     let cancelled = false;
     const checkForLiDARMap = async () => {
       if (cancelled || autoLocalizationRunningRef.current) return;
@@ -350,11 +511,11 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
         const now = Date.now();
         const previous = autoLocalizationRef.current;
         const state = previous?.mapId === readiness.map_id ? previous : { mapId: readiness.map_id, attempts: 0, lastAttemptAt: 0 };
-        if (state.attempts >= 6 || now - state.lastAttemptAt < 3_500) return;
+        if (state.attempts >= 1 || now - state.lastAttemptAt < 3_500) return;
         autoLocalizationRef.current = { mapId: readiness.map_id, attempts: state.attempts + 1, lastAttemptAt: now };
         autoLocalizationRunningRef.current = true;
         const positioned = await confirmPlacement(true);
-        if (positioned) autoLocalizationRef.current = { mapId: readiness.map_id, attempts: 6, lastAttemptAt: Date.now() };
+        if (positioned) autoLocalizationRef.current = { mapId: readiness.map_id, attempts: 1, lastAttemptAt: Date.now() };
       } catch (error) {
         if (!(error instanceof Error && error.message === "API_401")) {
           setMapError(describeCameraError(error));
@@ -461,17 +622,92 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
       ) : phase === "place-camera" ? (
         <div className="room-sweep-status place-camera" role="status">
           <CheckCircle2 size={17} /><span><strong>Relative 2D geometry is ready.</strong><small>Place the camera in its fixed position to finish setup.</small></span>
-          <button type="button" className="secondary-button" disabled={!stream} onClick={() => void confirmPlacement(false)}>{stream ? "Camera is in its fixed spot" : "Start preview to confirm placement"} <Check size={14} /></button>
+          <button type="button" className="secondary-button" disabled={!stream} onClick={() => void confirmPlacement(false)}>{stream ? "Find its position automatically" : "Start preview to position camera"} <Check size={14} /></button>
         </div>
       ) : phase === "localizing" ? (
         <div className="room-sweep-status processing" role="status">
           <Map size={17} /><span><strong>Matching the fixed view to RoomPlan…</strong><small>Keep the camera still while local feature matching and PnP estimate its 3D pose.</small></span>
+        </div>
+      ) : phase === "review-placement" ? (
+        <div className="room-sweep-status place-camera" role="status">
+          <Map size={17} /><span><strong>Automatic position ready to review.</strong><small>The amber camera below is a proposal. It is not active until you confirm it.</small></span>
+        </div>
+      ) : phase === "manual-placement" ? (
+        <div className="room-sweep-status place-camera" role="status">
+          <Map size={17} /><span><strong>Manual placement mode.</strong><small>Click the correct camera location on the map and tune the direction before saving.</small></span>
+        </div>
+      ) : phase === "saving-placement" ? (
+        <div className="room-sweep-status processing" role="status">
+          <Map size={17} /><span><strong>Saving the reviewed position…</strong><small>This replaces the previous active camera placement only after the save succeeds.</small></span>
         </div>
       ) : phase === "ready" ? (
         <div className="room-sweep-status ready" role="status">
           <CheckCircle2 size={17} /><span><strong>Camera saved and ready.</strong><small>Keep this camera fixed. After the iPhone LiDAR scan is saved, use Position this camera in 3D to localize this exact live view in the RoomPlan coordinate frame.</small></span>
         </div>
       ) : null}
+
+      {placementScene && previewRegistration && ["review-placement", "manual-placement", "saving-placement"].includes(phase) && (
+        <div className="camera-placement-review">
+          <div className="camera-placement-review-heading">
+            <span><span className="eyebrow">ROOMPLAN PREVIEW</span><strong>{manualPlacement ? "Manual camera position" : "Automatic camera proposal"}</strong></span>
+            <small>Amber = position that will be saved</small>
+          </div>
+          <Suspense fallback={<div className="camera-placement-map-loading">Loading RoomPlan preview…</div>}>
+            <RoomPlanFloorPlan2D
+              scene={placementScene}
+              objects={[]}
+              loadUSDZ={loadPlacementUSDZ}
+              previewRegistration={previewRegistration}
+              placement={manualPlacement ? {
+                enabled: phase === "manual-placement",
+                onPoint: (point) => setManualPlacement((current) => current ? {
+                  ...current,
+                  x: point.x,
+                  z: point.z,
+                  floorY: floorYForPoint(placementScene, point),
+                } : current),
+              } : undefined}
+            />
+          </Suspense>
+          {manualPlacement ? (
+            <div className="camera-manual-controls">
+              <div className="camera-manual-position">
+                <span><small>X</small><strong>{manualPlacement.x.toFixed(2)} m</strong></span>
+                <span><small>Z</small><strong>{manualPlacement.z.toFixed(2)} m</strong></span>
+              </div>
+              <label>
+                Viewing direction <strong>{Math.round(manualPlacement.yawDeg)}°</strong>
+                <input type="range" min="-180" max="180" step="1" value={manualPlacement.yawDeg} onChange={(event) => setManualPlacement((current) => current ? { ...current, yawDeg: Number(event.target.value) } : current)} />
+              </label>
+              <label>
+                Downward tilt <strong>{Math.round(manualPlacement.tiltDeg)}°</strong>
+                <input type="range" min="-45" max="45" step="1" value={manualPlacement.tiltDeg} onChange={(event) => setManualPlacement((current) => current ? { ...current, tiltDeg: Number(event.target.value) } : current)} />
+              </label>
+              <label className="camera-height-control">
+                Camera height above floor
+                <input type="number" min="0.2" max="3.5" step="0.05" value={manualPlacement.heightM.toFixed(2)} onChange={(event) => setManualPlacement((current) => current ? { ...current, heightM: Math.max(0.2, Math.min(3.5, Number(event.target.value) || 0.2)) } : current)} />
+                <span>m</span>
+              </label>
+              <div className="camera-placement-actions">
+                <button className="primary-button" disabled={phase === "saving-placement"} onClick={() => void saveReviewedPlacement(matrixFromManualPlacement(manualPlacement), null)}><Check size={16} /> Save manual position</button>
+                <button className="secondary-button" disabled={phase === "saving-placement"} onClick={() => {
+                  setManualPlacement(null);
+                  setPhase(placementProposal?.camera_to_world ? "review-placement" : "ready");
+                }}>{placementProposal?.camera_to_world ? "Back to automatic proposal" : "Cancel"}</button>
+              </div>
+            </div>
+          ) : (
+            <div className="camera-placement-actions">
+              <button className="primary-button" disabled={phase === "saving-placement" || !placementProposal?.camera_to_world} onClick={() => placementProposal?.camera_to_world && void saveReviewedPlacement(placementProposal.camera_to_world, placementProposal.confidence)}><Check size={16} /> Yes, this position is correct</button>
+              <button className="secondary-button" disabled={phase === "saving-placement"} onClick={() => void beginManualPlacement()}><Map size={16} /> Adjust manually</button>
+              <button className="secondary-button" disabled={phase === "saving-placement"} onClick={() => {
+                setPlacementProposal(null);
+                setPhase("ready");
+              }}><RotateCcw size={16} /> Try automatic again</button>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="publisher-actions">
         {!stream ? (
@@ -482,7 +718,12 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
           <>
             {["preview", "ready", "needs-rescan", "unavailable", "failed"].includes(phase) && (
               <button className="primary-button" onClick={() => void confirmPlacement(false)}>
-                <Map size={16} /> Position this camera in 3D
+                <Map size={16} /> Try automatic placement
+              </button>
+            )}
+            {["preview", "ready", "needs-rescan", "unavailable", "failed"].includes(phase) && (
+              <button className="secondary-button" onClick={() => void beginManualPlacement()}>
+                <Map size={16} /> Set position manually
               </button>
             )}
             {["preview", "needs-rescan", "unavailable", "failed", "ready"].includes(phase) && (

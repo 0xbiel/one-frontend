@@ -54,6 +54,7 @@ export function roomPlanCameraOverlayPoints(registration: CameraRegistration): {
 function addCamera(group: THREE.Group, registration: CameraRegistration, topDown: boolean): void {
   const matrix = registration.cameraToWorld;
   if (!roomPlanCameraOverlayPoints(registration) || !matrix) return;
+  const color = registration.source === "placement-preview" ? 0xffb45f : 0x6fe0de;
 
   const cameraGroup = new THREE.Group();
   cameraGroup.name = `ONE camera ${registration.cameraId ?? "registered"}`;
@@ -61,7 +62,7 @@ function addCamera(group: THREE.Group, registration: CameraRegistration, topDown
 
   const body = new THREE.Mesh(
     new THREE.BoxGeometry(0.18, 0.12, 0.10),
-    new THREE.MeshStandardMaterial({ color: 0x6fe0de, roughness: 0.4, metalness: 0.08, depthTest: !topDown }),
+    new THREE.MeshStandardMaterial({ color, roughness: 0.4, metalness: 0.08, depthTest: !topDown }),
   );
   body.renderOrder = topDown ? 91 : 0;
   cameraGroup.add(body);
@@ -80,7 +81,7 @@ function addCamera(group: THREE.Group, registration: CameraRegistration, topDown
   ];
   const frustum = new THREE.LineSegments(
     new THREE.BufferGeometry().setFromPoints(frustumPoints),
-    new THREE.LineBasicMaterial({ color: 0x6fe0de, transparent: true, opacity: 0.9, depthTest: !topDown }),
+    new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.9, depthTest: !topDown }),
   );
   frustum.renderOrder = topDown ? 90 : 0;
   cameraGroup.add(frustum);

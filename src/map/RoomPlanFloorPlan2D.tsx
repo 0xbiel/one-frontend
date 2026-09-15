@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { api } from "../api/client";
-import type { LastSeenObject, Scene } from "../models/domain";
+import type { CameraRegistration, LastSeenObject, Scene } from "../models/domain";
 import { hasRenderableSpatial3D } from "./lidarGeometry";
 import { parseRoomPlanUSDZ } from "./RoomPlanUSDZ";
 import { clearRoomPlanOverlays, populateRoomPlanOverlays, refreshRoomPlanOverlayVisibility } from "./RoomPlanOverlays";
@@ -96,16 +96,44 @@ function styleAsFloorPlan(model: THREE.Group): void {
   }
 }
 
-export function RoomPlanFloorPlan2D({ scene, objects }: { scene: Scene; objects: LastSeenObject[] }) {
+type FloorPlanPlacement = {
+  enabled: boolean;
+  onPoint: (point: { x: number; z: number }) => void;
+};
+
+export function RoomPlanFloorPlan2D({
+  scene,
+  objects,
+  previewRegistration,
+  placement,
+  loadUSDZ,
+}: {
+  scene: Scene;
+  objects: LastSeenObject[];
+  previewRegistration?: CameraRegistration | null;
+  placement?: FloorPlanPlacement;
+  loadUSDZ?: (mapId: string) => Promise<ArrayBuffer>;
+}) {
   const mount = useRef<HTMLDivElement>(null);
   const overlayRootRef = useRef<THREE.Group | null>(null);
+  const controlsRef = useRef<OrbitControls | null>(null);
+  const placementRef = useRef<FloorPlanPlacement | undefined>(placement);
   const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
   const mapId = scene.mapId;
   const hasNativeGeometry = hasRenderableSpatial3D(scene);
   const registrations = useMemo(
-    () => scene.cameraRegistrations?.length ? scene.cameraRegistrations : scene.cameraRegistration ? [scene.cameraRegistration] : [],
-    [scene.cameraRegistration, scene.cameraRegistrations],
+    () => {
+      const active = scene.cameraRegistrations?.length ? scene.cameraRegistrations : scene.cameraRegistration ? [scene.cameraRegistration] : [];
+      if (!previewRegistration) return active;
+      return [...active.filter((registration) => registration.cameraId !== previewRegistration.cameraId), previewRegistration];
+    },
+    [previewRegistration, scene.cameraRegistration, scene.cameraRegistrations],
   );
+
+  useEffect(() => {
+    placementRef.current = placement;
+    if (controlsRef.current) controlsRef.current.enabled = !placement?.enabled;
+  }, [placement]);
 
   useEffect(() => {
     if (!mount.current || !mapId || !hasNativeGeometry) {
@@ -120,10 +148,13 @@ export function RoomPlanFloorPlan2D({ scene, objects }: { scene: Scene; objects:
     let renderer: THREE.WebGLRenderer | undefined;
     let roomRoot: THREE.Group | undefined;
     let resize: (() => void) | undefined;
+    let placementCanvas: HTMLCanvasElement | undefined;
+    let handlePlacementPointer: ((event: PointerEvent) => void) | undefined;
     setLoadState("loading");
     host.replaceChildren();
 
-    void api.getRoomPlanUSDZ(mapId).then((buffer) => {
+    const loadModel = loadUSDZ ?? api.getRoomPlanUSDZ;
+    void loadModel(mapId).then((buffer) => {
       const model = parseRoomPlanUSDZ(buffer);
       styleAsFloorPlan(model);
       if (disposed) {
@@ -179,7 +210,28 @@ export function RoomPlanFloorPlan2D({ scene, objects }: { scene: Scene; objects:
       controls.mouseButtons.LEFT = THREE.MOUSE.PAN;
       controls.touches.ONE = THREE.TOUCH.PAN;
       controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
+      controls.enabled = !placementRef.current?.enabled;
+      controlsRef.current = controls;
       controls.update();
+
+      const raycaster = new THREE.Raycaster();
+      const placementPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+      placementCanvas = renderer.domElement;
+      handlePlacementPointer = (event: PointerEvent) => {
+        const currentPlacement = placementRef.current;
+        if (!currentPlacement?.enabled || !placementCanvas) return;
+        const bounds = placementCanvas.getBoundingClientRect();
+        if (!bounds.width || !bounds.height) return;
+        const pointer = new THREE.Vector2(
+          ((event.clientX - bounds.left) / bounds.width) * 2 - 1,
+          -(((event.clientY - bounds.top) / bounds.height) * 2 - 1),
+        );
+        raycaster.setFromCamera(pointer, camera);
+        const point = new THREE.Vector3();
+        if (!raycaster.ray.intersectPlane(placementPlane, point)) return;
+        currentPlacement.onPoint({ x: point.x + center.x, z: point.z + center.z });
+      };
+      placementCanvas.addEventListener("pointerdown", handlePlacementPointer);
 
       const animate = () => {
         if (overlayRootRef.current) refreshRoomPlanOverlayVisibility(overlayRootRef.current);
@@ -207,12 +259,14 @@ export function RoomPlanFloorPlan2D({ scene, objects }: { scene: Scene; objects:
       cancelAnimationFrame(frame);
       if (resize) window.removeEventListener("resize", resize);
       controls?.dispose();
+      controlsRef.current = null;
+      if (placementCanvas && handlePlacementPointer) placementCanvas.removeEventListener("pointerdown", handlePlacementPointer);
       overlayRootRef.current = null;
       if (roomRoot) disposeTree(roomRoot);
       renderer?.dispose();
       host.replaceChildren();
     };
-  }, [hasNativeGeometry, mapId, scene.version]);
+  }, [hasNativeGeometry, loadUSDZ, mapId, scene.version]);
 
   useEffect(() => {
     const overlayRoot = overlayRootRef.current;
@@ -222,7 +276,7 @@ export function RoomPlanFloorPlan2D({ scene, objects }: { scene: Scene; objects:
   }, [loadState, mapId, objects, registrations]);
 
   return (
-    <div className="three-scene lidar-scene roomplan-floor-plan" aria-label="Top-down floor plan derived from the native LiDAR RoomPlan model" role="img">
+    <div className={`three-scene lidar-scene roomplan-floor-plan ${placement?.enabled ? "is-placement-mode" : ""}`} aria-label="Top-down floor plan derived from the native LiDAR RoomPlan model" role="img">
       <div className="lidar-scene-canvas" ref={mount} />
       {loadState !== "ready" && (
         <div className="lidar-scene-status" role="status">
@@ -230,6 +284,7 @@ export function RoomPlanFloorPlan2D({ scene, objects }: { scene: Scene; objects:
         </div>
       )}
       {loadState === "ready" && <div className="roomplan-floor-plan-badge">TOP-DOWN · NATIVE ROOMPLAN</div>}
+      {loadState === "ready" && placement?.enabled && <div className="roomplan-placement-hint">Click the real camera position</div>}
     </div>
   );
 }

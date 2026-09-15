@@ -124,6 +124,72 @@ export interface CameraLocalizationResponse {
   match_count: number;
   reprojection_error_px?: number | null;
   intrinsics_source: string;
+  diagnostics?: Record<string, unknown>;
+  review_required?: boolean;
+}
+export interface CameraLocalizationCandidateTrace {
+  kind?: 'visual-pnp' | 'semantic-cuboid';
+  frame_index?: number | null;
+  landmark_view_id?: string | null;
+  camera_center: number[];
+  distance_to_reference_m?: number | null;
+  inlier_count: number;
+  match_count: number;
+  reprojection_error_px?: number | null;
+  consensus_frame_count: number;
+  consensus_scan_view_count: number;
+  scene_plausible: boolean;
+  scene_reason?: string | null;
+  selected_fov_degrees?: number | null;
+  cuboid_score?: number | null;
+  mean_iou?: number | null;
+  minimum_iou?: number | null;
+  matched_object_count?: number;
+  semantic_group_count?: number;
+  labels?: string[];
+}
+export interface CameraLocalizationAttemptTrace {
+  id: string;
+  created_at?: string | null;
+  status: 'positioned' | 'needs_rescan';
+  storage_status?: string | null;
+  confidence?: number | null;
+  inlier_count: number;
+  match_count: number;
+  reprojection_error_px?: number | null;
+  selected_camera_center?: number[] | null;
+  selected_distance_to_reference_m?: number | null;
+  selected_estimate_source?: 'visual-pnp' | 'semantic-cuboid' | 'temporal-prior' | null;
+  candidates: CameraLocalizationCandidateTrace[];
+}
+export interface CameraLocalizationHistoryResponse {
+  camera_id: string;
+  map_id?: string | null;
+  reference?: {
+    kind?: 'ground-truth-floor' | 'latest-positioned-registration';
+    floor_position?: number[];
+    camera_center?: number[];
+    calibration_id?: string;
+    created_at?: string | null;
+    updated_at?: string | null;
+    source: string;
+  } | null;
+  ground_truth_reference?: {
+    kind: 'ground-truth-floor';
+    floor_position: number[];
+    created_at?: string | null;
+    updated_at?: string | null;
+    source: string;
+  } | null;
+  accepted_reference?: {
+    kind: 'latest-positioned-registration';
+    camera_center: number[];
+    calibration_id: string;
+    created_at?: string | null;
+    source: string;
+  } | null;
+  distance_metric?: 'horizontal-floor' | '3d-to-latest-accepted';
+  attempts: CameraLocalizationAttemptTrace[];
 }
 export interface RoomPlanReadinessResponse {
   camera_id: string;
@@ -665,6 +731,11 @@ export const api = {
     const result = await request<SceneResponse>(`/homes/${homeId()}/scene`);
     return sceneFromResponse(result, result.geometry);
   },
+  getRoomPlanPlacementPreview: async (cameraId: string): Promise<Scene> => {
+    if (demoMode) return demoScene;
+    const result = await request<SceneResponse>(`/homes/${homeId()}/cameras/${encodeURIComponent(cameraId)}/roomplan-placement-preview`);
+    return sceneFromResponse(result, result.geometry);
+  },
   getCurrentMap: async (): Promise<MapResponse | null> => {
     if (demoMode) return {
       id: demoScene.sceneId,
@@ -681,6 +752,10 @@ export const api = {
   getRoomPlanUSDZ: async (mapId: string): Promise<ArrayBuffer> => {
     if (demoMode) throw new Error('API_404');
     return requestBinary(`/homes/${homeId()}/maps/${encodeURIComponent(mapId)}/usdz`);
+  },
+  getRoomPlanPlacementPreviewUSDZ: async (cameraId: string): Promise<ArrayBuffer> => {
+    if (demoMode) throw new Error('API_404');
+    return requestBinary(`/homes/${homeId()}/cameras/${encodeURIComponent(cameraId)}/roomplan-placement-preview/usdz`);
   },
   getObjects: async (): Promise<LastSeenObject[]> => demoMode ? demoObjects : (await request<ObjectResponse>(`/homes/${homeId()}/objects/last-seen`)).data,
   getEvents: async (): Promise<HomeEvent[]> => demoMode ? demoEvents : request<{ data: BackendEvent[] }>(`/homes/${homeId()}/events?limit=50`).then((r) => r.data.map(mapBackendEvent)),
@@ -730,11 +805,35 @@ export const api = {
       body: JSON.stringify({ frames }),
     });
   },
-  localizeRoomPlanCamera: async (cameraId: string, frames: MapGenerationFrame[], fovDegrees = 60): Promise<CameraLocalizationResponse> => {
-    if (demoMode) return { id: `registration-${cameraId}`, status: 'positioned', camera_id: cameraId, map_id: demoScene.sceneId, coordinate_frame: 'roomplan-local', camera_to_world: [[1, 0, 0, 0], [0, 1, 0, 1.5], [0, 0, 1, 0], [0, 0, 0, 1]], confidence: 0.95, tracking_state: 'visual-pnp', source: 'visual-roomplan-registration', inlier_count: 32, match_count: 40, reprojection_error_px: 1.2, intrinsics_source: 'estimated-fov' };
+  localizeRoomPlanCamera: async (cameraId: string, frames: MapGenerationFrame[], fovDegrees = 60, reviewOnly = false): Promise<CameraLocalizationResponse> => {
+    if (demoMode) return { id: `registration-${cameraId}`, status: 'positioned', camera_id: cameraId, map_id: demoScene.sceneId, coordinate_frame: 'roomplan-local', camera_to_world: [[1, 0, 0, 0], [0, 1, 0, 1.5], [0, 0, 1, 0], [0, 0, 0, 1]], confidence: 0.95, tracking_state: 'visual-pnp', source: 'visual-roomplan-registration', inlier_count: 32, match_count: 40, reprojection_error_px: 1.2, intrinsics_source: 'estimated-fov', review_required: reviewOnly };
     return request<CameraLocalizationResponse>(`/homes/${homeId()}/cameras/${encodeURIComponent(cameraId)}/localize-roomplan`, {
       method: 'POST',
-      body: JSON.stringify({ frames, fov_degrees: fovDegrees }),
+      body: JSON.stringify({ frames, fov_degrees: fovDegrees, review_only: reviewOnly }),
+    });
+  },
+  registerRoomPlanCamera: async (input: { camera_id: string; map_id: string; camera_to_world: number[][]; confidence?: number | null; tracking_state?: 'normal' | 'limited' | 'unavailable' }): Promise<CameraLocalizationResponse> => {
+    if (demoMode) return { id: `registration-${input.camera_id}`, status: 'positioned', camera_id: input.camera_id, map_id: input.map_id, coordinate_frame: 'roomplan-local', camera_to_world: input.camera_to_world, confidence: input.confidence ?? null, tracking_state: input.tracking_state ?? 'normal', source: 'auto-roomplan-registration', inlier_count: 0, match_count: 0, intrinsics_source: 'manual-review' };
+    return request<CameraLocalizationResponse>(`/homes/${homeId()}/camera-registrations/roomplan`, {
+      method: 'POST',
+      body: JSON.stringify({
+        camera_id: input.camera_id,
+        map_id: input.map_id,
+        camera_to_world: input.camera_to_world,
+        confidence: input.confidence ?? null,
+        tracking_state: input.tracking_state ?? 'normal',
+      }),
+    });
+  },
+  getCameraLocalizationHistory: async (cameraId: string): Promise<CameraLocalizationHistoryResponse> => {
+    if (demoMode) return { camera_id: cameraId, map_id: null, reference: null, attempts: [] };
+    return request<CameraLocalizationHistoryResponse>(`/homes/${homeId()}/cameras/${encodeURIComponent(cameraId)}/localization-history?limit=40`);
+  },
+  setCameraLocalizationReference: async (cameraId: string, input: { x: number; z: number; source?: string }): Promise<void> => {
+    if (demoMode) return;
+    await request<unknown>(`/homes/${homeId()}/cameras/${encodeURIComponent(cameraId)}/localization-reference`, {
+      method: 'PUT',
+      body: JSON.stringify({ x: input.x, z: input.z, source: input.source ?? 'manual-floor-reference' }),
     });
   },
   getRoomPlanReadiness: async (cameraId: string): Promise<RoomPlanReadinessResponse> => {
