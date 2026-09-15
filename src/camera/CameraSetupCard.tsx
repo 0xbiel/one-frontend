@@ -347,17 +347,22 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
             return;
           }
           remoteCalibrationCaptureRef.current = captureKey;
-          setConnectionNotice(`iPhone-guided calibration · capturing point ${session.current_target_index + 1} from this fixed camera…`);
-          const burst = await captureFixedCameraFrames(videoRef.current, stream, { frameCount: 2, durationMs: 650 });
-          const updated = await api.submitRoomPlanCalibrationFrames(cameraId, session.current_target_index, burst);
-          if (disposed) return;
-          setRemoteCalibration(updated);
-          if (updated.status === "review") {
-            setConnectionNotice("iPhone-guided calibration solved the camera pose. Review and save the placement on the iPhone.");
-          } else if (updated.status === "failed") {
-            setConnectionNotice(updated.error ?? "iPhone-guided calibration needs another attempt.");
-          } else {
-            setConnectionNotice(`Calibration point ${session.current_target_index + 1} captured. Follow the next target on the iPhone.`);
+          try {
+            setConnectionNotice(`iPhone-guided calibration · capturing point ${session.current_target_index + 1} from this fixed camera…`);
+            const burst = await captureFixedCameraFrames(videoRef.current, stream, { frameCount: 2, durationMs: 650 });
+            const updated = await api.submitRoomPlanCalibrationFrames(cameraId, session.current_target_index, burst);
+            if (disposed) return;
+            setRemoteCalibration(updated);
+            if (updated.status === "review") {
+              setConnectionNotice("iPhone-guided calibration solved the camera pose. Review and save the placement on the iPhone.");
+            } else if (updated.status === "failed") {
+              setConnectionNotice(updated.error ?? "iPhone-guided calibration needs another attempt.");
+            } else {
+              setConnectionNotice(`Calibration point ${session.current_target_index + 1} captured. Follow the next target on the iPhone.`);
+            }
+          } catch (error) {
+            if (remoteCalibrationCaptureRef.current === captureKey) remoteCalibrationCaptureRef.current = null;
+            throw error;
           }
         } else if (session.status === "solving") {
           setConnectionNotice("iPhone-guided calibration is solving this fixed camera position locally.");

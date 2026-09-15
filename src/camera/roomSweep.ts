@@ -155,7 +155,7 @@ export async function captureFixedCameraFrames(
   stream: MediaStream,
   options: Pick<RoomSweepOptions, 'signal' | 'onProgress' | 'maxDimension' | 'jpegQuality'> & { frameCount?: number; durationMs?: number } = {},
 ): Promise<RoomSweepFrame[]> {
-  const frameCount = Math.min(8, Math.max(3, options.frameCount ?? 6));
+  const frameCount = Math.min(8, Math.max(1, options.frameCount ?? 6));
   const durationMs = Math.max(0, options.durationMs ?? 1_600);
   await waitForVideo(video, options.signal);
   videoDimensions(video, stream);
