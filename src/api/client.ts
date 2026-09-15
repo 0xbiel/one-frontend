@@ -200,6 +200,36 @@ export interface RoomPlanReadinessResponse {
   visual_landmarks_ready: boolean;
   ready: boolean;
 }
+export interface RoomPlanCalibrationTarget {
+  index: number;
+  x: number;
+  y: number;
+  z: number;
+  state: 'pending' | 'active' | 'complete';
+}
+export interface RoomPlanCalibrationProposal {
+  id?: string | null;
+  camera_id: string;
+  map_id: string;
+  camera_to_world: number[][];
+  confidence?: number | null;
+  tracking_state?: string | null;
+  source?: string | null;
+}
+export interface RoomPlanCalibrationSession {
+  session_id: string;
+  camera_id: string;
+  map_id: string;
+  status: 'waiting_for_person' | 'capture_requested' | 'solving' | 'review' | 'failed' | 'expired';
+  current_target_index: number;
+  captured_target_count: number;
+  targets: RoomPlanCalibrationTarget[];
+  proposal?: RoomPlanCalibrationProposal | null;
+  error?: string | null;
+  created_at: string;
+  expires_at: string;
+  raw_frames_persisted: false;
+}
 export interface VisionFrameResponse {
   data: Array<{
     label: string;
@@ -840,6 +870,22 @@ export const api = {
   getRoomPlanReadiness: async (cameraId: string): Promise<RoomPlanReadinessResponse> => {
     if (demoMode) return { camera_id: cameraId, map_id: null, source: null, dimension: null, visual_landmarks_ready: false, ready: false };
     return request<RoomPlanReadinessResponse>(`/homes/${homeId()}/cameras/${encodeURIComponent(cameraId)}/roomplan-readiness`);
+  },
+  getRoomPlanCalibrationSession: async (cameraId: string): Promise<RoomPlanCalibrationSession | null> => {
+    if (demoMode) return null;
+    try {
+      return await request<RoomPlanCalibrationSession>(`/homes/${homeId()}/cameras/${encodeURIComponent(cameraId)}/roomplan-calibration-session`);
+    } catch (error) {
+      if (error instanceof Error && error.message === 'API_404') return null;
+      throw error;
+    }
+  },
+  submitRoomPlanCalibrationFrames: async (cameraId: string, targetIndex: number, frames: MapGenerationFrame[]): Promise<RoomPlanCalibrationSession> => {
+    if (demoMode) throw new Error('API_404');
+    return request<RoomPlanCalibrationSession>(`/homes/${homeId()}/cameras/${encodeURIComponent(cameraId)}/roomplan-calibration-session/frames`, {
+      method: 'POST',
+      body: JSON.stringify({ target_index: targetIndex, frames }),
+    });
   },
   submitVisionFrame: async (cameraId: string, frame: MapGenerationFrame): Promise<VisionFrameResponse> => {
     if (demoMode) return { data: [], detector_version: 'demo', observations: [], frames_persisted: false };

@@ -11,7 +11,7 @@ import {
   Video,
 } from "lucide-react";
 import { api, demoMode } from "../api/client";
-import type { CameraLocalizationPersonAnchor, CameraLocalizationResponse, MapGenerationFrame } from "../api/client";
+import type { CameraLocalizationPersonAnchor, CameraLocalizationResponse, MapGenerationFrame, RoomPlanCalibrationSession } from "../api/client";
 import type { PublisherConnection } from "../livekit/publisher";
 import type { CameraRegistration, Scene } from "../models/domain";
 import {
@@ -224,10 +224,12 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
   const [guidedFrames, setGuidedFrames] = useState<MapGenerationFrame[]>([]);
   const [guidedAnchors, setGuidedAnchors] = useState<CameraLocalizationPersonAnchor[]>([]);
   const [guidedCapturing, setGuidedCapturing] = useState(false);
+  const [remoteCalibration, setRemoteCalibration] = useState<RoomPlanCalibrationSession | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const sweepControllerRef = useRef<AbortController | null>(null);
   const autoLocalizationRef = useRef<{ mapId: string; attempts: number; lastAttemptAt: number } | null>(null);
   const autoLocalizationRunningRef = useRef(false);
+  const remoteCalibrationCaptureRef = useRef<string | null>(null);
   const generationQuery = useMapGeneration(cameraId ?? undefined, jobId ?? undefined);
   const setupStage = stageFor(consented, phase);
   const copy = phaseCopy(phase);
@@ -321,6 +323,60 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
     })();
     return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    if (!cameraId || demoMode) return;
+    let disposed = false;
+    let running = false;
+    const tick = async () => {
+      if (disposed || running) return;
+      running = true;
+      try {
+        const session = await api.getRoomPlanCalibrationSession(cameraId);
+        if (disposed) return;
+        setRemoteCalibration(session);
+        if (!session) {
+          remoteCalibrationCaptureRef.current = null;
+          return;
+        }
+        if (session.status === "capture_requested") {
+          const captureKey = `${session.session_id}:${session.current_target_index}`;
+          if (remoteCalibrationCaptureRef.current === captureKey) return;
+          if (!stream || !videoRef.current) {
+            setConnectionNotice(`The iPhone is waiting for calibration point ${session.current_target_index + 1}. Start this camera preview so the fixed camera can capture it.`);
+            return;
+          }
+          remoteCalibrationCaptureRef.current = captureKey;
+          setConnectionNotice(`iPhone-guided calibration · capturing point ${session.current_target_index + 1} from this fixed camera…`);
+          const burst = await captureFixedCameraFrames(videoRef.current, stream, { frameCount: 2, durationMs: 650 });
+          const updated = await api.submitRoomPlanCalibrationFrames(cameraId, session.current_target_index, burst);
+          if (disposed) return;
+          setRemoteCalibration(updated);
+          if (updated.status === "review") {
+            setConnectionNotice("iPhone-guided calibration solved the camera pose. Review and save the placement on the iPhone.");
+          } else if (updated.status === "failed") {
+            setConnectionNotice(updated.error ?? "iPhone-guided calibration needs another attempt.");
+          } else {
+            setConnectionNotice(`Calibration point ${session.current_target_index + 1} captured. Follow the next target on the iPhone.`);
+          }
+        } else if (session.status === "solving") {
+          setConnectionNotice("iPhone-guided calibration is solving this fixed camera position locally.");
+        }
+      } catch (error) {
+        if (!disposed && error instanceof Error && error.message !== "API_404") {
+          setConnectionNotice("The iPhone calibration session could not be refreshed. The camera preview is still available.");
+        }
+      } finally {
+        running = false;
+      }
+    };
+    void tick();
+    const interval = window.setInterval(() => { void tick(); }, 1_000);
+    return () => {
+      disposed = true;
+      window.clearInterval(interval);
+    };
+  }, [cameraId, stream]);
 
   useEffect(() => {
     const visionCanRun = ["preview", "place-camera", "ready", "needs-rescan", "unavailable", "failed"].includes(phase);
@@ -474,7 +530,7 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
     return scene;
   }, [cameraId]);
 
-  const loadPlacementUSDZ = useCallback(async (_mapId: string): Promise<ArrayBuffer> => {
+  const loadPlacementUSDZ = useCallback(async (): Promise<ArrayBuffer> => {
     const targetCameraId = cameraId ?? await cameraIdFromSession();
     if (!targetCameraId) throw new Error("CAMERA_NOT_REGISTERED");
     return api.getRoomPlanPlacementPreviewUSDZ(targetCameraId);
@@ -753,6 +809,21 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
       </label>
 
       {connectionNotice && <div className="camera-notice" role="status"><LockKeyhole size={15} /> {connectionNotice}</div>}
+      {remoteCalibration && (
+        <div className="camera-notice" role="status">
+          <Map size={15} />
+          <span>
+            <strong>iPhone-guided calibration</strong>{" "}
+            {remoteCalibration.status === "review"
+              ? "Ready for review on the iPhone."
+              : remoteCalibration.status === "failed"
+                ? (remoteCalibration.error ?? "Needs another attempt.")
+                : remoteCalibration.status === "solving"
+                  ? "Solving the fixed camera pose…"
+                  : `Point ${remoteCalibration.current_target_index + 1} of ${remoteCalibration.targets.length} · ${remoteCalibration.status === "capture_requested" ? "capture requested" : "waiting for the caregiver"}.`}
+          </span>
+        </div>
+      )}
       {mapError && (
         <div className="error-note" role="alert">
           <span>{mapError}</span>

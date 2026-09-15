@@ -19,6 +19,9 @@ export interface Device {
   status: DeviceStatus;
   lastSeenAt: string;
   roomId?: string | null;
+  calibration_needed?: boolean;
+  roomplan_registration_status?: string;
+  roomplan_map_id?: string | null;
   metadata?: Record<string, unknown>;
 }
 export interface Session { actor: { id: string; role: Role | 'admin' | 'resident'; name: string }; home: Home; device?: Device | null; paused?: boolean; }

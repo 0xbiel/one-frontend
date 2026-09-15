@@ -261,6 +261,46 @@ export interface paths {
         patch: operations["camera_update_api_v1_homes__home_id__cameras__camera_id__patch"];
         trace?: never;
     };
+    "/api/v1/homes/{home_id}/cameras/{camera_id}/localization-history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Camera Localization History
+         * @description Return a bounded, image-free temporal trace of RoomPlan pose hypotheses.
+         */
+        get: operations["camera_localization_history_api_v1_homes__home_id__cameras__camera_id__localization_history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/homes/{home_id}/cameras/{camera_id}/localization-reference": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Camera Localization Reference
+         * @description Persist a human-verified floor location for localization evaluation.
+         */
+        put: operations["set_camera_localization_reference_api_v1_homes__home_id__cameras__camera_id__localization_reference_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/homes/{home_id}/cameras/{camera_id}/localize-roomplan": {
         parameters: {
             query?: never;
@@ -327,6 +367,99 @@ export interface paths {
         put?: never;
         /** Map Generation Frames */
         post: operations["map_generation_frames_api_v1_homes__home_id__cameras__camera_id__map_generation__job_id__frames_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/homes/{home_id}/cameras/{camera_id}/roomplan-calibration-session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Roomplan Calibration Session */
+        get: operations["get_roomplan_calibration_session_api_v1_homes__home_id__cameras__camera_id__roomplan_calibration_session_get"];
+        put?: never;
+        /**
+         * Start Roomplan Calibration Session
+         * @description Start a transient caregiver-guided calibration for a fixed publisher camera.
+         */
+        post: operations["start_roomplan_calibration_session_api_v1_homes__home_id__cameras__camera_id__roomplan_calibration_session_post"];
+        /** Cancel Roomplan Calibration Session */
+        delete: operations["cancel_roomplan_calibration_session_api_v1_homes__home_id__cameras__camera_id__roomplan_calibration_session_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/homes/{home_id}/cameras/{camera_id}/roomplan-calibration-session/frames": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit Roomplan Calibration Frames */
+        post: operations["submit_roomplan_calibration_frames_api_v1_homes__home_id__cameras__camera_id__roomplan_calibration_session_frames_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/homes/{home_id}/cameras/{camera_id}/roomplan-calibration-session/request-capture": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request Roomplan Calibration Capture */
+        post: operations["request_roomplan_calibration_capture_api_v1_homes__home_id__cameras__camera_id__roomplan_calibration_session_request_capture_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/homes/{home_id}/cameras/{camera_id}/roomplan-placement-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Roomplan Camera Placement Preview
+         * @description Expose only the active RoomPlan scene needed to review this publisher camera's placement.
+         */
+        get: operations["roomplan_camera_placement_preview_api_v1_homes__home_id__cameras__camera_id__roomplan_placement_preview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/homes/{home_id}/cameras/{camera_id}/roomplan-placement-preview/usdz": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Roomplan Camera Placement Preview Usdz */
+        get: operations["roomplan_camera_placement_preview_usdz_api_v1_homes__home_id__cameras__camera_id__roomplan_placement_preview_usdz_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1337,17 +1470,6 @@ export interface components {
             /** Width */
             width: number;
         };
-        /** CameraLocalizationPersonAnchorIn */
-        CameraLocalizationPersonAnchorIn: {
-            /** Frame Index */
-            frame_index: number;
-            /** X */
-            x: number;
-            /** Y */
-            y: number;
-            /** Z */
-            z: number;
-        };
         /** CameraLocalizationIn */
         CameraLocalizationIn: {
             /**
@@ -1364,7 +1486,36 @@ export interface components {
              * Review Only
              * @default false
              */
-            review_only?: boolean;
+            review_only: boolean;
+        };
+        /**
+         * CameraLocalizationPersonAnchorIn
+         * @description Known RoomPlan floor point occupied by a person in one calibration frame.
+         */
+        CameraLocalizationPersonAnchorIn: {
+            /** Frame Index */
+            frame_index: number;
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+            /** Z */
+            z: number;
+        };
+        /**
+         * CameraLocalizationReferenceIn
+         * @description Physical top-down camera location in the active RoomPlan coordinate frame.
+         */
+        CameraLocalizationReferenceIn: {
+            /**
+             * Source
+             * @default manual-floor-reference
+             */
+            source: string;
+            /** X */
+            x: number;
+            /** Z */
+            z: number;
         };
         /** CameraMapFrameIn */
         CameraMapFrameIn: {
@@ -1446,6 +1597,11 @@ export interface components {
             display_name: string;
             /** Id */
             id: string;
+            /**
+             * Medication Reminders Enabled
+             * @default false
+             */
+            medication_reminders_enabled: boolean;
             /** Relationship */
             relationship?: string | null;
             /** Room Label */
@@ -1501,6 +1657,8 @@ export interface components {
         };
         /** ConsentIn */
         ConsentIn: {
+            /** Care Recipient Id */
+            care_recipient_id?: string | null;
             /**
              * Granted
              * @default true
@@ -1587,6 +1745,8 @@ export interface components {
         };
         /** FamilyAssistantIn */
         FamilyAssistantIn: {
+            /** Care Recipient Id */
+            care_recipient_id?: string | null;
             /**
              * Message
              * @default
@@ -1719,6 +1879,8 @@ export interface components {
             active: boolean;
             /** Assigned Caregiver Id */
             assigned_caregiver_id?: string | null;
+            /** Care Recipient Id */
+            care_recipient_id?: string | null;
             /** Dose */
             dose: string;
             /**
@@ -1731,7 +1893,7 @@ export interface components {
             /** Schedule */
             schedule: string;
             /** Subject User Id */
-            subject_user_id: string;
+            subject_user_id?: string | null;
         };
         /** MedicationPlanUpdate */
         MedicationPlanUpdate: {
@@ -1865,6 +2027,18 @@ export interface components {
         RoomIn: {
             /** Name */
             name: string;
+        };
+        /** RoomPlanCalibrationCaptureRequestIn */
+        RoomPlanCalibrationCaptureRequestIn: {
+            /** Target Index */
+            target_index: number;
+        };
+        /** RoomPlanCalibrationFramesIn */
+        RoomPlanCalibrationFramesIn: {
+            /** Frames */
+            frames: components["schemas"]["CameraLocalizationFrameIn"][];
+            /** Target Index */
+            target_index: number;
         };
         /** RoomPlanCameraRegistrationIn */
         RoomPlanCameraRegistrationIn: {
@@ -2652,6 +2826,76 @@ export interface operations {
             };
         };
     };
+    camera_localization_history_api_v1_homes__home_id__cameras__camera_id__localization_history_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                home_id: string;
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_camera_localization_reference_api_v1_homes__home_id__cameras__camera_id__localization_reference_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CameraLocalizationReferenceIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     localize_roomplan_camera_api_v1_homes__home_id__cameras__camera_id__localize_roomplan_post: {
         parameters: {
             query?: never;
@@ -2814,6 +3058,236 @@ export interface operations {
                 content: {
                     "application/json": unknown;
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_roomplan_calibration_session_api_v1_homes__home_id__cameras__camera_id__roomplan_calibration_session_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_roomplan_calibration_session_api_v1_homes__home_id__cameras__camera_id__roomplan_calibration_session_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_roomplan_calibration_session_api_v1_homes__home_id__cameras__camera_id__roomplan_calibration_session_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_roomplan_calibration_frames_api_v1_homes__home_id__cameras__camera_id__roomplan_calibration_session_frames_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoomPlanCalibrationFramesIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    request_roomplan_calibration_capture_api_v1_homes__home_id__cameras__camera_id__roomplan_calibration_session_request_capture_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoomPlanCalibrationCaptureRequestIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    roomplan_camera_placement_preview_api_v1_homes__home_id__cameras__camera_id__roomplan_placement_preview_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    roomplan_camera_placement_preview_usdz_api_v1_homes__home_id__cameras__camera_id__roomplan_placement_preview_usdz_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -3875,6 +4349,7 @@ export interface operations {
         parameters: {
             query?: {
                 subject_user_id?: string | null;
+                care_recipient_id?: string | null;
                 scheduled_from?: string | null;
                 scheduled_to?: string | null;
             };
@@ -3910,6 +4385,7 @@ export interface operations {
         parameters: {
             query?: {
                 subject_user_id?: string | null;
+                care_recipient_id?: string | null;
                 active_only?: boolean;
             };
             header?: never;
@@ -4052,6 +4528,7 @@ export interface operations {
             query?: {
                 day?: string | null;
                 subject_user_id?: string | null;
+                care_recipient_id?: string | null;
             };
             header?: never;
             path: {
