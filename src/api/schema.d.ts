@@ -1337,6 +1337,17 @@ export interface components {
             /** Width */
             width: number;
         };
+        /** CameraLocalizationPersonAnchorIn */
+        CameraLocalizationPersonAnchorIn: {
+            /** Frame Index */
+            frame_index: number;
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+            /** Z */
+            z: number;
+        };
         /** CameraLocalizationIn */
         CameraLocalizationIn: {
             /**
@@ -1347,6 +1358,13 @@ export interface components {
             /** Frames */
             frames: components["schemas"]["CameraLocalizationFrameIn"][];
             intrinsics?: components["schemas"]["Matrix3x3In"] | null;
+            /** Person Anchors */
+            person_anchors?: components["schemas"]["CameraLocalizationPersonAnchorIn"][];
+            /**
+             * Review Only
+             * @default false
+             */
+            review_only?: boolean;
         };
         /** CameraMapFrameIn */
         CameraMapFrameIn: {

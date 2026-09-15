@@ -11,7 +11,7 @@ import {
   Video,
 } from "lucide-react";
 import { api, demoMode } from "../api/client";
-import type { CameraLocalizationResponse } from "../api/client";
+import type { CameraLocalizationPersonAnchor, CameraLocalizationResponse, MapGenerationFrame } from "../api/client";
 import type { PublisherConnection } from "../livekit/publisher";
 import type { CameraRegistration, Scene } from "../models/domain";
 import {
@@ -39,7 +39,7 @@ type CameraSetupCardProps = {
   onTogglePause?: () => void;
 };
 
-type SweepPhase = "idle" | "preview" | "sweeping" | "submitting" | "processing" | "place-camera" | "localizing" | "review-placement" | "manual-placement" | "saving-placement" | "ready" | "needs-rescan" | "unavailable" | "failed";
+type SweepPhase = "idle" | "preview" | "sweeping" | "submitting" | "processing" | "place-camera" | "guided-calibration" | "localizing" | "review-placement" | "manual-placement" | "saving-placement" | "ready" | "needs-rescan" | "unavailable" | "failed";
 
 type ManualPlacement = {
   x: number;
@@ -50,13 +50,19 @@ type ManualPlacement = {
   tiltDeg: number;
 };
 
+type GuidedCalibrationTarget = {
+  x: number;
+  z: number;
+  floorY: number;
+};
+
 const setupSteps = ["Consent", "Preview", "Walkthrough", "Review placement", "Ready"];
 
 function stageFor(consented: boolean, phase: SweepPhase): number {
   if (!consented) return 0;
   if (phase === "idle" || phase === "preview") return 1;
   if (["sweeping", "submitting", "processing", "needs-rescan", "unavailable", "failed"].includes(phase)) return 2;
-  if (["place-camera", "localizing", "review-placement", "manual-placement", "saving-placement"].includes(phase)) return 3;
+  if (["place-camera", "guided-calibration", "localizing", "review-placement", "manual-placement", "saving-placement"].includes(phase)) return 3;
   if (phase === "ready") return 4;
   return 1;
 }
@@ -78,6 +84,8 @@ function phaseCopy(phase: SweepPhase): { title: string; description: string } {
       return { title: "Building a room draft.", description: "The local room-layout service is turning the walkthrough into approximate camera geometry. The camera stays paired even if this draft needs another pass." };
     case "place-camera":
       return { title: "One last placement check.", description: "Put the device in its fixed spot. If this home has an iPhone RoomPlan scan, ONE will locate this camera inside that 3D map automatically." };
+    case "guided-calibration":
+      return { title: "Stand on four points to calibrate the fixed camera.", description: "ONE shows four spread-out floor targets from the RoomPlan map. Stand on each target and capture it; your position becomes a temporary geometric marker and the frames are not stored." };
     case "localizing":
       return { title: "Finding this camera in 3D.", description: "Keep the camera still while ONE matches this view against the private RoomPlan visual landmark index." };
     case "review-placement":
@@ -148,6 +156,44 @@ function defaultManualPlacement(scene: Scene): ManualPlacement {
   return { x, z, floorY: zone?.floorY ?? 0, heightM: 1.2, yawDeg: 0, tiltDeg: 0 };
 }
 
+function polygonArea(polygon: Array<{ x: number; z: number }>): number {
+  if (polygon.length < 3) return 0;
+  let area = 0;
+  for (let index = 0; index < polygon.length; index += 1) {
+    const current = polygon[index];
+    const next = polygon[(index + 1) % polygon.length];
+    area += current.x * next.z - next.x * current.z;
+  }
+  return Math.abs(area) * 0.5;
+}
+
+function guidedCalibrationTargets(scene: Scene): GuidedCalibrationTarget[] {
+  const zones = [...(scene.geometry?.roomZones ?? [])].sort((a, b) => polygonArea(b.polygon) - polygonArea(a.polygon));
+  const zone = zones[0];
+  if (!zone || zone.polygon.length < 3) return [];
+  const xs = zone.polygon.map((point) => point.x);
+  const zs = zone.polygon.map((point) => point.z);
+  const center = {
+    x: zone.polygon.reduce((sum, point) => sum + point.x, 0) / zone.polygon.length,
+    z: zone.polygon.reduce((sum, point) => sum + point.z, 0) / zone.polygon.length,
+  };
+  const bounds = { minX: Math.min(...xs), maxX: Math.max(...xs), minZ: Math.min(...zs), maxZ: Math.max(...zs) };
+  const raw = [
+    { x: bounds.minX * 0.72 + bounds.maxX * 0.28, z: bounds.minZ * 0.72 + bounds.maxZ * 0.28 },
+    { x: bounds.minX * 0.28 + bounds.maxX * 0.72, z: bounds.minZ * 0.72 + bounds.maxZ * 0.28 },
+    { x: bounds.minX * 0.72 + bounds.maxX * 0.28, z: bounds.minZ * 0.28 + bounds.maxZ * 0.72 },
+    { x: bounds.minX * 0.28 + bounds.maxX * 0.72, z: bounds.minZ * 0.28 + bounds.maxZ * 0.72 },
+  ];
+  return raw.map((candidate) => {
+    if (pointInPolygon(candidate, zone.polygon)) return { ...candidate, floorY: zone.floorY };
+    for (const factor of [0.8, 0.6, 0.4, 0.2]) {
+      const point = { x: center.x + (candidate.x - center.x) * factor, z: center.z + (candidate.z - center.z) * factor };
+      if (pointInPolygon(point, zone.polygon)) return { ...point, floorY: zone.floorY };
+    }
+    return { ...center, floorY: zone.floorY };
+  });
+}
+
 function cameraIdFromSession(): Promise<string | null> {
   return api.getSession().then(async (session) => {
     // A publisher's user identity is the camera identity created by pairing.
@@ -173,6 +219,11 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
   const [placementProposal, setPlacementProposal] = useState<CameraLocalizationResponse | null>(null);
   const [placementScene, setPlacementScene] = useState<Scene | null>(null);
   const [manualPlacement, setManualPlacement] = useState<ManualPlacement | null>(null);
+  const [guidedTargets, setGuidedTargets] = useState<GuidedCalibrationTarget[]>([]);
+  const [guidedTargetIndex, setGuidedTargetIndex] = useState(0);
+  const [guidedFrames, setGuidedFrames] = useState<MapGenerationFrame[]>([]);
+  const [guidedAnchors, setGuidedAnchors] = useState<CameraLocalizationPersonAnchor[]>([]);
+  const [guidedCapturing, setGuidedCapturing] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const sweepControllerRef = useRef<AbortController | null>(null);
   const autoLocalizationRef = useRef<{ mapId: string; attempts: number; lastAttemptAt: number } | null>(null);
@@ -195,6 +246,13 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
         source: "placement-preview",
       }
     : null;
+  const activeGuidedTarget = guidedTargets[guidedTargetIndex] ?? null;
+  const guidedTargetMarkers = guidedTargets.map((target, index) => ({
+    x: target.x,
+    y: target.floorY,
+    z: target.z,
+    state: index < guidedTargetIndex ? "complete" as const : index === guidedTargetIndex ? "active" as const : "pending" as const,
+  }));
 
   useEffect(() => {
     const video = videoRef.current;
@@ -297,11 +355,16 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
     stopActivePublisher();
     setStream(null);
     setConnection(null);
-    if (["idle", "preview", "sweeping", "submitting", "review-placement", "manual-placement", "saving-placement", "needs-rescan", "unavailable", "failed"].includes(phase)) {
+    if (["idle", "preview", "sweeping", "submitting", "guided-calibration", "review-placement", "manual-placement", "saving-placement", "needs-rescan", "unavailable", "failed"].includes(phase)) {
       setPhase("idle");
       setSweepProgress(0);
       setPlacementProposal(null);
       setManualPlacement(null);
+      setGuidedTargets([]);
+      setGuidedTargetIndex(0);
+      setGuidedFrames([]);
+      setGuidedAnchors([]);
+      setGuidedCapturing(false);
     }
   };
 
@@ -417,6 +480,90 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
     return api.getRoomPlanPlacementPreviewUSDZ(targetCameraId);
   }, [cameraId]);
 
+  const beginGuidedCalibration = useCallback(async () => {
+    if (!stream) return;
+    setMapError("");
+    try {
+      const resolvedCameraId = cameraId ?? await cameraIdFromSession();
+      if (!resolvedCameraId) throw new Error("CAMERA_NOT_REGISTERED");
+      setCameraId(resolvedCameraId);
+      const scene = placementScene ?? await loadPlacementScene(resolvedCameraId);
+      const targets = guidedCalibrationTargets(scene);
+      if (targets.length < 4) throw new Error("ROOMPLAN_MAP_REQUIRED");
+      setGuidedTargets(targets);
+      setGuidedTargetIndex(0);
+      setGuidedFrames([]);
+      setGuidedAnchors([]);
+      setPlacementProposal(null);
+      setManualPlacement(null);
+      setPhase("guided-calibration");
+      setConnectionNotice("Guided calibration is ready. Stand on point 1, then capture it. If a target is blocked, click a nearby clear floor spot on the map first.");
+    } catch (error) {
+      setMapError(error instanceof Error && error.message === "ROOMPLAN_MAP_REQUIRED"
+        ? "A native RoomPlan 3D map with a floor zone is required for guided calibration."
+        : describeCameraError(error));
+    }
+  }, [cameraId, loadPlacementScene, placementScene, stream]);
+
+  const captureGuidedCalibrationTarget = useCallback(async () => {
+    if (!stream || !videoRef.current || guidedCapturing || guidedTargetIndex >= guidedTargets.length) return;
+    const target = guidedTargets[guidedTargetIndex];
+    setGuidedCapturing(true);
+    setMapError("");
+    try {
+      const resolvedCameraId = cameraId ?? await cameraIdFromSession();
+      if (!resolvedCameraId) throw new Error("CAMERA_NOT_REGISTERED");
+      setCameraId(resolvedCameraId);
+      const burst = await captureFixedCameraFrames(videoRef.current, stream, { frameCount: 2, durationMs: demoMode ? 80 : 650 });
+      const baseIndex = guidedFrames.length;
+      const nextFrames = [...guidedFrames, ...burst];
+      const nextAnchors = [
+        ...guidedAnchors,
+        ...burst.map((_, offset) => ({
+          frame_index: baseIndex + offset,
+          x: target.x,
+          y: target.floorY,
+          z: target.z,
+        })),
+      ];
+      setGuidedFrames(nextFrames);
+      setGuidedAnchors(nextAnchors);
+
+      if (guidedTargetIndex < guidedTargets.length - 1) {
+        const nextIndex = guidedTargetIndex + 1;
+        setGuidedTargetIndex(nextIndex);
+        setConnectionNotice(`Point ${guidedTargetIndex + 1} captured. Move to point ${nextIndex + 1}; other people can stay in the room.`);
+        return;
+      }
+
+      setPhase("localizing");
+      setConnectionNotice("All four floor points are captured. ONE is solving the fixed camera pose from the person markers now.");
+      const localization = await api.localizeRoomPlanCamera(resolvedCameraId, nextFrames, 60, true, nextAnchors);
+      setGuidedTargets([]);
+      setGuidedTargetIndex(0);
+      setGuidedFrames([]);
+      setGuidedAnchors([]);
+      if (localization.status !== "positioned" || !localization.camera_to_world) {
+        setConnectionNotice("Guided calibration could not produce a confident placement. You can run the four points again, try normal automatic placement, or set the camera manually.");
+        setPhase("ready");
+        return;
+      }
+      setPlacementProposal(localization);
+      setManualPlacement(null);
+      setConnectionNotice(`Guided calibration found a camera position${localization.confidence == null ? "" : ` at ${Math.round(localization.confidence * 100)}% confidence`}. Check the amber preview before saving it.`);
+      setPhase("review-placement");
+    } catch (error) {
+      setGuidedTargetIndex(0);
+      setGuidedFrames([]);
+      setGuidedAnchors([]);
+      setPhase("guided-calibration");
+      setMapError(describeCameraError(error));
+      setConnectionNotice("The guided capture was reset. Start again from point 1 when you are ready.");
+    } finally {
+      setGuidedCapturing(false);
+    }
+  }, [cameraId, guidedAnchors, guidedCapturing, guidedFrames, guidedTargetIndex, guidedTargets, stream]);
+
   const beginManualPlacement = useCallback(async () => {
     setMapError("");
     try {
@@ -501,7 +648,7 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
   }, [cameraId, loadPlacementScene, stream]);
 
   useEffect(() => {
-    if (!stream || !cameraId || paused || demoMode || ["localizing", "review-placement", "manual-placement", "saving-placement"].includes(phase)) return;
+    if (!stream || !cameraId || paused || demoMode || ["guided-calibration", "localizing", "review-placement", "manual-placement", "saving-placement"].includes(phase)) return;
     let cancelled = false;
     const checkForLiDARMap = async () => {
       if (cancelled || autoLocalizationRunningRef.current) return;
@@ -588,6 +735,13 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
               <small>{sweepProgress}% captured · keep moving smoothly</small>
             </div>
           )}
+          {phase === "guided-calibration" && activeGuidedTarget && (
+            <div className="sweep-instruction guided-calibration-instruction" role="status">
+              <strong>Calibration point {guidedTargetIndex + 1} of {guidedTargets.length}</strong>
+              <span>Stand on the highlighted floor point shown below. Other people may stay in view; hold your position briefly when you capture.</span>
+              <small>{guidedCapturing ? "Capturing two short frames…" : "The fixed camera must stay completely still."}</small>
+            </div>
+          )}
         </div>
       ) : (
         <div className="camera-placeholder camera-setup-placeholder"><Camera size={30} /><span>Preview appears after consent</span></div>
@@ -623,6 +777,11 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
         <div className="room-sweep-status place-camera" role="status">
           <CheckCircle2 size={17} /><span><strong>Relative 2D geometry is ready.</strong><small>Place the camera in its fixed position to finish setup.</small></span>
           <button type="button" className="secondary-button" disabled={!stream} onClick={() => void confirmPlacement(false)}>{stream ? "Find its position automatically" : "Start preview to position camera"} <Check size={14} /></button>
+          <button type="button" className="secondary-button" disabled={!stream} onClick={() => void beginGuidedCalibration()}>{stream ? "Calibrate with 4 standing points" : "Start preview to calibrate"} <Map size={14} /></button>
+        </div>
+      ) : phase === "guided-calibration" ? (
+        <div className="room-sweep-status place-camera guided-calibration-status" role="status">
+          <Map size={17} /><span><strong>Point {guidedTargetIndex + 1} of {guidedTargets.length}.</strong><small>Stand on the active amber target. If that floor spot is blocked, click a nearby clear spot on the map before capturing.</small></span>
         </div>
       ) : phase === "localizing" ? (
         <div className="room-sweep-status processing" role="status">
@@ -645,6 +804,52 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
           <CheckCircle2 size={17} /><span><strong>Camera saved and ready.</strong><small>Keep this camera fixed. After the iPhone LiDAR scan is saved, use Position this camera in 3D to localize this exact live view in the RoomPlan coordinate frame.</small></span>
         </div>
       ) : null}
+
+      {placementScene && phase === "guided-calibration" && activeGuidedTarget && (
+        <div className="camera-placement-review guided-calibration-review">
+          <div className="camera-placement-review-heading">
+            <span><span className="eyebrow">GUIDED CALIBRATION</span><strong>Stand on point {guidedTargetIndex + 1} of {guidedTargets.length}</strong></span>
+            <small>Amber = current target · cyan = captured</small>
+          </div>
+          <Suspense fallback={<div className="camera-placement-map-loading">Loading RoomPlan floor targets…</div>}>
+            <RoomPlanFloorPlan2D
+              scene={placementScene}
+              objects={[]}
+              loadUSDZ={loadPlacementUSDZ}
+              calibrationTargets={guidedTargetMarkers}
+              placement={{
+                enabled: !guidedCapturing,
+                hint: "Target blocked? Click a nearby clear floor spot",
+                onPoint: (point) => setGuidedTargets((current) => current.map((target, index) => index === guidedTargetIndex ? {
+                  ...target,
+                  x: point.x,
+                  z: point.z,
+                  floorY: floorYForPoint(placementScene, point),
+                } : target)),
+              }}
+            />
+          </Suspense>
+          <div className="guided-calibration-controls">
+            <div className="guided-calibration-target-meta">
+              <span><small>X</small><strong>{activeGuidedTarget.x.toFixed(2)} m</strong></span>
+              <span><small>Z</small><strong>{activeGuidedTarget.z.toFixed(2)} m</strong></span>
+              <span><small>CAPTURED</small><strong>{guidedTargetIndex} / {guidedTargets.length}</strong></span>
+            </div>
+            <p className="muted small-copy">Stand with both feet around the highlighted point. Exact centimetres are not required; staying roughly on the marker for the short capture is enough.</p>
+            <div className="camera-placement-actions">
+              <button className="primary-button" disabled={guidedCapturing} onClick={() => void captureGuidedCalibrationTarget()}><Check size={16} /> {guidedCapturing ? "Capturing…" : `I'm on point ${guidedTargetIndex + 1} · capture`}</button>
+              <button className="secondary-button" disabled={guidedCapturing} onClick={() => {
+                setGuidedTargets([]);
+                setGuidedTargetIndex(0);
+                setGuidedFrames([]);
+                setGuidedAnchors([]);
+                setConnectionNotice("Guided calibration cancelled. The camera position was not changed.");
+                setPhase("ready");
+              }}>Cancel calibration</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {placementScene && previewRegistration && ["review-placement", "manual-placement", "saving-placement"].includes(phase) && (
         <div className="camera-placement-review">
@@ -719,6 +924,11 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
             {["preview", "ready", "needs-rescan", "unavailable", "failed"].includes(phase) && (
               <button className="primary-button" onClick={() => void confirmPlacement(false)}>
                 <Map size={16} /> Try automatic placement
+              </button>
+            )}
+            {["preview", "ready", "needs-rescan", "unavailable", "failed"].includes(phase) && (
+              <button className="secondary-button" onClick={() => void beginGuidedCalibration()}>
+                <Map size={16} /> Calibrate with 4 standing points
               </button>
             )}
             {["preview", "ready", "needs-rescan", "unavailable", "failed"].includes(phase) && (

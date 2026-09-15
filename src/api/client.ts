@@ -110,6 +110,7 @@ export interface MapResponse {
 }
 export type MapGenerationStatus = 'collecting' | 'processing' | 'ready' | 'needs_rescan' | 'unavailable' | 'failed';
 export interface MapGenerationFrame { frame_base64: string; width: number; height: number; captured_at?: string; }
+export interface CameraLocalizationPersonAnchor { frame_index: number; x: number; y: number; z: number; }
 export interface CameraLocalizationResponse {
   id: string;
   status: 'positioned' | 'needs_rescan';
@@ -805,11 +806,11 @@ export const api = {
       body: JSON.stringify({ frames }),
     });
   },
-  localizeRoomPlanCamera: async (cameraId: string, frames: MapGenerationFrame[], fovDegrees = 60, reviewOnly = false): Promise<CameraLocalizationResponse> => {
+  localizeRoomPlanCamera: async (cameraId: string, frames: MapGenerationFrame[], fovDegrees = 60, reviewOnly = false, personAnchors: CameraLocalizationPersonAnchor[] = []): Promise<CameraLocalizationResponse> => {
     if (demoMode) return { id: `registration-${cameraId}`, status: 'positioned', camera_id: cameraId, map_id: demoScene.sceneId, coordinate_frame: 'roomplan-local', camera_to_world: [[1, 0, 0, 0], [0, 1, 0, 1.5], [0, 0, 1, 0], [0, 0, 0, 1]], confidence: 0.95, tracking_state: 'visual-pnp', source: 'visual-roomplan-registration', inlier_count: 32, match_count: 40, reprojection_error_px: 1.2, intrinsics_source: 'estimated-fov', review_required: reviewOnly };
     return request<CameraLocalizationResponse>(`/homes/${homeId()}/cameras/${encodeURIComponent(cameraId)}/localize-roomplan`, {
       method: 'POST',
-      body: JSON.stringify({ frames, fov_degrees: fovDegrees, review_only: reviewOnly }),
+      body: JSON.stringify({ frames, fov_degrees: fovDegrees, review_only: reviewOnly, person_anchors: personAnchors }),
     });
   },
   registerRoomPlanCamera: async (input: { camera_id: string; map_id: string; camera_to_world: number[][]; confidence?: number | null; tracking_state?: 'normal' | 'limited' | 'unavailable' }): Promise<CameraLocalizationResponse> => {

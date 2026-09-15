@@ -99,6 +99,14 @@ function styleAsFloorPlan(model: THREE.Group): void {
 type FloorPlanPlacement = {
   enabled: boolean;
   onPoint: (point: { x: number; z: number }) => void;
+  hint?: string;
+};
+
+type CalibrationTarget = {
+  x: number;
+  y: number;
+  z: number;
+  state: "pending" | "active" | "complete";
 };
 
 export function RoomPlanFloorPlan2D({
@@ -106,16 +114,19 @@ export function RoomPlanFloorPlan2D({
   objects,
   previewRegistration,
   placement,
+  calibrationTargets,
   loadUSDZ,
 }: {
   scene: Scene;
   objects: LastSeenObject[];
   previewRegistration?: CameraRegistration | null;
   placement?: FloorPlanPlacement;
+  calibrationTargets?: CalibrationTarget[];
   loadUSDZ?: (mapId: string) => Promise<ArrayBuffer>;
 }) {
   const mount = useRef<HTMLDivElement>(null);
   const overlayRootRef = useRef<THREE.Group | null>(null);
+  const calibrationRootRef = useRef<THREE.Group | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
   const placementRef = useRef<FloorPlanPlacement | undefined>(placement);
   const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
@@ -189,6 +200,10 @@ export function RoomPlanFloorPlan2D({
       overlayRoot.name = "ONE RoomPlan top-down overlays";
       roomRoot.add(overlayRoot);
       overlayRootRef.current = overlayRoot;
+      const calibrationRoot = new THREE.Group();
+      calibrationRoot.name = "ONE guided calibration targets";
+      roomRoot.add(calibrationRoot);
+      calibrationRootRef.current = calibrationRoot;
       world.add(roomRoot);
 
       const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.01, 100);
@@ -262,6 +277,7 @@ export function RoomPlanFloorPlan2D({
       controlsRef.current = null;
       if (placementCanvas && handlePlacementPointer) placementCanvas.removeEventListener("pointerdown", handlePlacementPointer);
       overlayRootRef.current = null;
+      calibrationRootRef.current = null;
       if (roomRoot) disposeTree(roomRoot);
       renderer?.dispose();
       host.replaceChildren();
@@ -275,6 +291,35 @@ export function RoomPlanFloorPlan2D({
     return () => clearRoomPlanOverlays(overlayRoot);
   }, [loadState, mapId, objects, registrations]);
 
+  useEffect(() => {
+    const root = calibrationRootRef.current;
+    if (!root || loadState !== "ready") return;
+    clearRoomPlanOverlays(root);
+    for (const target of calibrationTargets ?? []) {
+      const color = target.state === "active" ? 0xffb45f : target.state === "complete" ? 0x6fe0de : 0xe8f2f8;
+      const marker = new THREE.Group();
+      marker.position.set(target.x, target.y + 0.045, target.z);
+      const disc = new THREE.Mesh(
+        new THREE.CircleGeometry(target.state === "active" ? 0.24 : 0.18, 32),
+        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: target.state === "pending" ? 0.48 : 0.94, depthTest: false }),
+      );
+      disc.rotation.x = -Math.PI / 2;
+      disc.renderOrder = 96;
+      marker.add(disc);
+      if (target.state === "active") {
+        const ring = new THREE.Mesh(
+          new THREE.RingGeometry(0.29, 0.34, 36),
+          new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.92, depthTest: false, side: THREE.DoubleSide }),
+        );
+        ring.rotation.x = -Math.PI / 2;
+        ring.renderOrder = 97;
+        marker.add(ring);
+      }
+      root.add(marker);
+    }
+    return () => clearRoomPlanOverlays(root);
+  }, [calibrationTargets, loadState]);
+
   return (
     <div className={`three-scene lidar-scene roomplan-floor-plan ${placement?.enabled ? "is-placement-mode" : ""}`} aria-label="Top-down floor plan derived from the native LiDAR RoomPlan model" role="img">
       <div className="lidar-scene-canvas" ref={mount} />
@@ -284,7 +329,7 @@ export function RoomPlanFloorPlan2D({
         </div>
       )}
       {loadState === "ready" && <div className="roomplan-floor-plan-badge">TOP-DOWN · NATIVE ROOMPLAN</div>}
-      {loadState === "ready" && placement?.enabled && <div className="roomplan-placement-hint">Click the real camera position</div>}
+      {loadState === "ready" && placement?.enabled && <div className="roomplan-placement-hint">{placement.hint ?? "Click the real camera position"}</div>}
     </div>
   );
 }

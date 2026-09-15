@@ -1756,6 +1756,13 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .camera-height-control span{font-size:10px;color:var(--muted)}
 .camera-placement-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .camera-placement-actions .primary-button,.camera-placement-actions .secondary-button{min-height:42px}
+.guided-calibration-review{border-color:#e7d8bf;background:#fffaf2}
+.guided-calibration-controls{display:grid;gap:10px}
+.guided-calibration-target-meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.guided-calibration-target-meta span{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border:1px solid #eadfce;border-radius:12px;background:#fff}
+.guided-calibration-target-meta small{color:#8f7a5c;font:600 8px 'DM Mono',monospace}.guided-calibration-target-meta strong{font-size:11px;color:var(--ink)}
+.guided-calibration-instruction{background:rgba(67,42,10,.86)}
+.guided-calibration-status{border-color:#eed9b7;background:#fff9ef}
 
 @media(max-width:640px){
   .camera-placement-review{margin-inline:-4px;padding:10px;border-radius:16px}
@@ -1763,4 +1770,5 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   .camera-placement-review .roomplan-floor-plan{height:62vw;min-height:250px}
   .camera-placement-actions{display:grid;grid-template-columns:1fr}
   .camera-placement-actions button{width:100%}
+  .guided-calibration-target-meta{grid-template-columns:1fr}
 }
