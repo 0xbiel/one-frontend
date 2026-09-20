@@ -53,6 +53,7 @@ export const demoObjects: LastSeenObject[] = [
 ];
 export const demoEvents: HomeEvent[] = [
   { id: 'evt-keys', type: 'object.last_seen', title: 'Keys last seen', detail: 'Near the entryway console', occurredAt: new Date(Date.now() - 1000 * 60 * 18).toISOString(), objectId: 'keys', tone: 'blue' },
+  { id: 'evt-fall', type: 'fall.suspected', title: 'Possible fall pattern', detail: 'A possible fall pattern needs a caregiver check-in. This is a safety signal for human review, not a diagnosis.', occurredAt: new Date(Date.now() - 1000 * 60 * 32).toISOString(), status: 'needs_review', confidence: 0.78, tone: 'amber' },
   { id: 'evt-checkin', type: 'presence.changed', title: 'Morning check-in complete', detail: 'María answered 4 of 4 prompts', occurredAt: new Date(Date.now() - 1000 * 60 * 52).toISOString(), tone: 'green' },
   { id: 'evt-glasses', type: 'object.last_seen', title: 'Reading glasses last seen', detail: 'On the living room side table', occurredAt: new Date(Date.now() - 1000 * 60 * 48).toISOString(), objectId: 'glasses', tone: 'blue' },
   { id: 'evt-clip', type: 'clip.created', title: 'A short clip is ready', detail: 'Movement near the kitchen, 8 seconds', occurredAt: new Date(Date.now() - 1000 * 60 * 90).toISOString(), clipId: 'clip-demo', tone: 'amber' },

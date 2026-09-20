@@ -10,7 +10,7 @@ import {
   X,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { api, demoMode } from "../api/client";
+import { api, demoMode, type CareRecipient } from "../api/client";
 import type { HomeEvent, LastSeenObject, Session } from "../models/domain";
 import { EventRow, ObjectCard } from "./shared";
 
@@ -39,6 +39,13 @@ export function OverviewPage({
   const [cameraSetupBusy, setCameraSetupBusy] = useState(false);
   const [cameraSetupSaved, setCameraSetupSaved] = useState(false);
   const [resumeCameraId, setResumeCameraId] = useState<string | null>(null);
+  const [selectedRecipientId, setSelectedRecipientId] = useState(() => sessionStorage.getItem("one_care_recipient_id") ?? "");
+  const recipientsQuery = useQuery({
+    queryKey: ["care-recipients"],
+    queryFn: api.getCareRecipients,
+    enabled: demoMode || Boolean(sessionStorage.getItem("one_access_token") && sessionStorage.getItem("one_home_id")),
+    retry: false,
+  });
   const camerasQuery = useQuery({
     queryKey: ["cameras"],
     queryFn: api.getCameras,
@@ -62,8 +69,16 @@ export function OverviewPage({
   const cameraConnected = Boolean(activeCamera);
   const pairingExpired = pairingStatusQuery.data?.status === "expired";
   const homeName = session?.home.name ?? "The García home";
-  const residentName = session?.home.residentName ?? "María";
+  const recipients: CareRecipient[] = recipientsQuery.data ?? [];
+  const selectedRecipient = recipients.find((person) => person.id === selectedRecipientId) ?? recipients[0];
+  const residentName = selectedRecipient?.display_name ?? session?.home.residentName ?? "María";
   const checkInEvent = events.find((event) => /check[- ]?in/i.test(`${event.title} ${event.detail}`));
+
+  const selectRecipient = (value: string) => {
+    setSelectedRecipientId(value);
+    sessionStorage.setItem("one_care_recipient_id", value);
+    window.dispatchEvent(new CustomEvent("one:care-recipient-change", { detail: value }));
+  };
 
   useEffect(() => {
     if (!pairingOpen) return;
@@ -142,7 +157,18 @@ export function OverviewPage({
     <div className="home-page">
       <section className="home-heading">
         <span className="eyebrow">{homeName.toUpperCase()}</span>
-        <h2>Your home, in view.</h2>
+        <div className="home-heading-row">
+          <h2>Your home, in view.</h2>
+          <button className="primary-button home-checkin-action" onClick={() => navigate("/dashboard/live")}>
+            Check in <ChevronRight size={16} />
+          </button>
+        </div>
+        <label className="home-recipient-picker" htmlFor="home-care-recipient">
+          <span className="eyebrow">CARING FOR</span>
+          <select id="home-care-recipient" value={selectedRecipient?.id ?? ""} onChange={(event) => selectRecipient(event.target.value)} disabled={!recipients.length}>
+            {recipients.length ? recipients.map((person) => <option key={person.id} value={person.id}>{person.display_name}</option>) : <option value="">{residentName}</option>}
+          </select>
+        </label>
       </section>
 
       <section className="home-camera-hero">
@@ -421,9 +447,6 @@ export function OverviewPage({
             <span style={{ width: checkInEvent ? "100%" : "12%" }} />
           </div>
         </div>
-        <button className="secondary-button" onClick={() => navigate("/dashboard/live")}>
-          Open check-in <ChevronRight size={16} />
-        </button>
       </section>
 
       <section className="home-section memory-section">

@@ -11,12 +11,15 @@ export const formatTime = (date: string | null) =>
     : "Not located";
 
 export function EventRow({ event, onClick }: { event: HomeEvent; onClick?: () => void }) {
+  const isFall = event.type === "fall.suspected";
   return (
     <button className="event-row" onClick={onClick}>
       <span className={`event-icon ${event.tone}`}>
-        {event.type === "object.last_seen" ? "⌁" : event.type === "clip.created" ? "▶" : "✦"}
+        {isFall ? "⚠" : event.type === "object.last_seen" ? "⌁" : event.type === "clip.created" ? "▶" : event.type === "daily.check_in" ? "✓" : "✦"}
       </span>
       <span className="event-copy"><strong>{event.title}</strong><span>{event.detail}</span></span>
+      {event.status === "needs_review" && <span className="event-review-pill">Review</span>}
+      {event.snapshotPath && <span className="event-snapshot-pill" aria-label="Event snapshot available">Photo</span>}
       <time>{formatTime(event.occurredAt)}</time>
       <ChevronRight size={16} />
     </button>

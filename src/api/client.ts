@@ -1,5 +1,7 @@
 import type {
   CameraRegistration,
+  CareAnalytics,
+  DailyCheckInResult,
   CameraPose,
   Device,
   FurnitureGeometry,
@@ -76,7 +78,7 @@ export interface CareSpaceCreateInput { name: string; careSetting: 'home' | 'res
 interface CareSpaceSession extends PairCompleteResponse { role: 'admin' | 'resident' | 'caregiver'; }
 interface InviteAcceptResponse extends PairCompleteResponse { role?: string; }
 interface LiveKitResponse { url: string; token: string; expires_in: number; mode?: 'auto' | 'publish' | 'subscribe'; }
-interface BackendEvent { id: string; event_type: string; status?: string; explanation?: string; confidence?: number; evidence_ids?: string; evidence_json?: string; first_seen_at?: string; last_seen_at?: string; }
+interface BackendEvent { id: string; event_type: string; status?: string; explanation?: string; confidence?: number; evidence_ids?: string; evidence_json?: string; first_seen_at?: string; last_seen_at?: string; care_recipient_id?: string | null; snapshot_path?: string | null; snapshot_content_type?: string | null; }
 interface MeResponse { actor: Session['actor']; home: Session['home']; device: Device | null; paused: boolean; }
 interface SceneResponse {
   sceneId: string | null;
@@ -703,6 +705,7 @@ export interface MedicationReminder { plan_id: string; name: string; dose: strin
 export type MedicationCheckInStatus = 'taken' | 'skipped' | 'missed' | 'pending';
 export interface FamilyInviteResponse { id: string; code: string; role: string; expires_in_seconds: number; synthetic_demo?: boolean; }
 export interface MedicationPlan { id: string; subject_user_id: string; name: string; dose: string; schedule: string; instructions: string; active: boolean; version: number; assigned_caregiver_id?: string | null; }
+export interface FamilyAssistantResponse { degraded?: boolean; data: { summary: string; next_action: string; evidence_ids: string[]; limitations: string }; context_scope?: string; medical_advice?: boolean; }
 
 const token = () => sessionStorage.getItem('one_access_token');
 const homeId = () => sessionStorage.getItem('one_home_id') ?? 'current';
@@ -759,7 +762,21 @@ async function requestBinary(path: string, init?: RequestOptions): Promise<Array
 
 export function mapBackendEvent(event: BackendEvent): HomeEvent {
   const isObject = event.event_type === 'object_observed';
-  return { id: event.id, type: isObject ? 'object.last_seen' : 'presence.changed', title: isObject ? 'Object observed' : 'Meaningful moment', detail: event.explanation || 'An observation is available for review.', occurredAt: event.last_seen_at ?? event.first_seen_at ?? new Date().toISOString(), tone: isObject ? 'blue' : 'green' };
+  const isFall = event.event_type === 'fall_suspected';
+  const isCheckIn = event.event_type === 'daily_check_in' || event.event_type === 'check_in' || event.event_type === 'checkin';
+  return {
+    id: event.id,
+    type: isFall ? 'fall.suspected' : isObject ? 'object.last_seen' : isCheckIn ? 'daily.check_in' : 'presence.changed',
+    title: isFall ? 'Possible fall pattern' : isObject ? 'Object observed' : isCheckIn ? 'Daily check-in recorded' : 'Meaningful moment',
+    detail: event.explanation || (isFall ? 'A possible fall pattern is ready for human review.' : isCheckIn ? 'A daily check-in is available for caregiver review.' : 'An observation is available for review.'),
+    occurredAt: event.last_seen_at ?? event.first_seen_at ?? new Date().toISOString(),
+    status: event.status,
+    confidence: event.confidence,
+    careRecipientId: event.care_recipient_id,
+    snapshotPath: event.snapshot_path,
+    snapshotContentType: event.snapshot_content_type,
+    tone: isFall ? 'amber' : isObject ? 'blue' : 'green',
+  };
 }
 
 export const api = {
@@ -833,6 +850,28 @@ export const api = {
   },
   getObjects: async (): Promise<LastSeenObject[]> => demoMode ? demoObjects : (await request<ObjectResponse>(`/homes/${homeId()}/objects/last-seen`)).data,
   getEvents: async (): Promise<HomeEvent[]> => demoMode ? demoEvents : request<{ data: BackendEvent[] }>(`/homes/${homeId()}/events?limit=50`).then((r) => r.data.map(mapBackendEvent)),
+  getAnalytics: async (): Promise<CareAnalytics> => {
+    if (demoMode) {
+      return {
+        window_days: 30,
+        fall: { window_days: 30, total_signals: 1, needs_review: 1, reviewed: 0, last_signal_at: demoEvents.find((event) => event.type === 'fall.suspected')?.occurredAt ?? null, trend: 'unknown', by_day: [], recent: [], limitations: ['Safety signals are for caregiver review, not diagnoses.'] },
+        daily_check_in: { window_days: 30, total: 1, completed_today: 1, status_counts: { stable: 1 }, last_recorded_at: new Date().toISOString(), last_status: 'stable', last_trend: 'stable', last_explanation: 'A familiar morning check-in was recorded.', trend: 'unknown', by_day: [], recent: [], limitations: ['Check-ins are observations, not medical assessments.'] },
+        event_counts: { fall_suspected: 1, daily_check_in: 1 },
+        assistant_context: { includes: ['daily_check_in_summary', 'fall_safety_analytics', 'medication_records'], excludes: ['raw_frames', 'face_templates', 'event_snapshot_bytes', 'unbounded_transcripts'] },
+        limitations: ['ONE reports household observations and review prompts, not diagnoses.'],
+      };
+    }
+    return (await request<{ data: CareAnalytics }>(`/homes/${homeId()}/analytics?window_days=30`)).data;
+  },
+  submitDailyCheckIn: async (transcript: string): Promise<DailyCheckInResult> => {
+    if (demoMode) return { id: `demo-check-in-${Date.now()}`, status: 'stable', trend: 'stable', explanation: 'A familiar morning check-in was recorded.', limitations: 'Demo response' };
+    const recipient = sessionStorage.getItem('one_care_recipient_id');
+    return request<DailyCheckInResult>(`/homes/${homeId()}/check-ins`, { method: 'POST', body: JSON.stringify({ transcript, ...(recipient ? { care_recipient_id: recipient } : {}) }) });
+  },
+  getEventSnapshot: async (eventId: string): Promise<ArrayBuffer> => {
+    if (demoMode) throw new Error('API_404');
+    return requestBinary(`/homes/${homeId()}/events/${encodeURIComponent(eventId)}/snapshot`);
+  },
   getCameras: async (): Promise<Device[]> => {
     if (demoMode) return [demoDevice];
     return (await request<CameraResponse>(`/homes/${homeId()}/cameras`)).data.map((camera) => {
@@ -1130,7 +1169,7 @@ export const api = {
     if (demoMode) return;
     await request(`/homes/${homeId()}/medication-plans/${encodeURIComponent(planId)}/check-ins`, { method: 'POST', body: JSON.stringify({ scheduled_for: scheduledFor, status, note }) });
   },
-  askFamilyAssistant: async (message: string, subjectUserId?: string) => demoMode ? { degraded: true, data: { summary: 'Demo mode keeps the organizer local.', next_action: 'Connect a backend family consent to review live reminders.', evidence_ids: [], limitations: 'Administrative summary only; not medical advice.' } } : request(`/homes/${homeId()}/family-assistant`, { method: 'POST', body: JSON.stringify({ message, subject_user_id: subjectUserId ?? null }) }),
+  askFamilyAssistant: async (message: string, subjectUserId?: string, careRecipientId?: string): Promise<FamilyAssistantResponse> => demoMode ? { degraded: true, data: { summary: 'Demo mode keeps the organizer local.', next_action: 'Connect a backend family consent to review live reminders.', evidence_ids: [], limitations: 'Administrative summary only; not medical advice.' } } : request<FamilyAssistantResponse>(`/homes/${homeId()}/family-assistant`, { method: 'POST', body: JSON.stringify({ message, subject_user_id: careRecipientId ? null : subjectUserId ?? null, care_recipient_id: careRecipientId ?? null }) }),
 };
 
 export type ApiClient = typeof api;

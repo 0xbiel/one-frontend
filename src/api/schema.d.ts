@@ -182,6 +182,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/homes/{home_id}/analytics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Home Analytics */
+        get: operations["home_analytics_api_v1_homes__home_id__analytics_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/homes/{home_id}/calibrations": {
         parameters: {
             query?: never;
@@ -315,6 +332,23 @@ export interface paths {
          * @description Visually register a separate fixed camera inside the active RoomPlan scene.
          */
         post: operations["localize_roomplan_camera_api_v1_homes__home_id__cameras__camera_id__localize_roomplan_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/homes/{home_id}/cameras/{camera_id}/localize-roomplan/progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Roomplan Localization Progress */
+        get: operations["get_roomplan_localization_progress_api_v1_homes__home_id__cameras__camera_id__localize_roomplan_progress_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -597,6 +631,41 @@ export interface paths {
         patch: operations["care_recipient_update_api_v1_homes__home_id__care_recipients__recipient_id__patch"];
         trace?: never;
     };
+    "/api/v1/homes/{home_id}/care-recipients/{recipient_id}/face-profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Face Profile Get */
+        get: operations["face_profile_get_api_v1_homes__home_id__care_recipients__recipient_id__face_profile_get"];
+        put?: never;
+        post?: never;
+        /** Face Profile Delete */
+        delete: operations["face_profile_delete_api_v1_homes__home_id__care_recipients__recipient_id__face_profile_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/homes/{home_id}/care-recipients/{recipient_id}/face-profile/enroll": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Face Profile Enroll */
+        post: operations["face_profile_enroll_api_v1_homes__home_id__care_recipients__recipient_id__face_profile_enroll_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/homes/{home_id}/caregiver-summary": {
         parameters: {
             query?: never;
@@ -728,6 +797,23 @@ export interface paths {
         put?: never;
         /** Clip Create */
         post: operations["clip_create_api_v1_homes__home_id__events__event_id__clips_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/homes/{home_id}/events/{event_id}/snapshot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Event Snapshot */
+        get: operations["event_snapshot_api_v1_homes__home_id__events__event_id__snapshot_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1685,6 +1771,14 @@ export interface components {
             created_at: string;
             /** Display Name */
             display_name: string;
+            /** Face Profile Updated At */
+            face_profile_updated_at?: string | null;
+            /**
+             * Face Recognition Status
+             * @default not_enrolled
+             * @enum {string}
+             */
+            face_recognition_status: "not_enrolled" | "ready" | "unavailable" | "revoked";
             /** Id */
             id: string;
             /**
@@ -1723,6 +1817,8 @@ export interface components {
         };
         /** CheckInIn */
         CheckInIn: {
+            /** Care Recipient Id */
+            care_recipient_id?: string | null;
             /** Subject User Id */
             subject_user_id?: string | null;
             /**
@@ -1832,6 +1928,45 @@ export interface components {
             code: string;
             /** Email */
             email: string;
+        };
+        /** FaceEnrollmentFrameIn */
+        FaceEnrollmentFrameIn: {
+            /**
+             * Camera Position
+             * @default front
+             * @enum {string}
+             */
+            camera_position: "front" | "back";
+            /** Frame Base64 */
+            frame_base64: string;
+            /** Height */
+            height: number;
+            /** Width */
+            width: number;
+        };
+        /** FaceEnrollmentIn */
+        FaceEnrollmentIn: {
+            /** Frames */
+            frames: components["schemas"]["FaceEnrollmentFrameIn"][];
+        };
+        /** FaceProfileOut */
+        FaceProfileOut: {
+            /** Care Recipient Id */
+            care_recipient_id: string;
+            /** Model Version */
+            model_version?: string | null;
+            /**
+             * Sample Count
+             * @default 0
+             */
+            sample_count: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "not_enrolled" | "ready" | "unavailable" | "revoked";
+            /** Updated At */
+            updated_at?: string | null;
         };
         /** FamilyAssistantIn */
         FamilyAssistantIn: {
@@ -2290,6 +2425,8 @@ export interface components {
             up_axis: "Y" | "y";
             /** Visual Depth Sample Count */
             visual_depth_sample_count?: number | null;
+            /** Visual Estimated Area Square Meters */
+            visual_estimated_area_square_meters?: number | null;
             /** Visual Image Encoding Failure Count */
             visual_image_encoding_failure_count?: number | null;
             /** Visual Invalid Matrix Count */
@@ -2298,6 +2435,8 @@ export interface components {
             visual_last_tracking_state?: ("normal" | "limited" | "unavailable") | null;
             /** Visual Missing Frame Count */
             visual_missing_frame_count?: number | null;
+            /** Visual Recommended Sample Count */
+            visual_recommended_sample_count?: number | null;
             /** Visual Sample Count */
             visual_sample_count?: number | null;
             /** Visual Sampling Attempts */
@@ -2694,6 +2833,40 @@ export interface operations {
             };
         };
     };
+    home_analytics_api_v1_homes__home_id__analytics_get: {
+        parameters: {
+            query?: {
+                care_recipient_id?: string | null;
+                window_days?: number;
+            };
+            header?: never;
+            path: {
+                home_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     calibrations_api_v1_homes__home_id__calibrations_get: {
         parameters: {
             query?: never;
@@ -3014,6 +3187,38 @@ export interface operations {
                 "application/json": components["schemas"]["CameraLocalizationIn"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_roomplan_localization_progress_api_v1_homes__home_id__cameras__camera_id__localize_roomplan_progress_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -3733,6 +3938,106 @@ export interface operations {
             };
         };
     };
+    face_profile_get_api_v1_homes__home_id__care_recipients__recipient_id__face_profile_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+                recipient_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FaceProfileOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    face_profile_delete_api_v1_homes__home_id__care_recipients__recipient_id__face_profile_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+                recipient_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FaceProfileOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    face_profile_enroll_api_v1_homes__home_id__care_recipients__recipient_id__face_profile_enroll_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+                recipient_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FaceEnrollmentIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FaceProfileOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     caregiver_summary_api_v1_homes__home_id__caregiver_summary_get: {
         parameters: {
             query?: never;
@@ -4021,6 +4326,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    event_snapshot_api_v1_homes__home_id__events__event_id__snapshot_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+                event_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": unknown;
+                    "image/png": unknown;
                 };
             };
             /** @description Validation Error */
