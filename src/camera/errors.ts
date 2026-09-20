@@ -37,6 +37,14 @@ export function describeCameraError(error: unknown): string {
   return "ONE could not finish this camera step. Check the secure connection and retry safely.";
 }
 
+export function describeCameraLocalizationError(error: unknown): string {
+  const name = error instanceof Error ? error.message : "";
+  if (name === "API_503") {
+    return "Camera localization stopped before the local solver could finish. The camera position was not changed; keep this view fixed and retry calibration. If progress stops growing, ONE will end the attempt after the stall window and keep the current position unchanged.";
+  }
+  return describeCameraError(error);
+}
+
 export function describeLiveKitError(): string {
   return "Preview is on, but the secure live connection did not complete. On iPhone, use the trusted LAN HTTPS address or Tailscale HTTPS and make sure the LiveKit address is reachable, then retry publishing.";
 }

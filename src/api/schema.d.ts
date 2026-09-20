@@ -373,6 +373,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/homes/{home_id}/cameras/{camera_id}/reference-snapshot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Camera Reference Snapshot */
+        get: operations["camera_reference_snapshot_api_v1_homes__home_id__cameras__camera_id__reference_snapshot_get"];
+        put?: never;
+        /** Save Camera Reference Snapshot */
+        post: operations["save_camera_reference_snapshot_api_v1_homes__home_id__cameras__camera_id__reference_snapshot_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/homes/{home_id}/cameras/{camera_id}/reference-snapshot/capture-request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Camera Reference Snapshot Capture Request */
+        get: operations["get_camera_reference_snapshot_capture_request_api_v1_homes__home_id__cameras__camera_id__reference_snapshot_capture_request_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/homes/{home_id}/cameras/{camera_id}/reference-snapshot/request-capture": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request Camera Reference Snapshot Capture */
+        post: operations["request_camera_reference_snapshot_capture_api_v1_homes__home_id__cameras__camera_id__reference_snapshot_request_capture_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/homes/{home_id}/cameras/{camera_id}/roomplan-calibration-session": {
         parameters: {
             query?: never;
@@ -385,11 +437,34 @@ export interface paths {
         put?: never;
         /**
          * Start Roomplan Calibration Session
-         * @description Start a transient caregiver-guided calibration for a fixed publisher camera.
+         * @description Start a transient fixed-scene reference calibration session.
+         *
+         *     The caregiver no longer has to stand on floor targets. The paired
+         *     publisher camera supplies several short, stationary scene captures and
+         *     ordinary RoomPlan visual localization decides the pose. People and
+         *     movable furniture are treated as transient evidence by the geometry
+         *     worker.
          */
         post: operations["start_roomplan_calibration_session_api_v1_homes__home_id__cameras__camera_id__roomplan_calibration_session_post"];
         /** Cancel Roomplan Calibration Session */
         delete: operations["cancel_roomplan_calibration_session_api_v1_homes__home_id__cameras__camera_id__roomplan_calibration_session_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/homes/{home_id}/cameras/{camera_id}/roomplan-calibration-session/commit-reference": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Commit Roomplan Calibration Reference */
+        post: operations["commit_roomplan_calibration_reference_api_v1_homes__home_id__cameras__camera_id__roomplan_calibration_session_commit_reference_post"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -475,7 +550,7 @@ export interface paths {
         };
         /**
          * Camera Roomplan Readiness
-         * @description Expose only the RoomPlan state a camera needs for automatic localization.
+         * @description Expose only the RoomPlan state needed for explicitly requested positioning.
          */
         get: operations["camera_roomplan_readiness_api_v1_homes__home_id__cameras__camera_id__roomplan_readiness_get"];
         put?: never;
@@ -1167,6 +1242,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/homes/{home_id}/rooms/{room_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Room Delete */
+        delete: operations["room_delete_api_v1_homes__home_id__rooms__room_id__delete"];
+        options?: never;
+        head?: never;
+        /** Room Update */
+        patch: operations["room_update_api_v1_homes__home_id__rooms__room_id__patch"];
+        trace?: never;
+    };
     "/api/v1/homes/{home_id}/runtime": {
         parameters: {
             query?: never;
@@ -1472,11 +1565,8 @@ export interface components {
         };
         /** CameraLocalizationIn */
         CameraLocalizationIn: {
-            /**
-             * Fov Degrees
-             * @default 60
-             */
-            fov_degrees: number;
+            /** Fov Degrees */
+            fov_degrees?: number | null;
             /** Frames */
             frames: components["schemas"]["CameraLocalizationFrameIn"][];
             intrinsics?: components["schemas"]["Matrix3x3In"] | null;
@@ -2088,6 +2178,9 @@ export interface components {
         };
         /** RoomPlanMapIn */
         RoomPlanMapIn: {
+            /** Alignment Status */
+            alignment_status?: ("aligned" | "needs_alignment") | null;
+            fragment_to_home?: components["schemas"]["RoomPlanTransform4x4"] | null;
             normalized_scan: components["schemas"]["RoomPlanNormalizedScan"];
             /** Room Id */
             room_id?: string | null;
@@ -2180,9 +2273,9 @@ export interface components {
             lidar: true;
             /**
              * Provenance
-             * @constant
+             * @enum {string}
              */
-            provenance: "native-roomplan";
+            provenance: "native-roomplan" | "native-roomplan-structure";
             /** Roomplan Version */
             roomplan_version: string;
             /**
@@ -2220,6 +2313,11 @@ export interface components {
             /** Story */
             story: number;
         };
+        /** RoomPlanTransform4x4 */
+        RoomPlanTransform4x4: {
+            /** Values */
+            values: number[][];
+        };
         /** RoomPlanVisualFrameIn */
         RoomPlanVisualFrameIn: {
             /** Camera To World */
@@ -2244,6 +2342,11 @@ export interface components {
         RoomPlanVisualLandmarksIn: {
             /** Frames */
             frames: components["schemas"]["RoomPlanVisualFrameIn"][];
+        };
+        /** RoomUpdate */
+        RoomUpdate: {
+            /** Name */
+            name: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -3070,6 +3173,138 @@ export interface operations {
             };
         };
     };
+    camera_reference_snapshot_api_v1_homes__home_id__cameras__camera_id__reference_snapshot_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_camera_reference_snapshot_api_v1_homes__home_id__cameras__camera_id__reference_snapshot_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CameraLocalizationFrameIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_camera_reference_snapshot_capture_request_api_v1_homes__home_id__cameras__camera_id__reference_snapshot_capture_request_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    request_camera_reference_snapshot_capture_api_v1_homes__home_id__cameras__camera_id__reference_snapshot_request_capture_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_roomplan_calibration_session_api_v1_homes__home_id__cameras__camera_id__roomplan_calibration_session_get: {
         parameters: {
             query?: never;
@@ -3135,6 +3370,38 @@ export interface operations {
         };
     };
     cancel_roomplan_calibration_session_api_v1_homes__home_id__cameras__camera_id__roomplan_calibration_session_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    commit_roomplan_calibration_reference_api_v1_homes__home_id__cameras__camera_id__roomplan_calibration_session_commit_reference_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -4894,6 +5161,74 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["RoomIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    room_delete_api_v1_homes__home_id__rooms__room_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+                room_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    room_update_api_v1_homes__home_id__rooms__room_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                home_id: string;
+                room_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoomUpdate"];
             };
         };
         responses: {

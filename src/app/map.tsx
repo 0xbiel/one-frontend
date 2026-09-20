@@ -1,11 +1,11 @@
-import { lazy, Suspense, useEffect, useState } from "react";
-import { Video } from "lucide-react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import { Plus, Trash2, Video } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { api, demoMode, sceneFromMapResponse } from "../api/client";
-import type { LastSeenObject, Point2D, Scene } from "../models/domain";
+import type { CameraRegistration, LastSeenObject, Point2D, Scene } from "../models/domain";
 import { CameraMap2D } from "../map/CameraMap2D";
 import { hasRenderableSpatial3D } from "../map/lidarGeometry";
-import { LocalizationTemporalTrace } from "../map/LocalizationTemporalTrace";
 import { formatTime } from "./shared";
 
 const LiDARRoomScene3D = lazy(() => import("../map/LiDARRoomScene3D").then((module) => ({ default: module.LiDARRoomScene3D })));
@@ -16,17 +16,6 @@ function sourceLabel(scene: Scene): string {
   if (scene.source === "arkit-video-3d") return "ARKIT VIDEO 3D MODEL";
   if (scene.source === "camera-cv-2d") return "CAMERA-DERIVED 2D MAP";
   return "MAP NEEDS A FRESH SWEEP";
-}
-
-function mapDescription(scene: Scene): string {
-  if (scene.source === "roomplan-lidar-3d") return "A native iPhone or iPad LiDAR scan is providing this model.";
-  if (scene.source === "arkit-video-3d") return "Generated from a guided iPhone ARKit room video without LiDAR. Scale is metric, while structural geometry remains approximate.";
-  if (scene.source === "camera-cv-2d") {
-    return scene.scale
-      ? `Generated from the room walkthrough · reference-calibrated to ${scene.scale.referenceLengthM} m · still approximate away from that reference.`
-      : "Generated from the room walkthrough · add one measured wall, doorway, or object reference to set the scale.";
-  }
-  return "The existing map is legacy data. Continue camera setup when convenient to record a room walkthrough.";
 }
 
 function formatMeters(value: number): string {
@@ -41,7 +30,59 @@ function objectLocationCopy(object: LastSeenObject, scene: Scene): string {
     : "Approximate camera-space position; add a measured reference to establish scale.";
 }
 
+function CameraReferenceCard({ registration }: { registration: CameraRegistration }) {
+  const cameraId = registration.cameraId ?? null;
+  const [imageURL, setImageURL] = useState<string | null>(null);
+  const [requesting, setRequesting] = useState(false);
+  const [notice, setNotice] = useState("");
+  const snapshotQuery = useQuery({
+    queryKey: ["camera-reference-snapshot", cameraId, registration.referenceSnapshot?.capturedAt],
+    queryFn: () => api.getCameraReferenceSnapshot(cameraId!),
+    enabled: Boolean(cameraId && registration.referenceSnapshot?.downloadPath),
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (!snapshotQuery.data || snapshotQuery.data.byteLength === 0) {
+      setImageURL(null);
+      return;
+    }
+    const url = URL.createObjectURL(new Blob([snapshotQuery.data], { type: "image/jpeg" }));
+    setImageURL(url);
+    return () => URL.revokeObjectURL(url);
+  }, [snapshotQuery.data]);
+
+  const requestFreshReference = async () => {
+    if (!cameraId) return;
+    setRequesting(true);
+    setNotice("");
+    try {
+      await api.requestCameraReferenceCapture(cameraId);
+      setNotice("Capture requested. Keep this fixed camera's publisher preview open; the map will refresh when the photo arrives.");
+    } catch {
+      setNotice("The reference capture could not be requested. Make sure this camera is positioned and its publisher is connected.");
+    } finally {
+      setRequesting(false);
+    }
+  };
+
+  return (
+    <figure className="camera-reference-card">
+      {imageURL ? <img src={imageURL} alt={`Saved reference view from ${registration.cameraName ?? "fixed camera"}`} /> : null}
+      <figcaption>
+        <strong>{registration.cameraName ?? "Fixed camera"} · reference view</strong>
+        <span>{registration.referenceSnapshot?.capturedAt ? `Saved ${formatTime(registration.referenceSnapshot.capturedAt)}` : "No saved reference photo yet"}</span>
+      </figcaption>
+      <button className="secondary-button full-width" type="button" onClick={() => void requestFreshReference()} disabled={requesting || !cameraId}>
+        {requesting ? "Requesting…" : "Capture fresh reference"}
+      </button>
+      {notice ? <p className="muted small-copy" role="status">{notice}</p> : null}
+    </figure>
+  );
+}
+
 export function MapPage({ objects, scene }: { objects: LastSeenObject[]; scene: Scene }) {
+  const navigate = useNavigate();
   const hasSession = demoMode || Boolean(sessionStorage.getItem("one_access_token"));
   const queryClient = useQueryClient();
   const sceneQuery = useQuery({
@@ -69,6 +110,12 @@ export function MapPage({ objects, scene }: { objects: LastSeenObject[]; scene: 
     refetchIntervalInBackground: false,
   });
   const cameraQuery = useQuery({ queryKey: ["camera"], queryFn: api.getDevice, enabled: hasSession, retry: false });
+  const camerasQuery = useQuery({ queryKey: ["cameras"], queryFn: api.getCameras, enabled: hasSession, retry: false });
+  const roomsQuery = useQuery({ queryKey: ["rooms"], queryFn: api.getRooms, enabled: hasSession, retry: false });
+  const [pageMode, setPageMode] = useState<"map" | "rooms">("map");
+  const [newRoomName, setNewRoomName] = useState("");
+  const [roomBusy, setRoomBusy] = useState<string | null>(null);
+  const [roomError, setRoomError] = useState("");
   const [selected, setSelected] = useState<string | undefined>(objects[0]?.id);
   const [view, setView] = useState<"3d" | "2d">(hasRenderableSpatial3D(scene) ? "3d" : "2d");
   const [measureMode, setMeasureMode] = useState(false);
@@ -77,28 +124,84 @@ export function MapPage({ objects, scene }: { objects: LastSeenObject[]; scene: 
   const [referenceLabel, setReferenceLabel] = useState("Measured reference");
   const [scaleError, setScaleError] = useState("");
   const [savingScale, setSavingScale] = useState(false);
-  const [savingLocalizationReference, setSavingLocalizationReference] = useState(false);
   const liveScene = sceneQuery.data ?? scene;
   const liveObjects = objectsQuery.data ?? objects;
+  const rooms = roomsQuery.data ?? [];
+  const cameras = camerasQuery.data ?? [];
   const displayScene = mapQuery.data ? sceneFromMapResponse(mapQuery.data, liveScene) : liveScene;
   const hasReal3D = hasRenderableSpatial3D(displayScene);
-  const positionedCameraCount = (displayScene.cameraRegistrations?.length
+  const cameraRegistrations = (displayScene.cameraRegistrations?.length
     ? displayScene.cameraRegistrations
-    : displayScene.cameraRegistration ? [displayScene.cameraRegistration] : [])
-    .filter((registration) => registration.status === "positioned").length;
-  const localizationCameraId = (displayScene.cameraRegistrations?.length
-    ? displayScene.cameraRegistrations.find((registration) => registration.cameraId)?.cameraId
-    : displayScene.cameraRegistration?.cameraId) ?? cameraQuery.data?.id ?? null;
-  const localizationHistoryQuery = useQuery({
-    queryKey: ["camera-localization-history", localizationCameraId],
-    queryFn: () => api.getCameraLocalizationHistory(localizationCameraId!),
-    enabled: hasSession && displayScene.source === "roomplan-lidar-3d" && Boolean(localizationCameraId),
-    retry: false,
-    refetchInterval: !demoMode && hasSession ? 2_000 : false,
-    refetchIntervalInBackground: false,
-  });
+    : displayScene.cameraRegistration ? [displayScene.cameraRegistration] : []);
+  const positionedCameraCount = cameraRegistrations.filter((registration) => registration.status === "positioned").length;
   const current = liveObjects.find((object) => object.id === selected);
   const canMeasureScale = displayScene.source === "camera-cv-2d" && Boolean(displayScene.mapId);
+  const openCameraLiveView = useCallback((cameraIds: string[]) => {
+    const uniqueIds = [...new Set(cameraIds.filter(Boolean))];
+    if (!uniqueIds.length) return;
+    const params = new URLSearchParams({ camera: uniqueIds[0] });
+    params.set("cameras", uniqueIds.join(","));
+    navigate(`/dashboard/cameras?${params.toString()}`);
+  }, [navigate]);
+
+  const refreshRooms = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["rooms"] }),
+      queryClient.invalidateQueries({ queryKey: ["cameras"] }),
+      queryClient.invalidateQueries({ queryKey: ["camera"] }),
+      queryClient.invalidateQueries({ queryKey: ["scene"] }),
+      queryClient.invalidateQueries({ queryKey: ["current-map"] }),
+    ]);
+  };
+
+  const addRoom = async () => {
+    const name = newRoomName.trim();
+    if (!name) return;
+    setRoomBusy("new");
+    setRoomError("");
+    try {
+      await api.createRoom(name);
+      setNewRoomName("");
+      await refreshRooms();
+    } catch {
+      setRoomError("The room could not be added.");
+    } finally {
+      setRoomBusy(null);
+    }
+  };
+
+  const renameRoom = async (roomId: string, currentName: string) => {
+    const name = window.prompt("Room name", currentName)?.trim();
+    if (!name || name === currentName) return;
+    setRoomBusy(roomId);
+    setRoomError("");
+    try {
+      await api.updateRoom(roomId, name);
+      await refreshRooms();
+    } catch {
+      setRoomError("The room name could not be saved.");
+    } finally {
+      setRoomBusy(null);
+    }
+  };
+
+  const deleteRoom = async (roomId: string, name: string) => {
+    const assigned = cameras.filter((camera) => camera.roomId === roomId).length;
+    const warning = assigned
+      ? `Delete ${name}? ${assigned} camera${assigned === 1 ? "" : "s"} will stay paired and become Unassigned. The 3D home map is kept.`
+      : `Delete ${name}? The 3D home map is kept.`;
+    if (!window.confirm(warning)) return;
+    setRoomBusy(roomId);
+    setRoomError("");
+    try {
+      await api.deleteRoom(roomId);
+      await refreshRooms();
+    } catch {
+      setRoomError("The room could not be deleted.");
+    } finally {
+      setRoomBusy(null);
+    }
+  };
 
   useEffect(() => {
     setView(hasReal3D ? "3d" : "2d");
@@ -163,24 +266,61 @@ export function MapPage({ objects, scene }: { objects: LastSeenObject[]; scene: 
     }
   };
 
-  const saveLocalizationReference = async (point: { x: number; z: number }) => {
-    if (!localizationCameraId) return;
-    setSavingLocalizationReference(true);
-    try {
-      await api.setCameraLocalizationReference(localizationCameraId, { ...point, source: "manual-floor-reference" });
-      await queryClient.invalidateQueries({ queryKey: ["camera-localization-history", localizationCameraId] });
-    } finally {
-      setSavingLocalizationReference(false);
-    }
-  };
-
   return (
     <div className="map-page">
       <header className="page-heading-clean map-page-heading">
         <span className="eyebrow">HOME MAP</span>
         <h2>Home map</h2>
         <p>Review room geometry, camera context, and approximate last-seen locations in one place.</p>
+        <div className="view-toggle room-map-toggle" aria-label="Map or rooms">
+          <button className={pageMode === "map" ? "active" : ""} onClick={() => setPageMode("map")}>Map</button>
+          <button className={pageMode === "rooms" ? "active" : ""} onClick={() => setPageMode("rooms")}>Rooms</button>
+        </div>
       </header>
+      {pageMode === "rooms" ? (
+        <section className="panel rooms-manager">
+          <div className="panel-heading">
+            <div>
+              <span className="eyebrow">ROOMS</span>
+              <h2>Manage rooms</h2>
+              <p className="muted">Room names organize cameras. Native 3D geometry is still captured from ONE on an iPhone or iPad.</p>
+            </div>
+          </div>
+          <div className="room-create-row">
+            <input
+              value={newRoomName}
+              onChange={(event) => setNewRoomName(event.target.value)}
+              placeholder={`Room ${rooms.length + 1}`}
+              maxLength={120}
+            />
+            <button className="primary-button" onClick={() => void addRoom()} disabled={!newRoomName.trim() || roomBusy === "new"}>
+              <Plus size={15} /> {roomBusy === "new" ? "Adding…" : "Add room"}
+            </button>
+          </div>
+          <div className="rooms-list">
+            {rooms.map((room) => {
+              const assigned = cameras.filter((camera) => camera.roomId === room.id);
+              return (
+                <article className="room-row" key={room.id}>
+                  <div>
+                    <strong>{room.name}</strong>
+                    <span>{assigned.length ? `${assigned.length} assigned camera${assigned.length === 1 ? "" : "s"}` : "No cameras assigned"}</span>
+                  </div>
+                  <div className="room-row-actions">
+                    {assigned.length ? <button className="text-button" onClick={() => openCameraLiveView(assigned.map((camera) => camera.id))}>Open cameras</button> : null}
+                    <button className="secondary-button" onClick={() => void renameRoom(room.id, room.name)} disabled={roomBusy === room.id}>Rename</button>
+                    <button className="secondary-button danger-button" onClick={() => void deleteRoom(room.id, room.name)} disabled={roomBusy === room.id}>
+                      <Trash2 size={14} /> Delete
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+            {!rooms.length ? <div className="room-empty muted">No rooms yet. Add one here or scan rooms on iPhone/iPad.</div> : null}
+          </div>
+          {roomError ? <div className="error-note" role="alert">{roomError}</div> : null}
+        </section>
+      ) : (
       <div className="map-layout">
       <section className="map-panel panel">
         <div className="panel-heading">
@@ -198,11 +338,11 @@ export function MapPage({ objects, scene }: { objects: LastSeenObject[]; scene: 
         <div className="scene-wrap">
           {view === "3d" && hasReal3D ? (
             <Suspense fallback={<div className="three-scene loading-scene">Loading 3D room model…</div>}>
-              <LiDARRoomScene3D scene={displayScene} objects={liveObjects} />
+              <LiDARRoomScene3D scene={displayScene} objects={liveObjects} onCameraSelect={openCameraLiveView} />
             </Suspense>
           ) : hasReal3D ? (
             <Suspense fallback={<div className="three-scene loading-scene">Building native floor plan…</div>}>
-              <RoomPlanFloorPlan2D scene={displayScene} objects={liveObjects} />
+              <RoomPlanFloorPlan2D scene={displayScene} objects={liveObjects} onCameraSelect={openCameraLiveView} />
             </Suspense>
           ) : (
             <CameraMap2D scene={displayScene} objects={liveObjects} selectedId={selected} onSelect={setSelected} measurement={measureMode ? { points: measurePoints, onPoint: handleMeasurePoint } : undefined} />
@@ -210,11 +350,12 @@ export function MapPage({ objects, scene }: { objects: LastSeenObject[]; scene: 
           <div className="scene-legend">
             {hasReal3D ? (
               <>
-                <span><i className="legend-dot precise" /> {displayScene.source === "roomplan-lidar-3d" ? "Native RoomPlan geometry" : "ARKit structural geometry"}</span>
+                <span><i className="legend-dot precise" /> {displayScene.source === "roomplan-lidar-3d" ? "Native RoomPlan" : "ARKit structural geometry"}</span>
                 {displayScene.source === "roomplan-lidar-3d" ? <span><i className="legend-dot fixture" /> Furniture</span> : null}
                 {displayScene.source === "roomplan-lidar-3d" ? <span><i className="legend-dot opening" /> Door & window openings</span> : null}
                 {displayScene.source === "roomplan-lidar-3d" ? <span><i className="legend-dot zone" /> Registered camera</span> : null}
-                <span>Person markers remain visible for 12 s after the latest detection</span>
+                <span>Person dots show current presence; a faded dot keeps only the newest last-known place for up to 2 minutes</span>
+                <span>Click a camera, person dot, or room area to open the live camera views covering that point</span>
               </>
             ) : (
               <>
@@ -225,11 +366,6 @@ export function MapPage({ objects, scene }: { objects: LastSeenObject[]; scene: 
               </>
             )}
             <span>{displayScene.metricScaleKnown ? (displayScene.source === "arkit-video-3d" ? "ARKit metric world scale · approximate geometry" : "Measured RoomPlan scale") : displayScene.scale ? `Measured reference · ${formatMeters(displayScene.scale.referenceLengthM)}` : "Scale not measured · measure a reference"}</span>
-          </div>
-          <div className="map-data-note" role="status">
-            <strong>Map data</strong> · {mapDescription(displayScene)}{displayScene.modelVersion ? ` · model ${displayScene.modelVersion}` : ""}
-            {displayScene.geometryStatus === "needs_rescan" ? " · fresh sweep required" : ""}
-            {displayScene.source === "camera-cv-2d" && !displayScene.geometry?.furniture?.length && !displayScene.geometry?.openings?.length ? " · Run a fresh sweep to add detected furniture, doors, and windows." : ""}
           </div>
         </div>
       </section>
@@ -261,7 +397,7 @@ export function MapPage({ objects, scene }: { objects: LastSeenObject[]; scene: 
             positionedCameraCount > 0 ? (
               <p className="calibration-state" role="status"><strong>3D camera:</strong> {positionedCameraCount} fixed camera{positionedCameraCount === 1 ? " is" : "s are"} positioned in the RoomPlan map.</p>
             ) : (
-              <p className="calibration-state" role="status"><strong>3D camera:</strong> LiDAR geometry is ready, but the fixed camera is not positioned yet. Keep its publisher view open while a fresh scan builds visual landmarks; ONE will retry placement automatically.</p>
+              <p className="calibration-state" role="status"><strong>3D camera:</strong> LiDAR geometry is ready, but the fixed camera is not positioned yet. Start positioning explicitly from that camera's Positioning menu when you are ready.</p>
             )
           ) : displayScene.source === "arkit-video-3d" && hasReal3D ? (
             <p className="calibration-state" role="status"><strong>3D map:</strong> ARKit video geometry is ready. Fixed camera setup can be completed later and is not required for this room model.</p>
@@ -270,17 +406,11 @@ export function MapPage({ objects, scene }: { objects: LastSeenObject[]; scene: 
           ) : (
             <p className="calibration-state" role="status"><strong>2D map:</strong> No current camera geometry is available. Take a new guided sweep.</p>
           )}
+          {cameraRegistrations.filter((registration) => registration.status === "positioned" && registration.cameraId).map((registration) => (
+            <CameraReferenceCard key={registration.cameraId!} registration={registration} />
+          ))}
           {!hasReal3D && <p className="muted small-copy">ONE shows 3D after either a validated native RoomPlan scan or a guided ARKit room video has been saved.</p>}
         </div>
-
-        {displayScene.source === "roomplan-lidar-3d" && localizationCameraId ? (
-          <LocalizationTemporalTrace
-            history={localizationHistoryQuery.data}
-            loading={localizationHistoryQuery.isLoading}
-            savingReference={savingLocalizationReference}
-            onSetReference={saveLocalizationReference}
-          />
-        ) : null}
 
         <div className="panel scale-card">
           <span className="eyebrow">MAP SCALE</span>
@@ -307,6 +437,7 @@ export function MapPage({ objects, scene }: { objects: LastSeenObject[]; scene: 
         </div>
       </aside>
       </div>
+      )}
     </div>
   );
 }

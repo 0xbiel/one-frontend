@@ -11,6 +11,10 @@ export const demoScene: Scene = {
   metricScaleKnown: false,
   geometryStatus: 'ready',
   modelVersion: 'demo-camera-room-layout',
+  cameraRegistrations: [
+    { status: 'positioned', cameraId: 'camera-online-demo', cameraName: 'Living room camera', coordinateFrame: 'roomplan-local', source: 'demo', confidence: 0.98 },
+    { status: 'unavailable', cameraId: 'camera-offline-demo', cameraName: 'Bedroom camera', coordinateFrame: 'roomplan-local', source: 'demo', confidence: 0 },
+  ],
   zones: [
     { id: 'living', name: 'Living room', x: 5, y: 18, width: 47, height: 56, polygon: [{ x: 5, y: 18 }, { x: 52, y: 18 }, { x: 52, y: 74 }, { x: 5, y: 74 }], confidence: 0.92 },
     { id: 'entry', name: 'Entryway', x: 54, y: 18, width: 19, height: 28, polygon: [{ x: 54, y: 18 }, { x: 73, y: 18 }, { x: 73, y: 46 }, { x: 54, y: 46 }], confidence: 0.84 },

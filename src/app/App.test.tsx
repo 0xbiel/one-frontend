@@ -124,20 +124,20 @@ describe('ONE dashboard', () => {
     fireEvent.click(screen.getByRole('button', { name: /pair camera/i }));
     await waitFor(() => expect(screen.getByRole('dialog', { name: /connect a phone or laptop/i })).toBeInTheDocument());
     expect(screen.getByText('482701')).toBeInTheDocument();
-    expect(screen.getByText(/camera is saved; room mapping can be finished now or later/i)).toBeInTheDocument();
+    expect(screen.getByText(/camera is saved\. Positioning and room mapping start only when you choose them later/i)).toBeInTheDocument();
     expect(screen.getByText(/Expires in 10 minutes/)).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText('Camera connected and saved')).toBeInTheDocument());
   });
 
-  it('saves the connected camera and describes optional room context inline', async () => {
+  it('saves the connected camera without starting spatial setup', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/dashboard']}><App /></MemoryRouter></QueryClientProvider>);
     await waitFor(() => expect(screen.getByRole('button', { name: /pair camera/i })).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: /pair camera/i }));
     const saveButton = await screen.findByRole('button', { name: /save camera setup/i });
     fireEvent.click(saveButton);
-    await waitFor(() => expect(screen.getByText('ROOM CONTEXT · OPTIONAL')).toBeInTheDocument());
-    expect(screen.getByText(/camera-derived geometry is saved/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('CAMERA READY')).toBeInTheDocument());
+    expect(screen.getByText(/Calibration, manual placement, and room mapping are optional and only run when you choose them/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /open live view & manage camera/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /start calibration/i })).not.toBeInTheDocument();
   });

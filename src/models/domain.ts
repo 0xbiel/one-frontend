@@ -90,12 +90,20 @@ export interface CameraRegistration {
   source: string;
   intrinsics?: Record<string, unknown>;
   metrics?: Record<string, unknown>;
+  referenceSnapshot?: {
+    capturedAt?: string | null;
+    mapId?: string | null;
+    width?: number | null;
+    height?: number | null;
+    downloadPath?: string | null;
+  } | null;
 }
 export interface Zone { id: string; name: string; x: number; y: number; width: number; height: number; polygon?: Point2D[]; confidence?: number; }
 export interface LastSeenObject {
   id: string; label: string; icon: string; status: 'seen' | 'unknown'; lastSeenAt: string | null;
   point: { x: number; y: number } | null; confidenceRadiusM: number; confidence: number;
-  worldPoint?: Point3D | null; mapId?: string | null; cameraId?: string | null;
+  worldPoint?: Point3D | null; mapId?: string | null; cameraId?: string | null; roomId?: string | null;
+  presenceState?: 'current' | 'recent' | 'stale' | null;
   zone: Zone | null; sourceEventId: string | null;
 }
 export interface HomeEvent { id: string; type: EventType; title: string; detail: string; occurredAt: string; objectId?: string; clipId?: string; tone: 'blue' | 'green' | 'amber'; }

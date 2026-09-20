@@ -61,46 +61,6 @@ export function OverviewPage({
       : null;
   const cameraConnected = Boolean(activeCamera);
   const pairingExpired = pairingStatusQuery.data?.status === "expired";
-  const currentMapQuery = useQuery({
-    queryKey: ["current-map", "pairing"],
-    queryFn: api.getCurrentMap,
-    enabled: pairingOpen && cameraConnected,
-    refetchInterval: pairingOpen && cameraConnected ? 4000 : false,
-    retry: false,
-  });
-  const mapGenerationQuery = useQuery({
-    queryKey: ["map-generation", "pairing", activeCamera?.id],
-    queryFn: () => api.getLatestMapGeneration(activeCamera!.id),
-    enabled: pairingOpen && Boolean(activeCamera?.id),
-    refetchInterval: (query) => {
-      const status = query.state.data?.status;
-      return status && ["ready", "needs_rescan", "unavailable", "failed"].includes(status) ? false : 1500;
-    },
-    retry: false,
-  });
-  const mapGenerationStatus = mapGenerationQuery.data?.status;
-  const currentMap = currentMapQuery.data;
-  const cameraMapReady = mapGenerationStatus === "ready" && Boolean(mapGenerationQuery.data?.map_id) && currentMap?.id === mapGenerationQuery.data?.map_id && currentMap?.source === "camera-cv-2d" && currentMap?.dimension === "2d" && Boolean(currentMap.map_data?.geometry);
-  const cameraMapTitle = cameraMapReady
-    ? "Camera map ready."
-    : mapGenerationStatus === "needs_rescan"
-      ? "A slower sweep is needed."
-      : mapGenerationStatus === "unavailable"
-        ? "Room-layout service unavailable."
-        : mapGenerationStatus === "failed"
-          ? "Map generation needs attention."
-          : mapGenerationStatus === "processing"
-            ? "Building the camera map."
-            : "Waiting for the room sweep.";
-  const cameraMapDescription = cameraMapReady
-    ? "The camera-derived geometry is saved and available in Home map."
-    : mapGenerationStatus === "needs_rescan"
-      ? "The last walkthrough did not make a confident map. The camera itself is still saved and usable; retry only when you want better room context."
-      : mapGenerationStatus === "unavailable"
-        ? "Room mapping is temporarily unavailable. The paired camera remains saved and can still be used."
-        : mapGenerationStatus === "failed"
-          ? "The room draft could not be built. You can retry the walkthrough later without pairing the camera again."
-          : "On the camera device, preview first and record a short room walkthrough when convenient. Mapping is optional for basic live and object vision.";
   const homeName = session?.home.name ?? "The García home";
   const residentName = session?.home.residentName ?? "María";
   const checkInEvent = events.find((event) => /check[- ]?in/i.test(`${event.title} ${event.detail}`));
@@ -236,8 +196,8 @@ export function OverviewPage({
             <h2 id="camera-pairing-title">{resumedCamera ? "Continue saved camera" : "Connect a phone or laptop"}</h2>
             <p className="muted">
               {resumedCamera
-                ? "This camera is already paired to the household. You can finish its name, placement, or room context without creating a new code."
-                : "Share this one-time code with the camera device. As soon as it is accepted, the camera is saved; room mapping can be finished now or later."}
+                ? "This camera is already paired to the household. You can rename it or change its room here; positioning stays in the camera controls."
+                : "Share this one-time code with the camera device. As soon as it is accepted, the camera is saved. Positioning and room mapping start only when you choose them later."}
             </p>
             <div className="pairing-progress" aria-label="Camera pairing progress">
               <span className={cameraConnected ? "complete" : "current"}>
@@ -248,8 +208,8 @@ export function OverviewPage({
                 2 <b>Set up</b>
               </span>
               <i />
-              <span className={cameraMapReady ? "complete" : cameraSetupSaved ? "current" : ""}>
-                3 <b>Room context</b>
+              <span className={cameraSetupSaved ? "complete" : ""}>
+                3 <b>Ready</b>
               </span>
             </div>
             {pairingBusy && (
@@ -372,16 +332,12 @@ export function OverviewPage({
                 {cameraSetupSaved && (
                   <div className="pairing-calibration-panel automatic-map-panel">
                     <div className="pairing-setup-intro">
-                      <span className="pairing-setup-icon" aria-hidden="true"><Map size={17} /></span>
+                      <span className="pairing-setup-icon" aria-hidden="true"><Video size={17} /></span>
                       <div>
-                        <span className="eyebrow">ROOM CONTEXT · OPTIONAL</span>
-                        <h3>{cameraMapTitle}</h3>
-                        <p>{cameraMapDescription}</p>
+                        <span className="eyebrow">CAMERA READY</span>
+                        <h3>Pairing is finished.</h3>
+                        <p>Live view works now. Calibration, manual placement, and room mapping are optional and only run when you choose them from this camera&apos;s Position &amp; map menu.</p>
                       </div>
-                    </div>
-                    <div className={`room-sweep-status ${cameraMapReady ? "ready" : ["needs_rescan", "unavailable", "failed"].includes(mapGenerationStatus ?? "") ? "failed" : "processing"}`} role="status">
-                      <span className="status-dot" />
-                      <span><strong>{cameraMapReady ? "Room context is ready" : mapGenerationStatus === "collecting" ? "Walkthrough is ready to record" : mapGenerationStatus === "processing" ? "Building the room draft" : mapGenerationStatus ? mapGenerationStatus.replace("_", " ") : "No room walkthrough yet"}</strong><small>{cameraMapReady ? "Relative visual geometry · no measured scale" : mapGenerationQuery.data?.error ?? "The camera remains saved whether or not you create a map."}</small></span>
                     </div>
                     <button className="secondary-button full-width" onClick={() => { setPairingOpen(false); navigate("/dashboard/cameras"); }}>
                       <Video size={16} /> Open live view & manage camera <ChevronRight size={16} />

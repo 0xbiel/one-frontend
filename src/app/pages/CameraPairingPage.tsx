@@ -36,15 +36,15 @@ export function PublisherPage({
         <div className="panel step-card">
           <span className="step-number">2</span>
           <div>
-            <strong>Record a room walkthrough</strong>
-            <span className="muted">Walk around slowly; no precision pan is required</span>
+            <strong>Start the preview</strong>
+            <span className="muted">The camera can publish as soon as consent is granted</span>
           </div>
         </div>
         <div className="panel step-card">
           <span className="step-number">3</span>
           <div>
-            <strong>Place the camera</strong>
-            <span className="muted">ONE keeps the camera paired even if mapping is skipped</span>
+            <strong>Position it when you want</strong>
+            <span className="muted">Calibration and room mapping only run from Position &amp; map</span>
           </div>
         </div>
       </aside>
@@ -134,14 +134,14 @@ export function JoinPage() {
           <h1>{connected ? "Camera connected." : "Pair this camera"}</h1>
           <p>
             {connected
-              ? "Paired securely and saved to the household. You can reload, stop, or finish mapping later without pairing this camera again."
+              ? "Paired securely and saved to the household. Live view can start now; calibration and room mapping stay optional until you choose Position & map."
               : "Use the one-time code from the caregiver to connect this camera. This is device setup, not household sign-in."}
           </p>
 
           {connected ? (
             <div className="camera-joined-status" role="status">
               <span className="camera-joined-check"><Check size={13} /></span>
-              <span><strong>Pairing complete · camera saved</strong><small>Next · consent, preview, and optional room walkthrough</small></span>
+              <span><strong>Pairing complete · camera saved</strong><small>Next · consent and preview. Positioning stays optional.</small></span>
             </div>
           ) : (
             <div className="camera-flow-steps" aria-label="Camera pairing progress">
@@ -149,7 +149,7 @@ export function JoinPage() {
               <i />
               <span><b>2</b> Consent</span>
               <i />
-              <span><b>3</b> Room</span>
+              <span><b>3</b> Preview</span>
             </div>
           )}
 
