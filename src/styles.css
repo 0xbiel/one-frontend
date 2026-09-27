@@ -764,6 +764,9 @@ html,body,#root,.app-shell,.main-content{background:var(--canvas);color:var(--in
 
 /* Camera Manager. */
 .camera-manager-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:24px}
+.camera-manager-heading-actions,.manager-pairing-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.camera-manager-heading-actions{justify-content:flex-end}
+.manager-pairing-actions{justify-content:flex-start}
 .camera-manager-heading .primary-button{flex:0 0 auto;min-height:42px}
 .manager-pairing-card{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:20px;margin-bottom:18px;padding:20px 22px}
 .manager-pairing-card.is-connected{border-color:#cfeadd;background:#fbfffd}
@@ -833,7 +836,7 @@ html,body,#root,.app-shell,.main-content{background:var(--canvas);color:var(--in
   .checkin-grid,.camera-manager-layout{grid-template-columns:1fr}
   .camera-manager-list{grid-template-columns:repeat(2,minmax(0,1fr))}
   .manager-pairing-card{grid-template-columns:1fr auto}
-  .manager-pairing-card>.secondary-button{grid-column:1/-1;justify-self:start}
+  .manager-pairing-actions{grid-column:1/-1;justify-self:start}
 }
 
 @media(max-width:640px){
@@ -844,9 +847,11 @@ html,body,#root,.app-shell,.main-content{background:var(--canvas);color:var(--in
   .checkin-grid{gap:14px}
   .checkin-flow-card,.checkin-context-card{padding:19px}
   .camera-manager-heading{align-items:flex-start;flex-direction:column}
+  .camera-manager-heading-actions{justify-content:flex-start}
   .camera-manager-heading .primary-button{align-self:flex-start}
   .manager-pairing-card{grid-template-columns:1fr;padding:18px}
-  .manager-pairing-card>.secondary-button{grid-column:auto;width:100%}
+  .manager-pairing-actions{grid-column:auto;width:100%}
+  .manager-pairing-actions .secondary-button{width:100%}
   .manager-pairing-code{justify-content:space-between}
   .camera-manager-list{grid-template-columns:1fr}
   .camera-detail-grid{grid-template-columns:repeat(2,minmax(0,1fr))}

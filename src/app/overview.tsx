@@ -270,6 +270,10 @@ export function OverviewPage({
                 </div>
                 <strong>{pairing.code}</strong>
                 <span className="muted">Expires in 10 minutes · one use only</span>
+                <a className="secondary-button" href={`/join/${pairing.code}`} target="_blank" rel="noopener noreferrer">
+                  Open camera setup on this computer <ChevronRight size={15} />
+                </a>
+                <span className="muted">For another device, open this website&apos;s /join page there and enter the code.</span>
               </div>
             )}
             <div

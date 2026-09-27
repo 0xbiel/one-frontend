@@ -258,9 +258,12 @@ export function CameraManagerPage() {
           <h2>Camera Manager</h2>
           <p>See every paired camera, check its connection, rename it, watch the live view, or revoke it from this household.</p>
         </div>
-        <button className="primary-button" onClick={() => void startPairing()} disabled={pairingBusy}>
-          <Plus size={16} /> {pairingBusy ? "Creating code…" : "Pair camera"}
-        </button>
+        <div className="camera-manager-heading-actions">
+          <a className="secondary-button" href="/join" target="_blank" rel="noopener noreferrer">Use this computer as a camera</a>
+          <button className="primary-button" onClick={() => void startPairing()} disabled={pairingBusy}>
+            <Plus size={16} /> {pairingBusy ? "Creating code…" : "Pair camera"}
+          </button>
+        </div>
       </header>
 
       {pairing && (
@@ -277,9 +280,14 @@ export function CameraManagerPage() {
             <strong>{pairing.code}</strong>
             <span className={`camera-status ${pairingStatus === "connected" ? "online" : ""}`}><i /> {pairingStatus === "connected" ? "Connected" : pairingStatus === "expired" ? "Expired" : "Waiting"}</span>
           </div>
-          <button className="secondary-button" onClick={() => void copyPairingLink()} disabled={pairingStatus === "expired"}>
-            {pairingCopied ? <><Check size={15} /> Camera link copied</> : <><Copy size={15} /> Copy camera link</>}
-          </button>
+          <div className="manager-pairing-actions">
+            {pairingStatus !== "expired" && pairingStatus !== "connected" && (
+              <a className="secondary-button" href={`/join/${pairing.code}`} target="_blank" rel="noopener noreferrer">Open on this computer</a>
+            )}
+            <button className="secondary-button" onClick={() => void copyPairingLink()} disabled={pairingStatus === "expired"}>
+              {pairingCopied ? <><Check size={15} /> Camera link copied</> : <><Copy size={15} /> Copy camera link</>}
+            </button>
+          </div>
         </section>
       )}
       {pairingError && <div className="error-note camera-manager-error" role="alert">{pairingError}</div>}
