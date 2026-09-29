@@ -1,3 +1,4 @@
+/* global self, caches, fetch, Response */
 const CACHE_NAME = 'one-shell-v1';
 self.addEventListener('install', event => { event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(['/','/app','/one-app-icon-192.png','/one-app-icon-512.png'])).then(() => self.skipWaiting())); });
 self.addEventListener('activate', event => { event.waitUntil(self.clients.claim()); });

@@ -73,7 +73,7 @@ function ProductIcon({ id }: { id: ProductId | "how" }) {
   return <img src={asset(id === "exterior" ? "camera" : id)} alt="" />;
 }
 
-function ProductTabs({ variant }: { variant: number }) {
+function ProductTabs() {
   const entries = [...products.slice(0, 3), { id: "how" as const, name: "Cómo funciona" }];
   return <div className="one-site-product-tabs" aria-label="Explorar productos">{entries.map(entry => entry.id === "how"
     ? <Link key="how" to="/how-it-works" className="one-site-product-tab"><span className="one-site-tab-icon"><ProductIcon id="how" /></span><strong>Cómo funciona</strong></Link>
@@ -103,7 +103,7 @@ function ProductsPage({ variant }: { variant: number }) {
   return <>
     <section className="one-site-products-hero">
       <div className="one-site-products-intro"><span className="one-site-kicker mobile-only">ONE / HOGAR CONECTADO</span><h1>Productos</h1>{variant === 1 || variant === 4 ? <p>Tecnología para un hogar más tranquilo.</p> : null}</div>
-      <ProductTabs variant={variant} />
+      <ProductTabs />
       <div className="one-site-hero-aside"><span>{["Hogares más humanos gracias a la tecnología.", "TECNOLOGÍA QUE CUIDA LO QUE IMPORTA", "HOGAR MÁS CONECTADO MÁS TRANQUILO", "UN HOGAR MÁS TRANQUILO, UNA VIDA MÁS PLENA", "TECNOLOGÍA QUE TE MANTIENE CERCA"][variant - 1]}</span><i /></div>
       {variant === 3 && <div className="one-site-house-art"><img src={asset("connected-house")} alt="Casa conectada con dispositivos ONE" /><span className="signal-dot one" /><span className="signal-dot two" /><span className="signal-dot three" /></div>}
       {variant === 5 && <div className="one-site-signal-line" aria-hidden="true" />}
