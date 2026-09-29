@@ -98,7 +98,7 @@ export interface LastSeenObject {
   worldPoint?: Point3D | null; mapId?: string | null; cameraId?: string | null;
   zone: Zone | null; sourceEventId: string | null;
 }
-export interface HomeEvent { id: string; type: EventType; title: string; detail: string; occurredAt: string; objectId?: string; clipId?: string; tone: 'blue' | 'green' | 'amber'; }
+export interface HomeEvent { id: string; type: EventType; title: string; detail: string; occurredAt: string; objectId?: string; clipId?: string; cameraId?: string | null; cameraName?: string | null; roomName?: string | null; confidence?: number | null; tone: 'blue' | 'green' | 'amber'; }
 export interface Scene {
   sceneId: string;
   version: number;

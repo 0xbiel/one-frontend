@@ -103,7 +103,10 @@ export function OverviewPage({
           : "On the camera device, preview first and record a short room walkthrough when convenient. Mapping is optional for basic live and object vision.";
   const homeName = session?.home.name ?? "The García home";
   const residentName = session?.home.residentName ?? "María";
-  const checkInEvent = events.find((event) => /check[- ]?in/i.test(`${event.title} ${event.detail}`));
+  const checkInEvent = events.find((event) => /check[- ]?in/i.test(`${event.title} ${event.detail}`) && new Date(event.occurredAt).toDateString() === new Date().toDateString());
+  const dailyQuestionsQuery = useQuery({ queryKey: ["check-in-questions"], queryFn: api.getCheckInQuestions, enabled: session?.actor.role !== "resident", retry: false });
+  const todayQuestion = dailyQuestionsQuery.data?.find((item) => new Date(item.askedAt).toDateString() === new Date().toDateString());
+  const hasCheckIn = Boolean(checkInEvent || todayQuestion);
 
   useEffect(() => {
     if (!pairingOpen) return;
@@ -182,7 +185,8 @@ export function OverviewPage({
     <div className="home-page">
       <section className="home-heading">
         <span className="eyebrow">{homeName.toUpperCase()}</span>
-        <h2>Your home, in view.</h2>
+        <h2>Your Home, in view</h2>
+        <p className="home-heading-subtitle">A calm overview of today’s care, activity and home signals.</p>
       </section>
 
       <section className="home-camera-hero">
@@ -192,11 +196,22 @@ export function OverviewPage({
             <span className="status-dot" /> {savedCamera ? savedCamera.status.toUpperCase() : "NOT PAIRED"}
           </span>
         </div>
-        <div className="home-camera-mark" aria-hidden="true"><Camera size={64} strokeWidth={1.35} /></div>
+        <div className="home-camera-art" aria-hidden="true">
+          <svg viewBox="0 0 900 210" preserveAspectRatio="none">
+            <defs><linearGradient id="one-wave" x1="0" y1="0" x2="1" y2="0"><stop stopColor="#0b5967" /><stop offset=".6" stopColor="#087f9e" /><stop offset="1" stopColor="#0a3c58" /></linearGradient></defs>
+            <path d="M0 140 C180 40 250 160 425 80 S680 15 900 115 L900 210 L0 210Z" fill="url(#one-wave)" opacity=".82"/>
+            <path d="M0 168 C200 90 300 195 495 85 S705 60 900 148 L900 210 L0 210Z" fill="#062e47" opacity=".84"/>
+            <path d="M10 150 C195 47 285 158 450 66 S706 21 887 126" fill="none" stroke="#53d8f4" strokeWidth="2"/>
+            <circle cx="690" cy="36" r="18" fill="#adf5ff"/>
+            <path d="M550 106 l38 -31 38 31 h-9 v40 h-57 v-40z" fill="#e9fbff"/>
+            <path d="M576 118 h17 v28 h-17z" fill="#8cbaf9"/>
+            <path d="M603 113 h10 v12 h-10z" fill="#8cbaf9"/>
+          </svg>
+        </div>
         <div className="home-camera-hero-bottom">
           <div>
-            <h3>{savedCamera ? savedCamera.label : "No room camera connected"}</h3>
-            <p>{savedCamera ? "Review the camera name, placement, or room map." : "Pair a phone or laptop to add a room view."}</p>
+            <h3>{savedCamera ? savedCamera.label : "Room camera"}</h3>
+            <p>{savedCamera ? "Review the camera name, placement, or room map." : "Connect a camera to begin receiving home observations."}</p>
           </div>
           <button className="home-camera-action" onClick={() => void openPairing()}>
             {savedCamera ? "Camera setup" : "Pair camera"} <ChevronRight size={16} />
@@ -455,14 +470,14 @@ export function OverviewPage({
       <section className="household-card">
         <div>
           <span className="eyebrow">TODAY’S CHECK-IN</span>
-          <h3>{checkInEvent ? "A check-in is recorded." : "Waiting for today’s check-in."}</h3>
-          <p>{checkInEvent ? checkInEvent.detail : `${residentName} has no recorded check-in yet today. ONE will keep the result in context with the personal baseline when it arrives.`}</p>
+          <h3>{hasCheckIn ? "A check-in is recorded." : "Waiting for today’s check-in."}</h3>
+          <p>{checkInEvent ? checkInEvent.detail : todayQuestion ? "Today's questions are available for review in Questions & Signals." : `${residentName} has no recorded check-in yet today. ONE will keep the result in context with the personal baseline when it arrives.`}</p>
         </div>
         <div className="plan-status">
-          <strong>{checkInEvent ? "Done" : "—"}</strong>
-          <span>{checkInEvent ? "human signal" : "not recorded"}</span>
+          <strong>{hasCheckIn ? "Done" : "—"}</strong>
+          <span>{hasCheckIn ? "human signal" : "not recorded"}</span>
           <div className="progress-line">
-            <span style={{ width: checkInEvent ? "100%" : "12%" }} />
+            <span style={{ width: hasCheckIn ? "100%" : "12%" }} />
           </div>
         </div>
         <button className="secondary-button" onClick={() => navigate("/dashboard/live")}>

@@ -1772,3 +1772,4 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   .camera-placement-actions button{width:100%}
   .guided-calibration-target-meta{grid-template-columns:1fr}
 }
+.home-heading-subtitle{margin:10px 0 0;color:#43566e;font-size:14px}.home-camera-hero{min-height:245px!important;background:linear-gradient(110deg,#073653,#0a6378 66%,#082343)!important;border-radius:17px!important;box-shadow:none!important;position:relative}.home-camera-art{position:absolute;inset:0;z-index:-1;pointer-events:none}.home-camera-art svg{width:100%;height:100%}.home-camera-hero-top,.home-camera-hero-bottom{position:relative;z-index:1}.home-camera-hero-bottom{margin-top:auto}.home-camera-hero-bottom h3{font-size:24px!important;font-weight:500!important}.home-camera-hero-bottom p{font-size:11px!important;max-width:250px}.home-camera-action{backdrop-filter:blur(7px)}

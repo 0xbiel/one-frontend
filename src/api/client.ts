@@ -64,10 +64,43 @@ export interface CareSpaceSummary {
   active: boolean;
 }
 export interface CareSpaceCreateInput { name: string; careSetting: 'home' | 'residence'; supportFocus: 'general' | 'mci'; }
+export interface CaregiverSummary {
+  id: string;
+  status: 'stable' | 'attention' | 'unknown';
+  trend: string;
+  explanation: string;
+  limitations: string;
+  evidenceIds: string[];
+  createdAt: string;
+}
+export interface CheckInQuestion {
+  id: string;
+  summaryId: string;
+  question: string;
+  answer: string;
+  responseTimeMs: number | null;
+  baselineMs: number | null;
+  pulseBpm: number | null;
+  askedAt: string;
+}
+export interface DailyCheckInInput {
+  subjectUserId?: string | null;
+  questions: Array<{ question: string; answer: string; responseTimeMs: number | null; baselineMs: number | null; pulseBpm: number | null }>;
+}
+const demoDailyQuestions: CheckInQuestion[] = [];
+interface BackendCheckInQuestion {
+  id: string; summary_id: string; question: string; answer: string;
+  response_time_ms: number | null; baseline_ms: number | null;
+  pulse_bpm: number | null; asked_at: string;
+}
+interface BackendCaregiverSummary {
+  id: string; status: string; trend: string; explanation: string;
+  limitations: string; evidence_json: string; created_at: string;
+}
 interface CareSpaceSession extends PairCompleteResponse { role: 'admin' | 'resident' | 'caregiver'; }
 interface InviteAcceptResponse extends PairCompleteResponse { role?: string; }
 interface LiveKitResponse { url: string; token: string; expires_in: number; mode?: 'auto' | 'publish' | 'subscribe'; }
-interface BackendEvent { id: string; event_type: string; status?: string; explanation?: string; confidence?: number; evidence_ids?: string; evidence_json?: string; first_seen_at?: string; last_seen_at?: string; }
+interface BackendEvent { id: string; event_type: string; status?: string; explanation?: string; confidence?: number; evidence_ids?: string; evidence_json?: string; first_seen_at?: string; last_seen_at?: string; source?: { camera_id?: string | null; camera_name?: string | null; room_name?: string | null; object_id?: string | null } | null; }
 interface MeResponse { actor: Session['actor']; home: Session['home']; device: Device | null; paused: boolean; }
 interface SceneResponse {
   sceneId: string | null;
@@ -717,7 +750,7 @@ async function requestBinary(path: string, init?: RequestOptions): Promise<Array
 
 export function mapBackendEvent(event: BackendEvent): HomeEvent {
   const isObject = event.event_type === 'object_observed';
-  return { id: event.id, type: isObject ? 'object.last_seen' : 'presence.changed', title: isObject ? 'Object observed' : 'Meaningful moment', detail: event.explanation || 'An observation is available for review.', occurredAt: event.last_seen_at ?? event.first_seen_at ?? new Date().toISOString(), tone: isObject ? 'blue' : 'green' };
+  return { id: event.id, type: isObject ? 'object.last_seen' : 'presence.changed', title: isObject ? 'Object observed' : 'Meaningful moment', detail: event.explanation || 'An observation is available for review.', occurredAt: event.last_seen_at ?? event.first_seen_at ?? new Date().toISOString(), cameraId: event.source?.camera_id, cameraName: event.source?.camera_name, roomName: event.source?.room_name, objectId: event.source?.object_id ?? undefined, confidence: event.confidence, tone: isObject ? 'blue' : 'green' };
 }
 
 export const api = {
@@ -791,6 +824,48 @@ export const api = {
   },
   getObjects: async (): Promise<LastSeenObject[]> => demoMode ? demoObjects : (await request<ObjectResponse>(`/homes/${homeId()}/objects/last-seen`)).data,
   getEvents: async (): Promise<HomeEvent[]> => demoMode ? demoEvents : request<{ data: BackendEvent[] }>(`/homes/${homeId()}/events?limit=50`).then((r) => r.data.map(mapBackendEvent)),
+  getCaregiverSummaries: async (): Promise<CaregiverSummary[]> => {
+    if (demoMode) return [
+      { id: 'demo-summary-1', status: 'stable', trend: 'stable', explanation: 'The latest check-in is within the recent household pattern.', limitations: 'Demo observation; not a diagnosis.', evidenceIds: ['evt-checkin'], createdAt: new Date().toISOString() },
+      { id: 'demo-summary-2', status: 'unknown', trend: 'unknown', explanation: 'There was not enough information to establish a trend.', limitations: 'Demo observation; not a diagnosis.', evidenceIds: [], createdAt: new Date(Date.now() - 86_400_000 * 2).toISOString() },
+    ];
+    const response = await request<{ data: BackendCaregiverSummary[] }>(`/homes/${homeId()}/caregiver-summary`);
+    return response.data.map((item) => {
+      let evidenceIds: string[] = [];
+      try {
+        const parsed: unknown = JSON.parse(item.evidence_json || '[]');
+        if (Array.isArray(parsed)) evidenceIds = parsed.filter((id): id is string => typeof id === 'string');
+      } catch { /* Malformed evidence is omitted, while the summary remains readable. */ }
+      return { id: item.id, status: item.status === 'stable' || item.status === 'attention' ? item.status : 'unknown', trend: item.trend, explanation: item.explanation, limitations: item.limitations, evidenceIds, createdAt: item.created_at };
+    });
+  },
+  getCheckInQuestions: async (): Promise<CheckInQuestion[]> => {
+    if (demoMode) {
+      const today = new Date();
+      const current = [
+        { id: 'demo-q-1', summaryId: 'demo-summary-1', question: 'How are you feeling today?', answer: 'Answered', responseTimeMs: 12_000, baselineMs: 9_000, pulseBpm: 74, askedAt: new Date(today.setHours(8, 23, 0, 0)).toISOString() },
+        { id: 'demo-q-2', summaryId: 'demo-summary-1', question: 'Did you have breakfast?', answer: 'Answered', responseTimeMs: 6_000, baselineMs: 9_000, pulseBpm: 74, askedAt: new Date(today.setHours(8, 24, 0, 0)).toISOString() },
+        { id: 'demo-q-3', summaryId: 'demo-summary-1', question: 'Where are your glasses?', answer: 'Answered', responseTimeMs: 12_000, baselineMs: 9_000, pulseBpm: 74, askedAt: new Date(today.setHours(8, 25, 0, 0)).toISOString() },
+        { id: 'demo-q-4', summaryId: 'demo-summary-1', question: 'Would you like some water?', answer: 'Answered', responseTimeMs: 12_000, baselineMs: 9_000, pulseBpm: 74, askedAt: new Date(today.setHours(8, 26, 0, 0)).toISOString() },
+      ];
+      const history = [11_000, 9_000, 14_000, 10_000, 12_000, 9_000].map((responseTimeMs, index) => {
+        const askedAt = new Date(); askedAt.setDate(askedAt.getDate() - (6 - index)); askedAt.setHours(8, 23, 0, 0);
+        return { id: `demo-q-history-${index}`, summaryId: 'demo-summary-2', question: 'How are you feeling today?', answer: 'Answered', responseTimeMs, baselineMs: 9_000, pulseBpm: 74, askedAt: askedAt.toISOString() };
+      });
+      return [...demoDailyQuestions, ...current, ...history];
+    }
+    const response = await request<{ data: BackendCheckInQuestion[] }>(`/homes/${homeId()}/check-ins/questions?limit=500`);
+    return response.data.map((item) => ({ id: item.id, summaryId: item.summary_id, question: item.question, answer: item.answer, responseTimeMs: item.response_time_ms, baselineMs: item.baseline_ms, pulseBpm: item.pulse_bpm, askedAt: item.asked_at }));
+  },
+  submitDailyCheckIn: async (input: DailyCheckInInput): Promise<{ id: string; degraded: boolean }> => {
+    if (demoMode) {
+      const id = `demo-daily-${Date.now()}`;
+      const askedAt = new Date().toISOString();
+      demoDailyQuestions.unshift(...input.questions.map((item, index) => ({ id: `${id}-${index}`, summaryId: id, question: item.question, answer: item.answer, responseTimeMs: item.responseTimeMs, baselineMs: item.baselineMs, pulseBpm: item.pulseBpm, askedAt })));
+      return { id, degraded: true };
+    }
+    return request<{ id: string; degraded: boolean }>(`/homes/${homeId()}/check-ins`, { method: 'POST', body: JSON.stringify({ subject_user_id: input.subjectUserId ?? null, transcript: '', questions: input.questions.map((item) => ({ question: item.question, answer: item.answer, response_time_ms: item.responseTimeMs, baseline_ms: item.baselineMs, pulse_bpm: item.pulseBpm })) }) });
+  },
   getCameras: async (): Promise<Device[]> => {
     if (demoMode) return [demoDevice];
     return (await request<CameraResponse>(`/homes/${homeId()}/cameras`)).data;
@@ -916,6 +991,18 @@ export const api = {
   requestEmailCode: async (purpose: 'create' | 'login', email: string, displayName?: string, homeName?: string, careSetting: 'home' | 'residence' = 'home', supportFocus: 'general' | 'mci' = 'general'): Promise<EmailChallenge> => demoMode ? { verification_id: 'email-demo', expires_in_seconds: 600, delivery: 'development_outbox', dev_code: '482701', email: email.trim().toLowerCase(), purpose, home_id: 'home-demo', user_id: 'user-demo', role: 'admin' } : request<EmailChallenge>('/auth/email/request', { method: 'POST', auth: false, body: JSON.stringify({ purpose, email, display_name: displayName || null, home_name: homeName || 'ONE Home', care_setting: careSetting, support_focus: supportFocus, role: 'admin' }) }),
   verifyEmailCode: async (email: string, code: string): Promise<EmailSession> => {
     const result = demoMode ? { access_token: 'demo', token_type: 'bearer', expires_in: 3600, home_id: 'home-demo', user_id: 'user-demo', role: 'admin', email } : await request<EmailSession>('/auth/email/verify', { method: 'POST', auth: false, body: JSON.stringify({ email, code }) });
+    sessionStorage.setItem('one_access_token', result.access_token); sessionStorage.setItem('one_home_id', result.home_id); sessionStorage.setItem('one_user_id', result.user_id); return result;
+  },
+  setPassword: async (newPassword: string, currentPassword?: string): Promise<void> => {
+    if (demoMode) return;
+    await request('/auth/password/set', { method: 'POST', body: JSON.stringify({ new_password: newPassword, current_password: currentPassword || null }) });
+  },
+  loginPassword: async (email: string, password: string): Promise<EmailSession> => {
+    const result = demoMode ? { access_token: 'demo', token_type: 'bearer', expires_in: 3600, home_id: 'home-demo', user_id: 'user-demo', role: 'admin', email } : await request<EmailSession>('/auth/password/login', { method: 'POST', auth: false, body: JSON.stringify({ email, password }) });
+    sessionStorage.setItem('one_access_token', result.access_token); sessionStorage.setItem('one_home_id', result.home_id); sessionStorage.setItem('one_user_id', result.user_id); return result;
+  },
+  resetPassword: async (email: string, code: string, newPassword: string): Promise<EmailSession> => {
+    const result = demoMode ? { access_token: 'demo', token_type: 'bearer', expires_in: 3600, home_id: 'home-demo', user_id: 'user-demo', role: 'admin', email } : await request<EmailSession>('/auth/password/reset', { method: 'POST', auth: false, body: JSON.stringify({ email, code, new_password: newPassword }) });
     sessionStorage.setItem('one_access_token', result.access_token); sessionStorage.setItem('one_home_id', result.home_id); sessionStorage.setItem('one_user_id', result.user_id); return result;
   },
   acceptFamilyInvite: async (code: string, displayName: string, email = ''): Promise<InviteAcceptResponse> => {

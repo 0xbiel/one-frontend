@@ -16,7 +16,7 @@ export function EventRow({ event, onClick }: { event: HomeEvent; onClick?: () =>
       <span className={`event-icon ${event.tone}`}>
         {event.type === "object.last_seen" ? "⌁" : event.type === "clip.created" ? "▶" : "✦"}
       </span>
-      <span className="event-copy"><strong>{event.title}</strong><span>{event.detail}</span></span>
+        <span className="event-copy"><strong>{event.title}</strong><span>{event.detail}</span>{event.cameraName && <small>{event.cameraName}{event.roomName ? ` · ${event.roomName}` : ""}</small>}</span>
       <time>{formatTime(event.occurredAt)}</time>
       <ChevronRight size={16} />
     </button>
@@ -67,6 +67,7 @@ export function Shell({ children, paused, onTogglePause, onLogout, session }: { 
   const primaryItems = [
     { to: "/dashboard", label: "Overview", icon: House },
     { to: "/dashboard/live", label: "Today’s check-in", icon: HeartHandshake },
+    { to: "/dashboard/questions", label: "Questions & signals", icon: Activity },
     { to: "/dashboard/map", label: "Home map", icon: Map },
     { to: "/dashboard/cameras", label: "Camera Manager", icon: Camera },
     { to: "/dashboard/events", label: "Events", icon: Activity },
@@ -213,6 +214,8 @@ export function Shell({ children, paused, onTogglePause, onLogout, session }: { 
     ? ["HOME MAP", "Home map"]
     : location.pathname.includes("live")
       ? ["CHECK-IN", "Today’s check-in"]
+    : location.pathname.includes("questions")
+      ? ["SIGNALS", "Questions & signals"]
     : location.pathname.includes("cameras")
       ? ["CAMERAS", "Camera Manager"]
     : location.pathname.includes("events")
@@ -249,6 +252,7 @@ export function Shell({ children, paused, onTogglePause, onLogout, session }: { 
               <div className="profile-menu-account"><span className="avatar" aria-hidden="true">{accountInitials}</span><span><strong>{actorName}</strong><small>{roleLabel}</small></span></div>
               <div className="profile-menu-divider" />
               <button role="menuitem" onClick={() => { setProfileMenuOpen(false); nav("/dashboard/assistant"); }}><CircleHelp size={17} /><span>Help</span></button>
+              {demoMode && <button role="menuitem" onClick={() => { setProfileMenuOpen(false); nav("/designs"); }}><BookOpen size={17} /><span>Original designs</span></button>}
               <button role="menuitem" onClick={() => { setProfileMenuOpen(false); nav("/dashboard/account"); }}><Settings size={17} /><span>Settings</span></button>
               <div className="profile-menu-divider" />
               <button className="profile-menu-logout" role="menuitem" onClick={() => { setProfileMenuOpen(false); onLogout(); }}><LogOut size={17} /><span>Log out</span></button>

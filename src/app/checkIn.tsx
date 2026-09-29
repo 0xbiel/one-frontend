@@ -1,14 +1,19 @@
 import { ArrowRight, CheckCircle2, Clock3, HeartHandshake, ShieldCheck, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "../api/client";
 import type { HomeEvent, Session } from "../models/domain";
 import { EventRow, formatTime } from "./shared";
 
 export function CheckInPage({ events, session, onEvent }: { events: HomeEvent[]; session?: Session; onEvent: (event: HomeEvent) => void }) {
   const navigate = useNavigate();
+  const questionsQuery = useQuery({ queryKey: ["check-in-questions"], queryFn: api.getCheckInQuestions, enabled: session?.actor.role !== "resident", retry: false });
+  const today = new Date().toDateString();
+  const todayQuestion = questionsQuery.data?.find((item) => new Date(item.askedAt).toDateString() === today);
   const residentName = session?.home.residentName ?? "Resident";
-  const checkInEvent = events.find((event) => /check[- ]?in/i.test(`${event.title} ${event.detail}`));
+  const checkInEvent = events.find((event) => /check[- ]?in/i.test(`${event.title} ${event.detail}`) && new Date(event.occurredAt).toDateString() === today);
   const recentContext = events.filter((event) => event.id !== checkInEvent?.id).slice(0, 3);
-  const completed = Boolean(checkInEvent);
+  const completed = Boolean(checkInEvent || todayQuestion);
 
   return (
     <div className="checkin-page">
@@ -26,10 +31,10 @@ export function CheckInPage({ events, session, onEvent }: { events: HomeEvent[];
         <div className="checkin-hero-copy">
           <span className="eyebrow">DAILY CHECK-IN</span>
           <h3>{completed ? "A familiar check-in is recorded." : "No check-in has been recorded yet."}</h3>
-          <p>{checkInEvent?.detail ?? "When the resident completes a check-in, ONE will place the result here and keep it in context with the personal baseline."}</p>
+          <p>{checkInEvent?.detail ?? (todayQuestion ? "Today's questions are recorded and available to authorized caregivers." : "When the resident completes a check-in, ONE will place the result here and keep it in context with the personal baseline.")}</p>
         </div>
         <div className="checkin-hero-meta">
-          <span><Clock3 size={15} /> {checkInEvent ? `Recorded ${formatTime(checkInEvent.occurredAt)}` : "Not recorded yet"}</span>
+          <span><Clock3 size={15} /> {checkInEvent ? `Recorded ${formatTime(checkInEvent.occurredAt)}` : todayQuestion ? `Recorded ${formatTime(todayQuestion.askedAt)}` : "Not recorded yet"}</span>
           <span><ShieldCheck size={15} /> Observation, not diagnosis</span>
         </div>
       </section>

@@ -18,15 +18,16 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, demoMode } from "../api/client";
 import type { Device } from "../models/domain";
 import { connectViewer, type ViewerConnection } from "../livekit/viewer";
+import { LocalCameraPreview } from "./LocalCameraPreview";
 
 type Pairing = { pairing_id: string; code: string; expires_at: string };
 
-export function CameraManagerPage() {
+export function CameraManagerPage({ paused = false }: { paused?: boolean }) {
   const hasSession = demoMode || Boolean(sessionStorage.getItem("one_access_token"));
   const queryClient = useQueryClient();
   const camerasQuery = useQuery({ queryKey: ["cameras"], queryFn: api.getCameras, enabled: hasSession, retry: false, refetchInterval: 5_000 });
   const cameras = useMemo(() => camerasQuery.data ?? [], [camerasQuery.data]);
-  const [selectedId, setSelectedId] = useState<string>();
+  const [selectedId, setSelectedId] = useState<string | undefined>(() => new URLSearchParams(window.location.search).get("camera") ?? undefined);
   const [retryCount, setRetryCount] = useState(0);
   const [liveCameraId, setLiveCameraId] = useState<string | null>(null);
   const [viewerState, setViewerState] = useState<"idle" | "connecting" | "waiting" | "live" | "error">("idle");
@@ -231,6 +232,7 @@ export function CameraManagerPage() {
       )}
       {pairingError && <div className="error-note camera-manager-error" role="alert">{pairingError}</div>}
 
+      {paused ? <div className="panel" role="status">La captación de cámaras está pausada.</div> : <LocalCameraPreview />}
       <div className="camera-manager-layout">
         <aside className="panel camera-list-panel">
           <div className="camera-list-heading">

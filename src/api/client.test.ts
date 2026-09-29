@@ -13,10 +13,11 @@ describe('FastAPI contract mapping', () => {
   });
 
   it('maps object_observed events to non-diagnostic UI language', () => {
-    const event = mapBackendEvent({ id: 'evt-1', event_type: 'object_observed', status: 'new', explanation: 'Approximate household observation; not a diagnosis.', confidence: 0.8, evidence_ids: '[]', last_seen_at: '2026-09-12T10:00:00Z' });
+    const event = mapBackendEvent({ id: 'evt-1', event_type: 'object_observed', status: 'new', explanation: 'Approximate household observation; not a diagnosis.', confidence: 0.8, evidence_ids: '[]', last_seen_at: '2026-09-12T10:00:00Z', source: { camera_id: 'camera-1', camera_name: 'Kitchen', room_name: 'Kitchen' } });
     expect(event.type).toBe('object.last_seen');
     expect(event.detail).toContain('not a diagnosis');
     expect(event.occurredAt).toBe('2026-09-12T10:00:00Z');
+    expect(event.cameraId).toBe('camera-1');
   });
 
   it('maps the backend SSE payload shape without requiring a frontend envelope', () => {
@@ -43,5 +44,14 @@ describe('FastAPI contract mapping', () => {
     const removed = await api.removeFamilyMember('jordi-demo');
     expect(removed.data.id).toBe('jordi-demo');
     expect(removed.invalidated_sessions).toBe(0);
+  });
+
+  it('saves a daily answer without inventing response time or pulse', async () => {
+    const result = await api.submitDailyCheckIn({ questions: [{ question: '¿Cómo te encuentras hoy?', answer: 'Bien', responseTimeMs: null, baselineMs: null, pulseBpm: null }] });
+    const questions = await api.getCheckInQuestions();
+    const saved = questions.find((item) => item.summaryId === result.id);
+    expect(saved?.answer).toBe('Bien');
+    expect(saved?.responseTimeMs).toBeNull();
+    expect(saved?.pulseBpm).toBeNull();
   });
 });
