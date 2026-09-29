@@ -5,15 +5,7 @@ import { api } from "../api/client";
 import type { CameraRegistration, LastSeenObject, Scene } from "../models/domain";
 import { hasRenderableSpatial3D } from "./lidarGeometry";
 import { parseRoomPlanUSDZ } from "./RoomPlanUSDZ";
-import {
-  clearRoomPlanOverlays,
-  populateRoomPlanOverlays,
-  refreshRoomPlanOverlayVisibility,
-  roomPlanCameraIdFromObject,
-  roomPlanCameraIdsCoveringPoint,
-  roomPlanSourceCameraIdFromObject,
-  roomPlanWorldPointFromObject,
-} from "./RoomPlanOverlays";
+import { clearRoomPlanOverlays, populateRoomPlanOverlays, refreshRoomPlanOverlayVisibility } from "./RoomPlanOverlays";
 
 function disposeTree(root: THREE.Object3D): void {
   root.traverse((node) => {
@@ -43,27 +35,16 @@ function fitTopDownCamera(camera: THREE.OrthographicCamera, size: THREE.Vector3,
   camera.updateProjectionMatrix();
 }
 
-function floorPlanColor(path: string, darkMode: boolean): THREE.ColorRepresentation {
-  if (darkMode) {
-    if (path.includes("/Floors/")) return 0x273c49;
-    if (path.includes("/Walls/")) return 0x5f7f91;
-    if (path.includes("/Bed/") || path.includes("/Chair/") || path.includes("/Table/")) return 0x86adbd;
-    return 0x739bac;
-  }
-  if (path.includes("/Floors/")) return 0xd5e1e7;
-  if (path.includes("/Walls/")) return 0x9bb6c3;
-  if (path.includes("/Bed/") || path.includes("/Chair/") || path.includes("/Table/")) return 0x6f9bad;
-  return 0x83a9b8;
+function floorPlanColor(path: string): THREE.ColorRepresentation {
+  if (path.includes("/Floors/")) return 0xdce6ed;
+  if (path.includes("/Walls/")) return 0xf7f9fb;
+  if (path.includes("/Bed/")) return 0xd0dbe4;
+  if (path.includes("/Chair/")) return 0xc2d1dc;
+  if (path.includes("/Table/")) return 0xb7c9d6;
+  return 0xadbfcc;
 }
 
-function appSurfaceIsDark(): boolean {
-  const background = getComputedStyle(document.body).backgroundColor.match(/[\d.]+/g)?.slice(0, 3).map(Number);
-  if (!background || background.length !== 3) return false;
-  const [red, green, blue] = background;
-  return (0.2126 * red + 0.7152 * green + 0.0722 * blue) < 128;
-}
-
-function styleAsFloorPlan(model: THREE.Group, darkMode: boolean): void {
+function styleAsFloorPlan(model: THREE.Group): void {
   const meshes: THREE.Mesh[] = [];
   model.traverse((node) => {
     if (node instanceof THREE.Mesh) meshes.push(node);
@@ -79,13 +60,13 @@ function styleAsFloorPlan(model: THREE.Group, darkMode: boolean): void {
 
     mesh.material = isOpening
       ? new THREE.MeshBasicMaterial({
-          color: darkMode ? 0x5ad8dc : 0x087f88,
+          color: 0x142f49,
           depthTest: false,
           depthWrite: false,
           side: THREE.DoubleSide,
         })
       : new THREE.MeshStandardMaterial({
-          color: floorPlanColor(path, darkMode),
+          color: floorPlanColor(path),
           opacity,
           transparent: opacity < 1,
           depthWrite: opacity >= 1,
@@ -102,7 +83,7 @@ function styleAsFloorPlan(model: THREE.Group, darkMode: boolean): void {
     const edges = new THREE.LineSegments(
       new THREE.EdgesGeometry(mesh.geometry, 24),
       new THREE.LineBasicMaterial({
-        color: isOpening ? (darkMode ? 0x82f1f0 : 0x087f88) : darkMode ? 0xc2d7df : 0x385565,
+        color: isOpening ? 0x65cce0 : path.includes("/Walls/") ? 0x536d80 : 0x71899b,
         transparent: true,
         opacity: isOpening ? 0.92 : path.includes("/Floors/") ? 0.42 : 0.78,
         depthTest: !isOpening,
@@ -121,26 +102,33 @@ type FloorPlanPlacement = {
   hint?: string;
 };
 
+type CalibrationTarget = {
+  x: number;
+  y: number;
+  z: number;
+  state: "pending" | "active" | "complete";
+};
+
 export function RoomPlanFloorPlan2D({
   scene,
   objects,
   previewRegistration,
   placement,
+  calibrationTargets,
   loadUSDZ,
-  onCameraSelect,
 }: {
   scene: Scene;
   objects: LastSeenObject[];
   previewRegistration?: CameraRegistration | null;
   placement?: FloorPlanPlacement;
+  calibrationTargets?: CalibrationTarget[];
   loadUSDZ?: (mapId: string) => Promise<ArrayBuffer>;
-  onCameraSelect?: (cameraIds: string[]) => void;
 }) {
   const mount = useRef<HTMLDivElement>(null);
   const overlayRootRef = useRef<THREE.Group | null>(null);
+  const calibrationRootRef = useRef<THREE.Group | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
   const placementRef = useRef<FloorPlanPlacement | undefined>(placement);
-  const onCameraSelectRef = useRef<typeof onCameraSelect>(onCameraSelect);
   const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
   const mapId = scene.mapId;
   const hasNativeGeometry = hasRenderableSpatial3D(scene);
@@ -159,10 +147,6 @@ export function RoomPlanFloorPlan2D({
   }, [placement]);
 
   useEffect(() => {
-    onCameraSelectRef.current = onCameraSelect;
-  }, [onCameraSelect]);
-
-  useEffect(() => {
     if (!mount.current || !mapId || !hasNativeGeometry) {
       setLoadState("error");
       return;
@@ -177,19 +161,13 @@ export function RoomPlanFloorPlan2D({
     let resize: (() => void) | undefined;
     let placementCanvas: HTMLCanvasElement | undefined;
     let handlePlacementPointer: ((event: PointerEvent) => void) | undefined;
-    let handleCameraPointerDown: ((event: PointerEvent) => void) | undefined;
-    let handleCameraPointerUp: ((event: PointerEvent) => void) | undefined;
     setLoadState("loading");
     host.replaceChildren();
 
     const loadModel = loadUSDZ ?? api.getRoomPlanUSDZ;
     void loadModel(mapId).then((buffer) => {
       const model = parseRoomPlanUSDZ(buffer);
-      // Follow ONE's rendered app surface rather than the OS preference. The
-      // shell can be light while macOS is dark, which otherwise leaves a dark
-      // RoomPlan canvas embedded in a light page.
-      const darkMode = appSurfaceIsDark();
-      styleAsFloorPlan(model, darkMode);
+      styleAsFloorPlan(model);
       if (disposed) {
         disposeTree(model);
         return;
@@ -197,10 +175,10 @@ export function RoomPlanFloorPlan2D({
 
       const width = host.clientWidth || 640;
       const height = host.clientHeight || 440;
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       renderer.setSize(width, height);
-      renderer.setClearColor(darkMode ? 0x07090c : 0xffffff, 1);
+      renderer.setClearColor(0x000000, 0);
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.08;
@@ -216,17 +194,16 @@ export function RoomPlanFloorPlan2D({
       const center = bounds.getCenter(new THREE.Vector3());
       const size = bounds.getSize(new THREE.Vector3());
       roomRoot = new THREE.Group();
-      // Keep the floor plan in the same handed top-down view used by the
-      // Camera Positioning Lab: +X points right and +Z points up on screen.
-      // The native top-down Three.js camera otherwise shows +Z downward,
-      // which vertically mirrors the real room (door/table/bed ordering).
-      roomRoot.position.set(-center.x, -center.y, center.z);
-      roomRoot.scale.z = -1;
+      roomRoot.position.set(-center.x, -center.y, -center.z);
       roomRoot.add(model);
       const overlayRoot = new THREE.Group();
       overlayRoot.name = "ONE RoomPlan top-down overlays";
       roomRoot.add(overlayRoot);
       overlayRootRef.current = overlayRoot;
+      const calibrationRoot = new THREE.Group();
+      calibrationRoot.name = "ONE guided calibration targets";
+      roomRoot.add(calibrationRoot);
+      calibrationRootRef.current = calibrationRoot;
       world.add(roomRoot);
 
       const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.01, 100);
@@ -254,12 +231,6 @@ export function RoomPlanFloorPlan2D({
 
       const raycaster = new THREE.Raycaster();
       const placementPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-      const roomPlanPointFromDisplay = (point: THREE.Vector3) => new THREE.Vector3(
-        point.x + center.x,
-        point.y + center.y,
-        center.z - point.z,
-      );
-      let cameraPointerStart: { x: number; y: number } | null = null;
       placementCanvas = renderer.domElement;
       handlePlacementPointer = (event: PointerEvent) => {
         const currentPlacement = placementRef.current;
@@ -273,49 +244,9 @@ export function RoomPlanFloorPlan2D({
         raycaster.setFromCamera(pointer, camera);
         const point = new THREE.Vector3();
         if (!raycaster.ray.intersectPlane(placementPlane, point)) return;
-        const mapPoint = roomPlanPointFromDisplay(point);
-        currentPlacement.onPoint({ x: mapPoint.x, z: mapPoint.z });
+        currentPlacement.onPoint({ x: point.x + center.x, z: point.z + center.z });
       };
       placementCanvas.addEventListener("pointerdown", handlePlacementPointer);
-      handleCameraPointerDown = (event: PointerEvent) => {
-        if (event.button !== 0) return;
-        cameraPointerStart = { x: event.clientX, y: event.clientY };
-      };
-      handleCameraPointerUp = (event: PointerEvent) => {
-        const start = cameraPointerStart;
-        cameraPointerStart = null;
-        if (!start || event.button !== 0 || placementRef.current?.enabled || !onCameraSelectRef.current || !placementCanvas || !overlayRootRef.current) return;
-        if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > 6) return;
-        const bounds = placementCanvas.getBoundingClientRect();
-        if (!bounds.width || !bounds.height) return;
-        const pointer = new THREE.Vector2(
-          ((event.clientX - bounds.left) / bounds.width) * 2 - 1,
-          -(((event.clientY - bounds.top) / bounds.height) * 2 - 1),
-        );
-        raycaster.setFromCamera(pointer, camera);
-        for (const intersection of raycaster.intersectObjects(overlayRootRef.current.children, true)) {
-          const cameraId = roomPlanCameraIdFromObject(intersection.object);
-          if (cameraId) {
-            onCameraSelectRef.current([cameraId]);
-            return;
-          }
-          const observedPoint = roomPlanWorldPointFromObject(intersection.object);
-          if (!observedPoint) continue;
-          const sourceCameraId = roomPlanSourceCameraIdFromObject(intersection.object);
-          const covering = roomPlanCameraIdsCoveringPoint(registrations, mapId, observedPoint);
-          const cameraIds = [...new Set([...(sourceCameraId ? [sourceCameraId] : []), ...covering])];
-          if (cameraIds.length) onCameraSelectRef.current(cameraIds);
-          return;
-        }
-
-        const roomIntersection = raycaster.intersectObject(model, true)[0];
-        if (!roomIntersection) return;
-        const mapPoint = roomPlanPointFromDisplay(roomIntersection.point);
-        const cameraIds = roomPlanCameraIdsCoveringPoint(registrations, mapId, mapPoint);
-        if (cameraIds.length) onCameraSelectRef.current(cameraIds);
-      };
-      placementCanvas.addEventListener("pointerdown", handleCameraPointerDown);
-      placementCanvas.addEventListener("pointerup", handleCameraPointerUp);
 
       const animate = () => {
         if (overlayRootRef.current) refreshRoomPlanOverlayVisibility(overlayRootRef.current);
@@ -345,9 +276,8 @@ export function RoomPlanFloorPlan2D({
       controls?.dispose();
       controlsRef.current = null;
       if (placementCanvas && handlePlacementPointer) placementCanvas.removeEventListener("pointerdown", handlePlacementPointer);
-      if (placementCanvas && handleCameraPointerDown) placementCanvas.removeEventListener("pointerdown", handleCameraPointerDown);
-      if (placementCanvas && handleCameraPointerUp) placementCanvas.removeEventListener("pointerup", handleCameraPointerUp);
       overlayRootRef.current = null;
+      calibrationRootRef.current = null;
       if (roomRoot) disposeTree(roomRoot);
       renderer?.dispose();
       host.replaceChildren();
@@ -360,6 +290,35 @@ export function RoomPlanFloorPlan2D({
     populateRoomPlanOverlays(overlayRoot, registrations, objects, mapId, true);
     return () => clearRoomPlanOverlays(overlayRoot);
   }, [loadState, mapId, objects, registrations]);
+
+  useEffect(() => {
+    const root = calibrationRootRef.current;
+    if (!root || loadState !== "ready") return;
+    clearRoomPlanOverlays(root);
+    for (const target of calibrationTargets ?? []) {
+      const color = target.state === "active" ? 0xffb45f : target.state === "complete" ? 0x6fe0de : 0xe8f2f8;
+      const marker = new THREE.Group();
+      marker.position.set(target.x, target.y + 0.045, target.z);
+      const disc = new THREE.Mesh(
+        new THREE.CircleGeometry(target.state === "active" ? 0.24 : 0.18, 32),
+        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: target.state === "pending" ? 0.48 : 0.94, depthTest: false }),
+      );
+      disc.rotation.x = -Math.PI / 2;
+      disc.renderOrder = 96;
+      marker.add(disc);
+      if (target.state === "active") {
+        const ring = new THREE.Mesh(
+          new THREE.RingGeometry(0.29, 0.34, 36),
+          new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.92, depthTest: false, side: THREE.DoubleSide }),
+        );
+        ring.rotation.x = -Math.PI / 2;
+        ring.renderOrder = 97;
+        marker.add(ring);
+      }
+      root.add(marker);
+    }
+    return () => clearRoomPlanOverlays(root);
+  }, [calibrationTargets, loadState]);
 
   return (
     <div className={`three-scene lidar-scene roomplan-floor-plan ${placement?.enabled ? "is-placement-mode" : ""}`} aria-label="Top-down floor plan derived from the native LiDAR RoomPlan model" role="img">

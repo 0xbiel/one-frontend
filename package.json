@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:demo": "vite --mode demo",
     "build": "tsc -b && vite build",
     "generate:api": "node scripts/generate-api.mjs",
     "preview": "vite preview",

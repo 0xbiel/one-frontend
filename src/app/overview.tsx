@@ -10,7 +10,7 @@ import {
   X,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { api, demoMode, type CareRecipient } from "../api/client";
+import { api, demoMode } from "../api/client";
 import type { HomeEvent, LastSeenObject, Session } from "../models/domain";
 import { EventRow, ObjectCard } from "./shared";
 
@@ -39,13 +39,6 @@ export function OverviewPage({
   const [cameraSetupBusy, setCameraSetupBusy] = useState(false);
   const [cameraSetupSaved, setCameraSetupSaved] = useState(false);
   const [resumeCameraId, setResumeCameraId] = useState<string | null>(null);
-  const [selectedRecipientId, setSelectedRecipientId] = useState(() => sessionStorage.getItem("one_care_recipient_id") ?? "");
-  const recipientsQuery = useQuery({
-    queryKey: ["care-recipients"],
-    queryFn: api.getCareRecipients,
-    enabled: demoMode || Boolean(sessionStorage.getItem("one_access_token") && sessionStorage.getItem("one_home_id")),
-    retry: false,
-  });
   const camerasQuery = useQuery({
     queryKey: ["cameras"],
     queryFn: api.getCameras,
@@ -68,17 +61,52 @@ export function OverviewPage({
       : null;
   const cameraConnected = Boolean(activeCamera);
   const pairingExpired = pairingStatusQuery.data?.status === "expired";
+  const currentMapQuery = useQuery({
+    queryKey: ["current-map", "pairing"],
+    queryFn: api.getCurrentMap,
+    enabled: pairingOpen && cameraConnected,
+    refetchInterval: pairingOpen && cameraConnected ? 4000 : false,
+    retry: false,
+  });
+  const mapGenerationQuery = useQuery({
+    queryKey: ["map-generation", "pairing", activeCamera?.id],
+    queryFn: () => api.getLatestMapGeneration(activeCamera!.id),
+    enabled: pairingOpen && Boolean(activeCamera?.id),
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      return status && ["ready", "needs_rescan", "unavailable", "failed"].includes(status) ? false : 1500;
+    },
+    retry: false,
+  });
+  const mapGenerationStatus = mapGenerationQuery.data?.status;
+  const currentMap = currentMapQuery.data;
+  const cameraMapReady = mapGenerationStatus === "ready" && Boolean(mapGenerationQuery.data?.map_id) && currentMap?.id === mapGenerationQuery.data?.map_id && currentMap?.source === "camera-cv-2d" && currentMap?.dimension === "2d" && Boolean(currentMap.map_data?.geometry);
+  const cameraMapTitle = cameraMapReady
+    ? "Camera map ready."
+    : mapGenerationStatus === "needs_rescan"
+      ? "A slower sweep is needed."
+      : mapGenerationStatus === "unavailable"
+        ? "Room-layout service unavailable."
+        : mapGenerationStatus === "failed"
+          ? "Map generation needs attention."
+          : mapGenerationStatus === "processing"
+            ? "Building the camera map."
+            : "Waiting for the room sweep.";
+  const cameraMapDescription = cameraMapReady
+    ? "The camera-derived geometry is saved and available in Home map."
+    : mapGenerationStatus === "needs_rescan"
+      ? "The last walkthrough did not make a confident map. The camera itself is still saved and usable; retry only when you want better room context."
+      : mapGenerationStatus === "unavailable"
+        ? "Room mapping is temporarily unavailable. The paired camera remains saved and can still be used."
+        : mapGenerationStatus === "failed"
+          ? "The room draft could not be built. You can retry the walkthrough later without pairing the camera again."
+          : "On the camera device, preview first and record a short room walkthrough when convenient. Mapping is optional for basic live and object vision.";
   const homeName = session?.home.name ?? "The García home";
-  const recipients: CareRecipient[] = recipientsQuery.data ?? [];
-  const selectedRecipient = recipients.find((person) => person.id === selectedRecipientId) ?? recipients[0];
-  const residentName = selectedRecipient?.display_name ?? session?.home.residentName ?? "María";
-  const checkInEvent = events.find((event) => /check[- ]?in/i.test(`${event.title} ${event.detail}`));
-
-  const selectRecipient = (value: string) => {
-    setSelectedRecipientId(value);
-    sessionStorage.setItem("one_care_recipient_id", value);
-    window.dispatchEvent(new CustomEvent("one:care-recipient-change", { detail: value }));
-  };
+  const residentName = session?.home.residentName ?? "María";
+  const checkInEvent = events.find((event) => /check[- ]?in/i.test(`${event.title} ${event.detail}`) && new Date(event.occurredAt).toDateString() === new Date().toDateString());
+  const dailyQuestionsQuery = useQuery({ queryKey: ["check-in-questions"], queryFn: api.getCheckInQuestions, enabled: session?.actor.role !== "resident", retry: false });
+  const todayQuestion = dailyQuestionsQuery.data?.find((item) => new Date(item.askedAt).toDateString() === new Date().toDateString());
+  const hasCheckIn = Boolean(checkInEvent || todayQuestion);
 
   useEffect(() => {
     if (!pairingOpen) return;
@@ -157,18 +185,8 @@ export function OverviewPage({
     <div className="home-page">
       <section className="home-heading">
         <span className="eyebrow">{homeName.toUpperCase()}</span>
-        <div className="home-heading-row">
-          <h2>Your home, in view.</h2>
-          <button className="primary-button home-checkin-action" onClick={() => navigate("/dashboard/live")}>
-            Check in <ChevronRight size={16} />
-          </button>
-        </div>
-        <label className="home-recipient-picker" htmlFor="home-care-recipient">
-          <span className="eyebrow">CARING FOR</span>
-          <select id="home-care-recipient" value={selectedRecipient?.id ?? ""} onChange={(event) => selectRecipient(event.target.value)} disabled={!recipients.length}>
-            {recipients.length ? recipients.map((person) => <option key={person.id} value={person.id}>{person.display_name}</option>) : <option value="">{residentName}</option>}
-          </select>
-        </label>
+        <h2>Your Home, in view</h2>
+        <p className="home-heading-subtitle">A calm overview of today’s care, activity and home signals.</p>
       </section>
 
       <section className="home-camera-hero">
@@ -178,11 +196,22 @@ export function OverviewPage({
             <span className="status-dot" /> {savedCamera ? savedCamera.status.toUpperCase() : "NOT PAIRED"}
           </span>
         </div>
-        <div className="home-camera-mark" aria-hidden="true"><Camera size={64} strokeWidth={1.35} /></div>
+        <div className="home-camera-art" aria-hidden="true">
+          <svg viewBox="0 0 900 210" preserveAspectRatio="none">
+            <defs><linearGradient id="one-wave" x1="0" y1="0" x2="1" y2="0"><stop stopColor="#0b5967" /><stop offset=".6" stopColor="#087f9e" /><stop offset="1" stopColor="#0a3c58" /></linearGradient></defs>
+            <path d="M0 140 C180 40 250 160 425 80 S680 15 900 115 L900 210 L0 210Z" fill="url(#one-wave)" opacity=".82"/>
+            <path d="M0 168 C200 90 300 195 495 85 S705 60 900 148 L900 210 L0 210Z" fill="#062e47" opacity=".84"/>
+            <path d="M10 150 C195 47 285 158 450 66 S706 21 887 126" fill="none" stroke="#53d8f4" strokeWidth="2"/>
+            <circle cx="690" cy="36" r="18" fill="#adf5ff"/>
+            <path d="M550 106 l38 -31 38 31 h-9 v40 h-57 v-40z" fill="#e9fbff"/>
+            <path d="M576 118 h17 v28 h-17z" fill="#8cbaf9"/>
+            <path d="M603 113 h10 v12 h-10z" fill="#8cbaf9"/>
+          </svg>
+        </div>
         <div className="home-camera-hero-bottom">
           <div>
-            <h3>{savedCamera ? savedCamera.label : "No room camera connected"}</h3>
-            <p>{savedCamera ? "Review the camera name, placement, or room map." : "Pair a phone or laptop to add a room view."}</p>
+            <h3>{savedCamera ? savedCamera.label : "Room camera"}</h3>
+            <p>{savedCamera ? "Review the camera name, placement, or room map." : "Connect a camera to begin receiving home observations."}</p>
           </div>
           <button className="home-camera-action" onClick={() => void openPairing()}>
             {savedCamera ? "Camera setup" : "Pair camera"} <ChevronRight size={16} />
@@ -222,8 +251,8 @@ export function OverviewPage({
             <h2 id="camera-pairing-title">{resumedCamera ? "Continue saved camera" : "Connect a phone or laptop"}</h2>
             <p className="muted">
               {resumedCamera
-                ? "This camera is already paired to the household. You can rename it or change its room here; positioning stays in the camera controls."
-                : "Share this one-time code with the camera device. As soon as it is accepted, the camera is saved. Positioning and room mapping start only when you choose them later."}
+                ? "This camera is already paired to the household. You can finish its name, placement, or room context without creating a new code."
+                : "Share this one-time code with the camera device. As soon as it is accepted, the camera is saved; room mapping can be finished now or later."}
             </p>
             <div className="pairing-progress" aria-label="Camera pairing progress">
               <span className={cameraConnected ? "complete" : "current"}>
@@ -234,8 +263,8 @@ export function OverviewPage({
                 2 <b>Set up</b>
               </span>
               <i />
-              <span className={cameraSetupSaved ? "complete" : ""}>
-                3 <b>Ready</b>
+              <span className={cameraMapReady ? "complete" : cameraSetupSaved ? "current" : ""}>
+                3 <b>Room context</b>
               </span>
             </div>
             {pairingBusy && (
@@ -270,10 +299,6 @@ export function OverviewPage({
                 </div>
                 <strong>{pairing.code}</strong>
                 <span className="muted">Expires in 10 minutes · one use only</span>
-                <a className="secondary-button" href={`/join/${pairing.code}`} target="_blank" rel="noopener noreferrer">
-                  Open camera setup on this computer <ChevronRight size={15} />
-                </a>
-                <span className="muted">For another device, open this website&apos;s /join page there and enter the code.</span>
               </div>
             )}
             <div
@@ -362,12 +387,16 @@ export function OverviewPage({
                 {cameraSetupSaved && (
                   <div className="pairing-calibration-panel automatic-map-panel">
                     <div className="pairing-setup-intro">
-                      <span className="pairing-setup-icon" aria-hidden="true"><Video size={17} /></span>
+                      <span className="pairing-setup-icon" aria-hidden="true"><Map size={17} /></span>
                       <div>
-                        <span className="eyebrow">CAMERA READY</span>
-                        <h3>Pairing is finished.</h3>
-                        <p>Live view works now. Calibration, manual placement, and room mapping are optional and only run when you choose them from this camera&apos;s Position &amp; map menu.</p>
+                        <span className="eyebrow">ROOM CONTEXT · OPTIONAL</span>
+                        <h3>{cameraMapTitle}</h3>
+                        <p>{cameraMapDescription}</p>
                       </div>
+                    </div>
+                    <div className={`room-sweep-status ${cameraMapReady ? "ready" : ["needs_rescan", "unavailable", "failed"].includes(mapGenerationStatus ?? "") ? "failed" : "processing"}`} role="status">
+                      <span className="status-dot" />
+                      <span><strong>{cameraMapReady ? "Room context is ready" : mapGenerationStatus === "collecting" ? "Walkthrough is ready to record" : mapGenerationStatus === "processing" ? "Building the room draft" : mapGenerationStatus ? mapGenerationStatus.replace("_", " ") : "No room walkthrough yet"}</strong><small>{cameraMapReady ? "Relative visual geometry · no measured scale" : mapGenerationQuery.data?.error ?? "The camera remains saved whether or not you create a map."}</small></span>
                     </div>
                     <button className="secondary-button full-width" onClick={() => { setPairingOpen(false); navigate("/dashboard/cameras"); }}>
                       <Video size={16} /> Open live view & manage camera <ChevronRight size={16} />
@@ -441,16 +470,19 @@ export function OverviewPage({
       <section className="household-card">
         <div>
           <span className="eyebrow">TODAY’S CHECK-IN</span>
-          <h3>{checkInEvent ? "A check-in is recorded." : "Waiting for today’s check-in."}</h3>
-          <p>{checkInEvent ? checkInEvent.detail : `${residentName} has no recorded check-in yet today. ONE will keep the result in context with the personal baseline when it arrives.`}</p>
+          <h3>{hasCheckIn ? "A check-in is recorded." : "Waiting for today’s check-in."}</h3>
+          <p>{checkInEvent ? checkInEvent.detail : todayQuestion ? "Today's questions are available for review in Questions & Signals." : `${residentName} has no recorded check-in yet today. ONE will keep the result in context with the personal baseline when it arrives.`}</p>
         </div>
         <div className="plan-status">
-          <strong>{checkInEvent ? "Done" : "—"}</strong>
-          <span>{checkInEvent ? "human signal" : "not recorded"}</span>
+          <strong>{hasCheckIn ? "Done" : "—"}</strong>
+          <span>{hasCheckIn ? "human signal" : "not recorded"}</span>
           <div className="progress-line">
-            <span style={{ width: checkInEvent ? "100%" : "12%" }} />
+            <span style={{ width: hasCheckIn ? "100%" : "12%" }} />
           </div>
         </div>
+        <button className="secondary-button" onClick={() => navigate("/dashboard/live")}>
+          Open check-in <ChevronRight size={16} />
+        </button>
       </section>
 
       <section className="home-section memory-section">

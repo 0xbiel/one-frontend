@@ -381,17 +381,11 @@
       "CameraLocalizationIn": {
         "properties": {
           "fov_degrees": {
-            "anyOf": [
-              {
-                "maximum": 120.0,
-                "minimum": 30.0,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Fov Degrees"
+            "default": 60.0,
+            "maximum": 120.0,
+            "minimum": 30.0,
+            "title": "Fov Degrees",
+            "type": "number"
           },
           "frames": {
             "items": {
@@ -761,28 +755,6 @@
             "title": "Display Name",
             "type": "string"
           },
-          "face_profile_updated_at": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Face Profile Updated At"
-          },
-          "face_recognition_status": {
-            "default": "not_enrolled",
-            "enum": [
-              "not_enrolled",
-              "ready",
-              "unavailable",
-              "revoked"
-            ],
-            "title": "Face Recognition Status",
-            "type": "string"
-          },
           "id": {
             "title": "Id",
             "type": "string"
@@ -894,16 +866,13 @@
       },
       "CheckInIn": {
         "properties": {
-          "care_recipient_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Care Recipient Id"
+          "questions": {
+            "items": {
+              "$ref": "#/components/schemas/CheckInQuestionIn"
+            },
+            "maxItems": 20,
+            "title": "Questions",
+            "type": "array"
           },
           "subject_user_id": {
             "anyOf": [
@@ -924,6 +893,66 @@
           }
         },
         "title": "CheckInIn",
+        "type": "object"
+      },
+      "CheckInQuestionIn": {
+        "properties": {
+          "answer": {
+            "default": "",
+            "maxLength": 400,
+            "title": "Answer",
+            "type": "string"
+          },
+          "baseline_ms": {
+            "anyOf": [
+              {
+                "maximum": 600000.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Ms"
+          },
+          "pulse_bpm": {
+            "anyOf": [
+              {
+                "maximum": 250.0,
+                "minimum": 20.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pulse Bpm"
+          },
+          "question": {
+            "maxLength": 400,
+            "minLength": 1,
+            "title": "Question",
+            "type": "string"
+          },
+          "response_time_ms": {
+            "anyOf": [
+              {
+                "maximum": 600000.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Response Time Ms"
+          }
+        },
+        "required": [
+          "question"
+        ],
+        "title": "CheckInQuestionIn",
         "type": "object"
       },
       "ClipBytesIn": {
@@ -1194,113 +1223,6 @@
           "code"
         ],
         "title": "EmailAuthVerify",
-        "type": "object"
-      },
-      "FaceEnrollmentFrameIn": {
-        "properties": {
-          "camera_position": {
-            "default": "front",
-            "enum": [
-              "front",
-              "back"
-            ],
-            "title": "Camera Position",
-            "type": "string"
-          },
-          "frame_base64": {
-            "maxLength": 4000000,
-            "minLength": 1,
-            "title": "Frame Base64",
-            "type": "string"
-          },
-          "height": {
-            "exclusiveMinimum": 0.0,
-            "maximum": 4320.0,
-            "title": "Height",
-            "type": "integer"
-          },
-          "width": {
-            "exclusiveMinimum": 0.0,
-            "maximum": 7680.0,
-            "title": "Width",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "frame_base64",
-          "width",
-          "height"
-        ],
-        "title": "FaceEnrollmentFrameIn",
-        "type": "object"
-      },
-      "FaceEnrollmentIn": {
-        "properties": {
-          "frames": {
-            "items": {
-              "$ref": "#/components/schemas/FaceEnrollmentFrameIn"
-            },
-            "maxItems": 8,
-            "minItems": 3,
-            "title": "Frames",
-            "type": "array"
-          }
-        },
-        "required": [
-          "frames"
-        ],
-        "title": "FaceEnrollmentIn",
-        "type": "object"
-      },
-      "FaceProfileOut": {
-        "properties": {
-          "care_recipient_id": {
-            "title": "Care Recipient Id",
-            "type": "string"
-          },
-          "model_version": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Model Version"
-          },
-          "sample_count": {
-            "default": 0,
-            "title": "Sample Count",
-            "type": "integer"
-          },
-          "status": {
-            "enum": [
-              "not_enrolled",
-              "ready",
-              "unavailable",
-              "revoked"
-            ],
-            "title": "Status",
-            "type": "string"
-          },
-          "updated_at": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Updated At"
-          }
-        },
-        "required": [
-          "care_recipient_id",
-          "status"
-        ],
-        "title": "FaceProfileOut",
         "type": "object"
       },
       "FamilyAssistantIn": {
@@ -2041,6 +1963,85 @@
         "title": "PairingStatusResponse",
         "type": "object"
       },
+      "PasswordLoginIn": {
+        "properties": {
+          "email": {
+            "maxLength": 254,
+            "minLength": 3,
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "PasswordLoginIn",
+        "type": "object"
+      },
+      "PasswordResetIn": {
+        "properties": {
+          "code": {
+            "maxLength": 6,
+            "minLength": 6,
+            "pattern": "^\\d{6}$",
+            "title": "Code",
+            "type": "string"
+          },
+          "email": {
+            "maxLength": 254,
+            "minLength": 3,
+            "title": "Email",
+            "type": "string"
+          },
+          "new_password": {
+            "maxLength": 128,
+            "minLength": 12,
+            "title": "New Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "code",
+          "new_password"
+        ],
+        "title": "PasswordResetIn",
+        "type": "object"
+      },
+      "PasswordSetIn": {
+        "properties": {
+          "current_password": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Password"
+          },
+          "new_password": {
+            "maxLength": 128,
+            "minLength": 12,
+            "title": "New Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "new_password"
+        ],
+        "title": "PasswordSetIn",
+        "type": "object"
+      },
       "ProvisionalMapIn": {
         "properties": {
           "camera_id": {
@@ -2298,31 +2299,6 @@
       "RoomPlanMapIn": {
         "additionalProperties": false,
         "properties": {
-          "alignment_status": {
-            "anyOf": [
-              {
-                "enum": [
-                  "aligned",
-                  "needs_alignment"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Alignment Status"
-          },
-          "fragment_to_home": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/RoomPlanTransform4x4"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "normalized_scan": {
             "$ref": "#/components/schemas/RoomPlanNormalizedScan"
           },
@@ -2525,10 +2501,7 @@
             "type": "boolean"
           },
           "provenance": {
-            "enum": [
-              "native-roomplan",
-              "native-roomplan-structure"
-            ],
+            "const": "native-roomplan",
             "title": "Provenance",
             "type": "string"
           },
@@ -2558,7 +2531,7 @@
           "visual_depth_sample_count": {
             "anyOf": [
               {
-                "maximum": 2048.0,
+                "maximum": 12.0,
                 "minimum": 0.0,
                 "type": "integer"
               },
@@ -2567,19 +2540,6 @@
               }
             ],
             "title": "Visual Depth Sample Count"
-          },
-          "visual_estimated_area_square_meters": {
-            "anyOf": [
-              {
-                "maximum": 10000.0,
-                "minimum": 0.0,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Visual Estimated Area Square Meters"
           },
           "visual_image_encoding_failure_count": {
             "anyOf": [
@@ -2636,23 +2596,10 @@
             ],
             "title": "Visual Missing Frame Count"
           },
-          "visual_recommended_sample_count": {
-            "anyOf": [
-              {
-                "maximum": 2048.0,
-                "minimum": 0.0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Visual Recommended Sample Count"
-          },
           "visual_sample_count": {
             "anyOf": [
               {
-                "maximum": 2048.0,
+                "maximum": 12.0,
                 "minimum": 0.0,
                 "type": "integer"
               },
@@ -2720,28 +2667,6 @@
           "story"
         ],
         "title": "RoomPlanSection",
-        "type": "object"
-      },
-      "RoomPlanTransform4x4": {
-        "additionalProperties": false,
-        "properties": {
-          "values": {
-            "items": {
-              "items": {
-                "type": "number"
-              },
-              "type": "array"
-            },
-            "maxItems": 4,
-            "minItems": 4,
-            "title": "Values",
-            "type": "array"
-          }
-        },
-        "required": [
-          "values"
-        ],
-        "title": "RoomPlanTransform4x4",
         "type": "object"
       },
       "RoomPlanVisualFrameIn": {
@@ -2845,7 +2770,7 @@
             "items": {
               "$ref": "#/components/schemas/RoomPlanVisualFrameIn"
             },
-            "maxItems": 24,
+            "maxItems": 12,
             "minItems": 1,
             "title": "Frames",
             "type": "array"
@@ -2855,21 +2780,6 @@
           "frames"
         ],
         "title": "RoomPlanVisualLandmarksIn",
-        "type": "object"
-      },
-      "RoomUpdate": {
-        "properties": {
-          "name": {
-            "maxLength": 120,
-            "minLength": 1,
-            "title": "Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "name"
-        ],
-        "title": "RoomUpdate",
         "type": "object"
       },
       "ValidationError": {
@@ -3165,6 +3075,114 @@
         "summary": "Email Auth Verify"
       }
     },
+    "/api/v1/auth/password/login": {
+      "post": {
+        "operationId": "password_login_api_v1_auth_password_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordLoginIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Password Login"
+      }
+    },
+    "/api/v1/auth/password/reset": {
+      "post": {
+        "operationId": "password_reset_api_v1_auth_password_reset_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordResetIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Password Reset"
+      }
+    },
+    "/api/v1/auth/password/set": {
+      "post": {
+        "operationId": "password_set_api_v1_auth_password_set_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordSetIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Password Set"
+      }
+    },
     "/api/v1/camera/reconnect": {
       "post": {
         "operationId": "camera_reconnect_api_v1_camera_reconnect_post",
@@ -3304,69 +3322,6 @@
           }
         },
         "summary": "Health"
-      }
-    },
-    "/api/v1/homes/{home_id}/analytics": {
-      "get": {
-        "operationId": "home_analytics_api_v1_homes__home_id__analytics_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "home_id",
-            "required": true,
-            "schema": {
-              "title": "Home Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "care_recipient_id",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Care Recipient Id"
-            }
-          },
-          {
-            "in": "query",
-            "name": "window_days",
-            "required": false,
-            "schema": {
-              "default": 30,
-              "title": "Window Days",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Home Analytics"
       }
     },
     "/api/v1/homes/{home_id}/calibrations": {
@@ -3852,52 +3807,6 @@
         "summary": "Localize Roomplan Camera"
       }
     },
-    "/api/v1/homes/{home_id}/cameras/{camera_id}/localize-roomplan/progress": {
-      "get": {
-        "operationId": "get_roomplan_localization_progress_api_v1_homes__home_id__cameras__camera_id__localize_roomplan_progress_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "home_id",
-            "required": true,
-            "schema": {
-              "title": "Home Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "camera_id",
-            "required": true,
-            "schema": {
-              "title": "Camera Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Roomplan Localization Progress"
-      }
-    },
     "/api/v1/homes/{home_id}/cameras/{camera_id}/map-generation": {
       "get": {
         "operationId": "map_generation_status_api_v1_homes__home_id__cameras__camera_id__map_generation_get",
@@ -4118,198 +4027,6 @@
         "summary": "Map Generation Frames"
       }
     },
-    "/api/v1/homes/{home_id}/cameras/{camera_id}/reference-snapshot": {
-      "get": {
-        "operationId": "camera_reference_snapshot_api_v1_homes__home_id__cameras__camera_id__reference_snapshot_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "home_id",
-            "required": true,
-            "schema": {
-              "title": "Home Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "camera_id",
-            "required": true,
-            "schema": {
-              "title": "Camera Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Camera Reference Snapshot"
-      },
-      "post": {
-        "operationId": "save_camera_reference_snapshot_api_v1_homes__home_id__cameras__camera_id__reference_snapshot_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "home_id",
-            "required": true,
-            "schema": {
-              "title": "Home Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "camera_id",
-            "required": true,
-            "schema": {
-              "title": "Camera Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CameraLocalizationFrameIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Save Camera Reference Snapshot"
-      }
-    },
-    "/api/v1/homes/{home_id}/cameras/{camera_id}/reference-snapshot/capture-request": {
-      "get": {
-        "operationId": "get_camera_reference_snapshot_capture_request_api_v1_homes__home_id__cameras__camera_id__reference_snapshot_capture_request_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "home_id",
-            "required": true,
-            "schema": {
-              "title": "Home Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "camera_id",
-            "required": true,
-            "schema": {
-              "title": "Camera Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Camera Reference Snapshot Capture Request"
-      }
-    },
-    "/api/v1/homes/{home_id}/cameras/{camera_id}/reference-snapshot/request-capture": {
-      "post": {
-        "operationId": "request_camera_reference_snapshot_capture_api_v1_homes__home_id__cameras__camera_id__reference_snapshot_request_capture_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "home_id",
-            "required": true,
-            "schema": {
-              "title": "Home Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "camera_id",
-            "required": true,
-            "schema": {
-              "title": "Camera Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Request Camera Reference Snapshot Capture"
-      }
-    },
     "/api/v1/homes/{home_id}/cameras/{camera_id}/roomplan-calibration-session": {
       "delete": {
         "operationId": "cancel_roomplan_calibration_session_api_v1_homes__home_id__cameras__camera_id__roomplan_calibration_session_delete",
@@ -4400,7 +4117,7 @@
         "summary": "Get Roomplan Calibration Session"
       },
       "post": {
-        "description": "Start a transient fixed-scene reference calibration session.\n\nThe caregiver no longer has to stand on floor targets. The paired\npublisher camera supplies several short, stationary scene captures and\nordinary RoomPlan visual localization decides the pose. People and\nmovable furniture are treated as transient evidence by the geometry\nworker.",
+        "description": "Start a transient caregiver-guided calibration for a fixed publisher camera.",
         "operationId": "start_roomplan_calibration_session_api_v1_homes__home_id__cameras__camera_id__roomplan_calibration_session_post",
         "parameters": [
           {
@@ -4443,52 +4160,6 @@
           }
         },
         "summary": "Start Roomplan Calibration Session"
-      }
-    },
-    "/api/v1/homes/{home_id}/cameras/{camera_id}/roomplan-calibration-session/commit-reference": {
-      "post": {
-        "operationId": "commit_roomplan_calibration_reference_api_v1_homes__home_id__cameras__camera_id__roomplan_calibration_session_commit_reference_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "home_id",
-            "required": true,
-            "schema": {
-              "title": "Home Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "camera_id",
-            "required": true,
-            "schema": {
-              "title": "Camera Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Commit Roomplan Calibration Reference"
       }
     },
     "/api/v1/homes/{home_id}/cameras/{camera_id}/roomplan-calibration-session/frames": {
@@ -4693,7 +4364,7 @@
     },
     "/api/v1/homes/{home_id}/cameras/{camera_id}/roomplan-readiness": {
       "get": {
-        "description": "Expose only the RoomPlan state needed for explicitly requested positioning.",
+        "description": "Expose only the RoomPlan state a camera needs for automatic localization.",
         "operationId": "camera_roomplan_readiness_api_v1_homes__home_id__cameras__camera_id__roomplan_readiness_get",
         "parameters": [
           {
@@ -4928,158 +4599,6 @@
         "summary": "Care Recipient Update"
       }
     },
-    "/api/v1/homes/{home_id}/care-recipients/{recipient_id}/face-profile": {
-      "delete": {
-        "operationId": "face_profile_delete_api_v1_homes__home_id__care_recipients__recipient_id__face_profile_delete",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "home_id",
-            "required": true,
-            "schema": {
-              "title": "Home Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "recipient_id",
-            "required": true,
-            "schema": {
-              "title": "Recipient Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FaceProfileOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Face Profile Delete"
-      },
-      "get": {
-        "operationId": "face_profile_get_api_v1_homes__home_id__care_recipients__recipient_id__face_profile_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "home_id",
-            "required": true,
-            "schema": {
-              "title": "Home Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "recipient_id",
-            "required": true,
-            "schema": {
-              "title": "Recipient Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FaceProfileOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Face Profile Get"
-      }
-    },
-    "/api/v1/homes/{home_id}/care-recipients/{recipient_id}/face-profile/enroll": {
-      "post": {
-        "operationId": "face_profile_enroll_api_v1_homes__home_id__care_recipients__recipient_id__face_profile_enroll_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "home_id",
-            "required": true,
-            "schema": {
-              "title": "Home Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "recipient_id",
-            "required": true,
-            "schema": {
-              "title": "Recipient Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/FaceEnrollmentIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FaceProfileOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Face Profile Enroll"
-      }
-    },
     "/api/v1/homes/{home_id}/caregiver-summary": {
       "get": {
         "operationId": "caregiver_summary_api_v1_homes__home_id__caregiver_summary_get",
@@ -5162,6 +4681,53 @@
           }
         },
         "summary": "Check In"
+      }
+    },
+    "/api/v1/homes/{home_id}/check-ins/questions": {
+      "get": {
+        "operationId": "check_in_questions_api_v1_homes__home_id__check_ins_questions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "home_id",
+            "required": true,
+            "schema": {
+              "title": "Home Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Check In Questions"
       }
     },
     "/api/v1/homes/{home_id}/clips": {
@@ -5487,51 +5053,6 @@
           }
         },
         "summary": "Clip Create"
-      }
-    },
-    "/api/v1/homes/{home_id}/events/{event_id}/snapshot": {
-      "get": {
-        "operationId": "event_snapshot_api_v1_homes__home_id__events__event_id__snapshot_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "home_id",
-            "required": true,
-            "schema": {
-              "title": "Home Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "event_id",
-            "required": true,
-            "schema": {
-              "title": "Event Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "image/jpeg": {},
-              "image/png": {}
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Event Snapshot"
       }
     },
     "/api/v1/homes/{home_id}/family-assistant": {
@@ -7237,106 +6758,6 @@
           }
         },
         "summary": "Room"
-      }
-    },
-    "/api/v1/homes/{home_id}/rooms/{room_id}": {
-      "delete": {
-        "operationId": "room_delete_api_v1_homes__home_id__rooms__room_id__delete",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "home_id",
-            "required": true,
-            "schema": {
-              "title": "Home Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "room_id",
-            "required": true,
-            "schema": {
-              "title": "Room Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Room Delete"
-      },
-      "patch": {
-        "operationId": "room_update_api_v1_homes__home_id__rooms__room_id__patch",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "home_id",
-            "required": true,
-            "schema": {
-              "title": "Home Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "room_id",
-            "required": true,
-            "schema": {
-              "title": "Room Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RoomUpdate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Room Update"
       }
     },
     "/api/v1/homes/{home_id}/runtime": {

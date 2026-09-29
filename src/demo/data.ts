@@ -11,10 +11,6 @@ export const demoScene: Scene = {
   metricScaleKnown: false,
   geometryStatus: 'ready',
   modelVersion: 'demo-camera-room-layout',
-  cameraRegistrations: [
-    { status: 'positioned', cameraId: 'camera-online-demo', cameraName: 'Living room camera', coordinateFrame: 'roomplan-local', source: 'demo', confidence: 0.98 },
-    { status: 'unavailable', cameraId: 'camera-offline-demo', cameraName: 'Bedroom camera', coordinateFrame: 'roomplan-local', source: 'demo', confidence: 0 },
-  ],
   zones: [
     { id: 'living', name: 'Living room', x: 5, y: 18, width: 47, height: 56, polygon: [{ x: 5, y: 18 }, { x: 52, y: 18 }, { x: 52, y: 74 }, { x: 5, y: 74 }], confidence: 0.92 },
     { id: 'entry', name: 'Entryway', x: 54, y: 18, width: 19, height: 28, polygon: [{ x: 54, y: 18 }, { x: 73, y: 18 }, { x: 73, y: 46 }, { x: 54, y: 46 }], confidence: 0.84 },
@@ -53,7 +49,6 @@ export const demoObjects: LastSeenObject[] = [
 ];
 export const demoEvents: HomeEvent[] = [
   { id: 'evt-keys', type: 'object.last_seen', title: 'Keys last seen', detail: 'Near the entryway console', occurredAt: new Date(Date.now() - 1000 * 60 * 18).toISOString(), objectId: 'keys', tone: 'blue' },
-  { id: 'evt-fall', type: 'fall.suspected', title: 'Possible fall pattern', detail: 'A possible fall pattern needs a caregiver check-in. This is a safety signal for human review, not a diagnosis.', occurredAt: new Date(Date.now() - 1000 * 60 * 32).toISOString(), status: 'needs_review', confidence: 0.78, tone: 'amber' },
   { id: 'evt-checkin', type: 'presence.changed', title: 'Morning check-in complete', detail: 'María answered 4 of 4 prompts', occurredAt: new Date(Date.now() - 1000 * 60 * 52).toISOString(), tone: 'green' },
   { id: 'evt-glasses', type: 'object.last_seen', title: 'Reading glasses last seen', detail: 'On the living room side table', occurredAt: new Date(Date.now() - 1000 * 60 * 48).toISOString(), objectId: 'glasses', tone: 'blue' },
   { id: 'evt-clip', type: 'clip.created', title: 'A short clip is ready', detail: 'Movement near the kitchen, 8 seconds', occurredAt: new Date(Date.now() - 1000 * 60 * 90).toISOString(), clipId: 'clip-demo', tone: 'amber' },

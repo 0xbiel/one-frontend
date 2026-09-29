@@ -4,6 +4,8 @@
 
 # ONE frontend
 
+**Windows / VS Code:** start with [GUIA-PARA-VSCODE.md](GUIA-PARA-VSCODE.md). The public website implements the supplied product, detail, technology, and support concepts as navigable React pages, with five selectable variants in each section.
+
 ONE is a calm, caregiver-facing web experience for a daily home check-in. It presents observations with context and uncertainty — never a diagnosis — and lets a paired laptop, iPhone, or Android browser act as a consented camera publisher.
 
 ## Run locally
@@ -14,31 +16,11 @@ test -f .env || cp .env.example .env
 npm run dev
 ```
 
-The default is deterministic demo mode (`VITE_DEMO_MODE=true`), so the dashboard, map, events, assistant, privacy controls, pairing code, and publisher consent flow render without a backend. Set `VITE_DEMO_MODE=false` to use the API client.
+Use `npm run dev:demo` for the deterministic demo without a backend. `npm run dev` uses the live API by default and requires a backend session.
 
 ### Authentication (backend mode)
 
-Authentication is pairing-based: open `/login`, enter the six-digit code created
-by the home admin, and the frontend calls `POST /api/v1/pairing/complete`. The
-returned bearer token, home ID, and user ID are kept in `sessionStorage` for the
-current browser tab and sent on subsequent `/api/v1` requests. On reload, the
-frontend validates the session with `GET /api/v1/me`; an expired or revoked
-session returns to `/login` without rendering dashboard data. The publisher and
-dashboard routes are therefore unavailable until a valid session exists (the
-`/join/:code?` pairing entry point remains public).
-
-Click the avatar in the top bar to sign out. ONE first calls
-`DELETE /api/v1/sessions/current`, then clears all browser session storage,
-stops any active camera/microphone publisher, clears cached queries, and returns
-to `/login`. Demo mode intentionally bypasses this gate so the deterministic
-review experience remains available.
-
-Account setup routes are `/create-account` (creates a home with
-`POST /api/v1/pairing/start` and signs the creator in), `/join-household` (accepts
-`POST /api/v1/family/invites/accept`), and `/onboarding` (records audio, video,
-family, and medication-purpose choices, then stores a scoped local completion
-state). Publisher pairing at `/join/:code?` remains a camera-only flow; an
-admin/caregiver must be signed in before creating a publisher code.
+The public site opens at `/`. `/login` uses email and password, backed by the FastAPI password endpoints. `/create-account` verifies an email code and sets the initial password. Password reset uses a fresh email code. Development mode exposes the code for local setup; production requires an email delivery provider. Passwords are PBKDF2-HMAC-SHA256 hashes and failed logins have a temporary lockout. Camera publishers keep their separate pairing flow.
 
 For the backend, set `VITE_API_BASE_URL` to the FastAPI `/api/v1` origin. LiveKit configuration is deliberately kept behind the backend token endpoint; the frontend must receive a room URL/token from `POST /homes/{home_id}/livekit/token`. The local Compose stack runs self-hosted LiveKit on `ws://localhost:7880` with development credentials; no LiveKit Cloud subscription is used. For a phone, override the backend's `ONE_LIVEKIT_URL` with a host-reachable LAN/Tailscale endpoint.
 
@@ -56,7 +38,17 @@ For a Tailscale-only HTTPS URL, install Tailscale on the host and run
 
 ## Routes
 
+- `/` public homepage
+- `/how-it-works` interactive explanation of scanning, cameras, Hub, check-ins and interpretation
+- `/login` email/password login and recovery
+- `/create-account` account registration
 - `/dashboard` caregiver overview
+- `/products?v=1..5` five product page concepts
+- `/products/hub?v=1..5` and `/products/camera?v=1..5` product detail concepts
+- `/products/family` and `/products/exterior` dedicated product information pages
+- `/technology?v=1..5` five technology concepts
+- `/support?v=1..5` five support concepts with searchable guides
+- `/dashboard/questions` questions and response-time signals received from check-ins
 - `/dashboard/map` camera-derived 2D map, with native LiDAR-only RoomPlan 3D
 - `/dashboard/events` meaningful-event timeline
 - `/dashboard/assistant` evidence-aware assistant
@@ -105,3 +97,4 @@ The test suite covers the dashboard, route rendering, pairing/session storage,
 and contract/SSE mapping. The local integration checklist additionally exercises
 live FastAPI pairing, consent, family invite, and logout with synthetic data;
 real camera/WebRTC and physical-device checks remain environment-dependent.
+

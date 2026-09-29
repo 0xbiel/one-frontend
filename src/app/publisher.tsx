@@ -15,34 +15,19 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSearchParams } from "react-router-dom";
 import { api, demoMode } from "../api/client";
 import type { Device } from "../models/domain";
 import { connectViewer, type ViewerConnection } from "../livekit/viewer";
+import { LocalCameraPreview } from "./LocalCameraPreview";
 
 type Pairing = { pairing_id: string; code: string; expires_at: string };
 
-export function CameraManagerPage() {
+export function CameraManagerPage({ paused = false }: { paused?: boolean }) {
   const hasSession = demoMode || Boolean(sessionStorage.getItem("one_access_token"));
-  const [searchParams, setSearchParams] = useSearchParams();
-  const requestedCameraId = searchParams.get("camera");
-  const requestedCameraIds = useMemo(
-    () => (searchParams.get("cameras") ?? "").split(",").map((value) => value.trim()).filter(Boolean),
-    [searchParams],
-  );
   const queryClient = useQueryClient();
   const camerasQuery = useQuery({ queryKey: ["cameras"], queryFn: api.getCameras, enabled: hasSession, retry: false, refetchInterval: 5_000 });
-  const roomsQuery = useQuery({ queryKey: ["rooms"], queryFn: api.getRooms, enabled: hasSession, retry: false });
   const cameras = useMemo(() => camerasQuery.data ?? [], [camerasQuery.data]);
-  const rooms = useMemo(() => roomsQuery.data ?? [], [roomsQuery.data]);
-  const scopedCameras = useMemo(() => {
-    if (!requestedCameraIds.length) return cameras;
-    const requested = new Set(requestedCameraIds);
-    const matches = cameras.filter((camera) => requested.has(camera.id));
-    return matches.length ? matches : cameras;
-  }, [cameras, requestedCameraIds]);
-  const mapScopeActive = requestedCameraIds.length > 0 && scopedCameras.length < cameras.length;
-  const [selectedId, setSelectedId] = useState<string>();
+  const [selectedId, setSelectedId] = useState<string | undefined>(() => new URLSearchParams(window.location.search).get("camera") ?? undefined);
   const [retryCount, setRetryCount] = useState(0);
   const [liveCameraId, setLiveCameraId] = useState<string | null>(null);
   const [viewerState, setViewerState] = useState<"idle" | "connecting" | "waiting" | "live" | "error">("idle");
@@ -53,7 +38,6 @@ export function CameraManagerPage() {
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
   const [savingName, setSavingName] = useState(false);
-  const [savingRoom, setSavingRoom] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
   const [pairing, setPairing] = useState<Pairing | null>(null);
   const [pairingBusy, setPairingBusy] = useState(false);
@@ -77,30 +61,12 @@ export function CameraManagerPage() {
   }, [pairingStatusQuery.data?.status, queryClient]);
 
   useEffect(() => {
-    if (requestedCameraId && scopedCameras.some((camera) => camera.id === requestedCameraId)) {
-      if (selectedId !== requestedCameraId) setSelectedId(requestedCameraId);
-      return;
-    }
-    if (selectedId && scopedCameras.some((camera) => camera.id === selectedId)) return;
-    setSelectedId(scopedCameras[0]?.id);
-  }, [requestedCameraId, scopedCameras, selectedId]);
-
-  const selectCamera = (cameraId: string) => {
-    setSelectedId(cameraId);
-    const next = new URLSearchParams(searchParams);
-    next.set("camera", cameraId);
-    setSearchParams(next, { replace: true });
-  };
-
-  const clearMapCameraScope = () => {
-    const next = new URLSearchParams(searchParams);
-    next.delete("cameras");
-    setSearchParams(next, { replace: true });
-  };
+    if (selectedId && cameras.some((camera) => camera.id === selectedId)) return;
+    setSelectedId(cameras[0]?.id);
+  }, [cameras, selectedId]);
 
   const selectedCamera = useMemo(() => cameras.find((camera) => camera.id === selectedId) ?? null, [cameras, selectedId]);
   const liveCamera = useMemo(() => cameras.find((camera) => camera.id === liveCameraId) ?? null, [cameras, liveCameraId]);
-  const roomName = (roomId?: string | null) => rooms.find((room) => room.id === roomId)?.name ?? "Unassigned";
 
   useEffect(() => {
     setNameDraft(selectedCamera?.label ?? "");
@@ -209,24 +175,6 @@ export function CameraManagerPage() {
     }
   };
 
-  const saveCameraRoom = async (roomId: string) => {
-    if (!selectedCamera || savingRoom) return;
-    setSavingRoom(true);
-    setNameError(null);
-    try {
-      await api.updateCamera(selectedCamera.id, { room_id: roomId || null });
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["cameras"] }),
-        queryClient.invalidateQueries({ queryKey: ["camera"] }),
-        queryClient.invalidateQueries({ queryKey: ["scene"] }),
-      ]);
-    } catch {
-      setNameError("The room assignment could not be saved.");
-    } finally {
-      setSavingRoom(false);
-    }
-  };
-
   const removeCamera = async () => {
     if (!selectedCamera || !window.confirm(`Remove ${selectedCamera.label}? Its permanent reconnect link and live access will stop.`)) return;
     setRemoving(true);
@@ -258,12 +206,9 @@ export function CameraManagerPage() {
           <h2>Camera Manager</h2>
           <p>See every paired camera, check its connection, rename it, watch the live view, or revoke it from this household.</p>
         </div>
-        <div className="camera-manager-heading-actions">
-          <a className="secondary-button" href="/join" target="_blank" rel="noopener noreferrer">Use this computer as a camera</a>
-          <button className="primary-button" onClick={() => void startPairing()} disabled={pairingBusy}>
-            <Plus size={16} /> {pairingBusy ? "Creating code…" : "Pair camera"}
-          </button>
-        </div>
+        <button className="primary-button" onClick={() => void startPairing()} disabled={pairingBusy}>
+          <Plus size={16} /> {pairingBusy ? "Creating code…" : "Pair camera"}
+        </button>
       </header>
 
       {pairing && (
@@ -280,39 +225,29 @@ export function CameraManagerPage() {
             <strong>{pairing.code}</strong>
             <span className={`camera-status ${pairingStatus === "connected" ? "online" : ""}`}><i /> {pairingStatus === "connected" ? "Connected" : pairingStatus === "expired" ? "Expired" : "Waiting"}</span>
           </div>
-          <div className="manager-pairing-actions">
-            {pairingStatus !== "expired" && pairingStatus !== "connected" && (
-              <a className="secondary-button" href={`/join/${pairing.code}`} target="_blank" rel="noopener noreferrer">Open on this computer</a>
-            )}
-            <button className="secondary-button" onClick={() => void copyPairingLink()} disabled={pairingStatus === "expired"}>
-              {pairingCopied ? <><Check size={15} /> Camera link copied</> : <><Copy size={15} /> Copy camera link</>}
-            </button>
-          </div>
+          <button className="secondary-button" onClick={() => void copyPairingLink()} disabled={pairingStatus === "expired"}>
+            {pairingCopied ? <><Check size={15} /> Camera link copied</> : <><Copy size={15} /> Copy camera link</>}
+          </button>
         </section>
       )}
       {pairingError && <div className="error-note camera-manager-error" role="alert">{pairingError}</div>}
 
+      {paused ? <div className="panel" role="status">La captación de cámaras está pausada.</div> : <LocalCameraPreview />}
       <div className="camera-manager-layout">
         <aside className="panel camera-list-panel">
           <div className="camera-list-heading">
             <span className="eyebrow">CONNECTED DEVICES</span>
-            <strong>{scopedCameras.length} {scopedCameras.length === 1 ? "camera" : "cameras"}</strong>
+            <strong>{cameras.length} {cameras.length === 1 ? "camera" : "cameras"}</strong>
           </div>
-          {mapScopeActive && (
-            <div className="camera-map-scope" role="status">
-              <span><strong>Map selection</strong>{scopedCameras.length} camera{scopedCameras.length === 1 ? "" : "s"} cover this area.</span>
-              <button type="button" className="text-button" onClick={clearMapCameraScope}>Show all</button>
-            </div>
-          )}
           <div className="camera-manager-list">
-            {scopedCameras.map((camera: Device) => (
-              <button key={camera.id} className={`camera-manager-row ${camera.id === selectedId ? "active" : ""}`} onClick={() => selectCamera(camera.id)}>
+            {cameras.map((camera: Device) => (
+              <button key={camera.id} className={`camera-manager-row ${camera.id === selectedId ? "active" : ""}`} onClick={() => setSelectedId(camera.id)}>
                 <span className="camera-row-icon"><Video size={17} /></span>
-                <span className="camera-row-copy"><strong>{camera.label}</strong><small>{roomName(camera.roomId)}</small></span>
+                <span className="camera-row-copy"><strong>{camera.label}</strong><small>{typeof camera.metadata?.room === "string" ? camera.metadata.room : "Room camera"}</small></span>
                 <span className={`camera-status ${camera.status === "online" ? "online" : camera.status === "paused" ? "paused" : ""}`}><i /> {camera.status}</span>
               </button>
             ))}
-            {!scopedCameras.length && (
+            {!cameras.length && (
               <div className="camera-manager-empty">
                 <Camera size={28} />
                 <strong>No cameras paired</strong>
@@ -376,7 +311,7 @@ export function CameraManagerPage() {
                 <div className="camera-detail-grid">
                   <div><span>Status</span><strong className={`camera-detail-status ${selectedCamera.status}`}>{selectedCamera.status}</strong></div>
                   <div><span>Type</span><strong>{selectedCamera.platform || "Browser camera"}</strong></div>
-                  <div><span>Room</span><strong>{roomName(selectedCamera.roomId)}</strong></div>
+                  <div><span>Room</span><strong>{typeof selectedCamera.metadata?.room === "string" ? selectedCamera.metadata.room : "Not assigned"}</strong></div>
                   <div><span>Paired</span><strong>{new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(new Date(selectedCamera.lastSeenAt))}</strong></div>
                 </div>
                 <label className="camera-name-field">Camera name
@@ -384,16 +319,6 @@ export function CameraManagerPage() {
                     <input value={nameDraft} onChange={(event) => setNameDraft(event.target.value)} disabled={!editingName || savingName} />
                     {editingName && <button className="primary-button" onClick={() => void saveCameraName()} disabled={!nameDraft.trim() || savingName}><Save size={14} /> {savingName ? "Saving…" : "Save"}</button>}
                   </div>
-                </label>
-                <label className="camera-name-field">Room
-                  <select
-                    value={selectedCamera.roomId ?? ""}
-                    onChange={(event) => void saveCameraRoom(event.target.value)}
-                    disabled={savingRoom}
-                  >
-                    <option value="">Unassigned</option>
-                    {rooms.map((room) => <option key={room.id} value={room.id}>{room.name}</option>)}
-                  </select>
                 </label>
                 <div className="camera-reconnect-note"><LockKeyhole size={15} /><span><strong>Permanent camera reconnect</strong><small>The camera device keeps a private reconnect link after pairing. Reloads and normal session expiry return to this same camera; removing it revokes that link.</small></span></div>
                 {nameError && <div className="error-note" role="alert">{nameError}</div>}
