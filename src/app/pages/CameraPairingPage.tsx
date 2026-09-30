@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   Camera,
@@ -10,6 +11,8 @@ import {
 } from "lucide-react";
 import { api, cameraReconnectUrl, getCameraReconnect } from "../../api/client";
 import { CameraSetupCard } from "../../camera/CameraSetupCard";
+import { stopActivePublisher } from "../../livekit/registry";
+import { restoreDashboardSession } from "../cameraReturnSession";
 
 function sanitizeCode(value: string) {
   return value.replace(/\D/g, "").slice(0, 6);
@@ -53,6 +56,8 @@ export function PublisherPage({
 }
 
 export function JoinPage() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { code: pathCode } = useParams<{ code?: string }>();
   const [code, setCode] = useState(sanitizeCode(pathCode ?? ""));
   const [connected, setConnected] = useState(false);
@@ -114,6 +119,7 @@ export function JoinPage() {
       const result = await api.completePairing(code);
       if (result.reconnect_token) setPermanentUrl(cameraReconnectUrl(result.user_id, result.reconnect_token));
       setConnected(true);
+      queryClient.clear();
     } catch {
       setError("That pairing code is invalid or expired. Ask the caregiver for a new one.");
     } finally {
@@ -126,7 +132,12 @@ export function JoinPage() {
       <main className={`camera-pairing-shell ${connected ? "is-connected" : ""}`}>
         <header className="ios-auth-header" aria-label="ONE"><img className="one-logo" src="/one-logo.png" alt="" aria-hidden="true" /><span className="wordmark">ONE</span></header>
         <section className={`camera-pairing-card ios-camera-card ${connected ? "is-connected" : ""}`}>
-          <button className="camera-back-button" type="button" onClick={() => window.history.back()}>
+          <button className="camera-back-button" type="button" onClick={() => {
+            stopActivePublisher();
+            const restored = restoreDashboardSession();
+            if (restored) queryClient.clear();
+            navigate(connected && !restored ? "/publisher" : "/dashboard", { replace: true });
+          }}>
             <ArrowLeft size={15} /> Back
           </button>
           <div className="ios-auth-symbol camera-pairing-symbol" aria-hidden="true"><Camera size={27} /></div>
@@ -210,7 +221,16 @@ export function CameraReconnectPage({
   onTogglePause: () => void;
 }) {
   const { cameraId = "" } = useParams<{ cameraId: string }>();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [state, setState] = useState<"connecting" | "connected" | "error">("connecting");
+
+  const returnToDashboard = () => {
+    stopActivePublisher();
+    const restored = restoreDashboardSession();
+    if (restored) queryClient.clear();
+    navigate(restored ? "/dashboard" : "/join", { replace: true });
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -239,11 +259,15 @@ export function CameraReconnectPage({
     return () => { cancelled = true; };
   }, [cameraId]);
 
-  if (state === "connected") return <PublisherPage paused={paused} onTogglePause={onTogglePause} />;
+  if (state === "connected") return <div>
+    <button className="camera-back-button" type="button" onClick={returnToDashboard}><ArrowLeft size={15} /> Back to dashboard</button>
+    <PublisherPage paused={paused} onTogglePause={onTogglePause} />
+  </div>;
 
   return (
     <div className="join-page camera-pairing-page">
       <section className="join-card camera-pairing-card panel">
+        <button className="camera-back-button" type="button" onClick={returnToDashboard}><ArrowLeft size={15} /> Back to dashboard</button>
         <div className="camera-pairing-brand" aria-label="ONE camera">
           <img className="one-logo large" src="/one-logo.png" alt="" aria-hidden="true" />
           <span className="camera-pairing-icon" aria-hidden="true"><Camera size={18} /></span>

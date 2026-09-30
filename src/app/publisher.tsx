@@ -15,8 +15,9 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSearchParams } from "react-router-dom";
-import { api, demoMode } from "../api/client";
+import { Link, useSearchParams } from "react-router-dom";
+import { api, demoMode, getCameraReconnect } from "../api/client";
+import { rememberDashboardSession } from "./cameraReturnSession";
 import type { Device } from "../models/domain";
 import { connectViewer, type ViewerConnection } from "../livekit/viewer";
 
@@ -99,6 +100,8 @@ export function CameraManagerPage() {
   };
 
   const selectedCamera = useMemo(() => cameras.find((camera) => camera.id === selectedId) ?? null, [cameras, selectedId]);
+  const savedCamera = (selectedCamera && getCameraReconnect(selectedCamera.id) ? selectedCamera : null)
+    ?? cameras.find((camera) => getCameraReconnect(camera.id));
   const liveCamera = useMemo(() => cameras.find((camera) => camera.id === liveCameraId) ?? null, [cameras, liveCameraId]);
   const roomName = (roomId?: string | null) => rooms.find((room) => room.id === roomId)?.name ?? "Unassigned";
 
@@ -259,7 +262,9 @@ export function CameraManagerPage() {
           <p>See every paired camera, check its connection, rename it, watch the live view, or revoke it from this household.</p>
         </div>
         <div className="camera-manager-heading-actions">
-          <a className="secondary-button" href="/join" target="_blank" rel="noopener noreferrer">Use this computer as a camera</a>
+          <Link className="secondary-button" to={savedCamera ? `/camera/${encodeURIComponent(savedCamera.id)}` : "/join"} onClick={rememberDashboardSession}>
+            {savedCamera ? `Reconnect ${savedCamera.label} on this computer` : "Use this computer as a camera"}
+          </Link>
           <button className="primary-button" onClick={() => void startPairing()} disabled={pairingBusy}>
             <Plus size={16} /> {pairingBusy ? "Creating code…" : "Pair camera"}
           </button>
@@ -282,7 +287,7 @@ export function CameraManagerPage() {
           </div>
           <div className="manager-pairing-actions">
             {pairingStatus !== "expired" && pairingStatus !== "connected" && (
-              <a className="secondary-button" href={`/join/${pairing.code}`} target="_blank" rel="noopener noreferrer">Open on this computer</a>
+              <Link className="secondary-button" to={`/join/${pairing.code}`} onClick={rememberDashboardSession}>Open on this computer</Link>
             )}
             <button className="secondary-button" onClick={() => void copyPairingLink()} disabled={pairingStatus === "expired"}>
               {pairingCopied ? <><Check size={15} /> Camera link copied</> : <><Copy size={15} /> Copy camera link</>}
