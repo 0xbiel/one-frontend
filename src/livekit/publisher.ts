@@ -1,4 +1,4 @@
-import { LocalAudioTrack, LocalVideoTrack, Room, RoomEvent } from 'livekit-client';
+import { LocalAudioTrack, LocalVideoTrack, Room, RoomEvent, Track } from 'livekit-client';
 
 export interface PublisherConnection { room: Room; disconnect: () => void; }
 
@@ -19,8 +19,8 @@ export async function connectPublisher(url: string, token: string, stream: Media
     if (!videoTrack || !audioTrack) throw new Error('CAMERA_TRACKS_UNAVAILABLE');
     // Reuse the user-approved preview tracks. Calling setCameraEnabled and
     // setMicrophoneEnabled here would request a second capture on iOS Safari.
-    await room.localParticipant.publishTrack(new LocalVideoTrack(videoTrack, undefined, true));
-    await room.localParticipant.publishTrack(new LocalAudioTrack(audioTrack, undefined, true));
+    await room.localParticipant.publishTrack(new LocalVideoTrack(videoTrack, undefined, true), { source: Track.Source.Camera });
+    await room.localParticipant.publishTrack(new LocalAudioTrack(audioTrack, undefined, true), { source: Track.Source.Microphone });
     return { room, disconnect };
   } catch (error) {
     disconnect();

@@ -9,8 +9,9 @@ import {
   Video,
   X,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { api, demoMode } from "../api/client";
+import { Link, useNavigate } from "react-router-dom";
+import { api, demoMode, getCameraReconnect } from "../api/client";
+import { rememberDashboardSession } from "./cameraReturnSession";
 import type { HomeEvent, LastSeenObject, Session } from "../models/domain";
 import { EventRow, ObjectCard } from "./shared";
 
@@ -299,6 +300,10 @@ export function OverviewPage({
                 </div>
                 <strong>{pairing.code}</strong>
                 <span className="muted">Expires in 10 minutes · one use only</span>
+                <Link className="secondary-button" to={`/join/${pairing.code}`} onClick={rememberDashboardSession}>
+                  Open camera setup on this computer <ChevronRight size={15} />
+                </Link>
+                <span className="muted">For another device, open this website&apos;s /join page there and enter the code.</span>
               </div>
             )}
             <div
@@ -331,6 +336,11 @@ export function OverviewPage({
             </div>
             {cameraConnected ? (
               <div className="pairing-setup-panel">
+                {resumedCamera && getCameraReconnect(resumedCamera.id) && (
+                  <Link className="secondary-button" to={`/camera/${encodeURIComponent(resumedCamera.id)}`} onClick={rememberDashboardSession}>
+                    Reconnect this computer as {resumedCamera.label}
+                  </Link>
+                )}
                 <div className="pairing-setup-intro">
                     <span className="pairing-setup-icon" aria-hidden="true"><Camera size={17} /></span>
                   <div>
