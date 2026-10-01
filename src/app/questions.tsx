@@ -10,6 +10,7 @@ const displayDay = (value: Date) => new Intl.DateTimeFormat("en", { month: "shor
 const dayKey = (value: Date) => `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
 
 function ResponseChart({ questions, range }: { questions: CheckInQuestion[]; range: Range }) {
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const days = range === "30 Days" ? 30 : 7;
   const buckets = useMemo(() => Array.from({ length: days }, (_, index) => {
     const date = new Date(); date.setDate(date.getDate() - (days - index - 1));
@@ -31,18 +32,19 @@ function ResponseChart({ questions, range }: { questions: CheckInQuestion[]; ran
       {[39,87,136,184].map((y) => <line key={y} x1="52" y1={y} x2="712" y2={y} stroke="#ffffff25" strokeWidth="1" />)}
       <text x="6" y="43">{Math.round(ceiling / 1000)}s</text><text x="8" y="90">{Math.round(ceiling * 2 / 3 / 1000)}s</text><text x="8" y="139">{Math.round(ceiling / 3 / 1000)}s</text><text x="19" y="188">0s</text>
       {baselineMs !== null && <line x1="52" y1={point(0, baselineMs).y} x2="712" y2={point(0, baselineMs).y} stroke="#b5eaf2" strokeDasharray="5 6" strokeWidth="1.5" />}
-      {seen.length > 1 && <path d={path} fill="none" stroke="url(#signals-line)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />}
-      {buckets.map((item, index) => item.response === null ? null : <circle key={item.key} cx={point(index, item.response).x} cy={point(index, item.response).y} r="5" fill="#c9f9ff" stroke="#0e6078" strokeWidth="1.5" />)}
+      {seen.length > 1 && <path className="response-chart-line" key={range} d={path} pathLength="1" fill="none" stroke="url(#signals-line)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />}
+      {buckets.map((item, index) => item.response === null ? null : <circle key={item.key} className="response-chart-point" cx={point(index, item.response).x} cy={point(index, item.response).y} r={selectedDay === item.key ? "7" : "5"} fill="#c9f9ff" stroke="#0e6078" strokeWidth="1.5" role="button" tabIndex={0} aria-label={`${item.label}: ${Math.round(item.response / 1000)} seconds`} onClick={() => setSelectedDay(item.key)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedDay(item.key); } }} />)}
       {buckets.filter((_, index) => days === 7 || index % 5 === 0 || index === days - 1).map((item) => <text key={item.key} className="chart-date" x={point(buckets.indexOf(item), 0).x} y="209" textAnchor="middle">{item.label}</text>)}
     </svg>
+    {selectedDay && <div className="chart-selection" role="status">{buckets.find((item) => item.key === selectedDay)?.label}: {Math.round((buckets.find((item) => item.key === selectedDay)?.response ?? 0) / 1000)} seconds · sample response time</div>}
     <div className="response-chart-footer"><span><i className="average" /> Average response time</span><span><i className="baseline" /> Personal baseline{baselineMs !== null ? ` · ${Math.round(baselineMs / 1000)} sec` : ""}</span><em>Observed pattern · not a diagnosis</em></div>
-    {!seen.length && <div className="response-chart-empty">Waiting for response times from the hub</div>}
+    {!seen.length && <div className="response-chart-empty">{demoMode ? "No sample answers for this person or period" : "Individual response times are not stored yet"}</div>}
   </div>;
 }
 
-export function QuestionsPage() {
+export function QuestionsPage({ recipientId }: { recipientId: string }) {
   const [range, setRange] = useState<Range>("Today");
-  const query = useQuery({ queryKey: ["check-in-questions"], queryFn: api.getCheckInQuestions, refetchInterval: demoMode ? false : 30_000, retry: false });
+  const query = useQuery({ queryKey: ["check-in-questions", recipientId], queryFn: () => api.getCheckInQuestions(recipientId || null), refetchInterval: demoMode ? false : 30_000, retry: false });
   const questions = query.data ?? [];
   const now = new Date();
   const filtered = questions.filter((item) => {
@@ -51,8 +53,8 @@ export function QuestionsPage() {
   }).sort((a, b) => a.askedAt.localeCompare(b.askedAt));
   return <div className="questions-page">
     <header className="questions-heading"><div><span className="eyebrow">QUESTIONS & SIGNALS</span><h2>Questions & Signals</h2><p>Review the questions asked during check-ins and the signals around each answer.</p></div><div className="questions-range" role="group" aria-label="Time range">{(["Today", "7 Days", "30 Days"] as Range[]).map((option) => <button key={option} className={range === option ? "active" : ""} onClick={() => setRange(option)}>{option}</button>)}</div></header>
-    <div className="questions-overview"><ResponseChart questions={questions} range={range} /><aside className="questions-context"><span className="eyebrow">WHY WE FOLLOW THIS</span><h3>Every answer has context.</h3><p>ONE compares response time with the person's own recent baseline.</p><div><Check size={15} /> Adapts to individual patterns</div><div><Check size={15} /> Helps identify meaningful changes</div><div><Check size={15} /> Keeps responses in context</div></aside></div>
-    <section className="panel questions-table-panel"><div className="questions-table-heading"><div><h3>Questions asked {range === "Today" ? "today" : `in the last ${range.toLowerCase()}`}</h3><p>These are the questions received from the hub, with response times and related signals.</p></div><span>{filtered.length} questions <ChevronRight size={15} /></span></div><div className="questions-table-scroll"><table><thead><tr><th>#</th><th>Question</th><th>Answer</th><th>Pulse</th><th>Response time</th><th>Time</th></tr></thead><tbody>{filtered.map((item, index) => <tr key={item.id}><td>{index + 1}</td><td>{item.question}</td><td><span className={item.answer ? "answer-ok" : "answer-missing"} />{item.answer || "No answer"}</td><td>{item.pulseBpm === null ? "—" : `${item.pulseBpm} BPM`}</td><td>{item.responseTimeMs === null ? "—" : `${Math.round(item.responseTimeMs / 1000)} seconds`}</td><td>{displayTime(item.askedAt)}</td></tr>)}</tbody></table>{!filtered.length && <p className="questions-empty">{query.isError ? "The hub could not be reached. Check the connection and try again." : "No questions received for this period."}</p>}</div></section>
+    <div className="questions-overview"><ResponseChart questions={questions} range={range} /><aside className="questions-context"><span className="eyebrow">ABOUT PERSONAL BASELINE</span><h3>{demoMode ? "Your personal baseline" : "Question history is not available yet"}</h3><p>{demoMode ? "These sample times show how a resident's answers can be compared with their own recent pattern." : "Check-in summaries are available, but the service does not store individual answers or response times yet."}</p><div><Check size={15} /> Adapts to individual patterns</div><div><Check size={15} /> Helps identify meaningful changes</div><div><Check size={15} /> Keeps responses in context</div></aside></div>
+    <section className="panel questions-table-panel"><div className="questions-table-heading"><div><h3>Questions asked {range === "Today" ? "today" : `in the last ${range.toLowerCase()}`}</h3><p>{demoMode ? "Sample questions, response times and related signals." : "Question-level history will appear here when the service supports it."}</p></div><span>{filtered.length} questions <ChevronRight size={15} /></span></div><div className="questions-table-scroll"><table><thead><tr><th>#</th><th>Question</th><th>Answer</th><th>Pulse</th><th>Response time</th><th>Time</th></tr></thead><tbody>{filtered.map((item, index) => <tr key={item.id}><td>{index + 1}</td><td>{item.question}</td><td><span className={item.answer ? "answer-ok" : "answer-missing"} />{item.answer || "No answer"}</td><td>{item.pulseBpm === null ? "—" : `${item.pulseBpm} BPM`}</td><td>{item.responseTimeMs === null ? "—" : `${Math.round(item.responseTimeMs / 1000)} seconds`}</td><td>{displayTime(item.askedAt)}</td></tr>)}</tbody></table>{!filtered.length && <p className="questions-empty">{query.isError ? "The sample history could not be loaded." : demoMode ? "No sample questions for this person or period." : "Individual questions and response times are not available from the current API."}</p>}</div></section>
     {demoMode && <p className="questions-demo-note">Demo data · connect the backend for household information.</p>}
   </div>;
 }
