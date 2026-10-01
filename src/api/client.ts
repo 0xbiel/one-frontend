@@ -19,6 +19,7 @@ import type {
   Zone,
 } from '../models/domain';
 import { demoDevice, demoEvents, demoObjects, demoScene, demoSession } from '../demo/data';
+import { demoQuestionHistory } from '../demo/history';
 import type { paths } from './schema';
 
 const configuredApiBase = import.meta.env.VITE_API_BASE_URL;
@@ -84,12 +85,13 @@ export interface CheckInQuestion {
   baselineMs: number | null;
   pulseBpm: number | null;
   askedAt: string;
+  isRepeat?: boolean;
 }
 export interface DailyCheckInInput {
   subjectUserId?: string | null;
   questions: Array<{ question: string; answer: string; responseTimeMs: number | null; baselineMs: number | null; pulseBpm: number | null }>;
 }
-const demoDailyQuestions: CheckInQuestion[] = [];
+const demoDailyQuestions: CheckInQuestion[] = [...demoQuestionHistory];
 interface BackendCheckInQuestion {
   id: string; summary_id: string; question: string; answer: string;
   response_time_ms: number | null; baseline_ms: number | null;
@@ -829,7 +831,7 @@ export const api = {
     return careRecipientId ? rows.filter((item) => !item.careRecipientId || item.careRecipientId === careRecipientId) : rows;
   },
   getEvents: async (careRecipientId?: string | null): Promise<HomeEvent[]> => demoMode
-    ? demoEvents.filter((event) => !careRecipientId || event.careRecipientId === careRecipientId || !event.careRecipientId)
+    ? demoEvents.filter((event) => !careRecipientId || event.careRecipientId === careRecipientId || !event.careRecipientId).sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))
     : request<{ data: BackendEvent[] }>(`/homes/${homeId()}/events?limit=100${careRecipientId ? `&care_recipient_id=${encodeURIComponent(careRecipientId)}&include_household=true` : ''}`).then((r) => r.data.map(mapBackendEvent)),
   getCaregiverSummaries: async (careRecipientId?: string | null): Promise<CaregiverSummary[]> => {
     if (demoMode) {
@@ -863,7 +865,9 @@ export const api = {
         const askedAt = new Date(); askedAt.setDate(askedAt.getDate() - (6 - index)); askedAt.setHours(8, 23, 0, 0);
         return { id: `demo-q-history-${index}`, summaryId: 'demo-summary-2', careRecipientId: 'recipient-manuel', question: 'How are you feeling today?', answer: 'Answered', responseTimeMs, baselineMs: 9_000, pulseBpm: 74, askedAt: askedAt.toISOString() };
       });
-      return [...demoDailyQuestions, ...current, ...history].filter((item) => !careRecipientId || item.careRecipientId === careRecipientId);
+      return [...demoDailyQuestions, ...current, ...history]
+        .filter((item) => !careRecipientId || item.careRecipientId === careRecipientId)
+        .sort((a, b) => b.askedAt.localeCompare(a.askedAt));
     }
     // The backend currently stores check-in summaries, not individual answers or timing.
     return [];
@@ -1098,17 +1102,17 @@ export const api = {
   },
   getFamilyMembers: async (): Promise<FamilyMember[]> => demoMode ? [] : (await request<{ data: FamilyMember[] }>(`/homes/${homeId()}/family/members`)).data,
   createFamilyInvite: async (displayName: string, email: string, role: 'resident' | 'caregiver' = 'caregiver'): Promise<FamilyInviteResponse> => demoMode ? { id: 'invite-demo', code: '482701', role, expires_in_seconds: 86400, synthetic_demo: true } : request<FamilyInviteResponse>(`/homes/${homeId()}/family/invites`, { method: 'POST', body: JSON.stringify({ display_name: displayName, email: email || null, role, expires_in_seconds: 86400 }) }),
-  updateFamilyMember: async (memberId: string, role: EditableFamilyRole): Promise<FamilyMemberMutationResponse> => demoMode ? { data: { id: memberId, display_name: 'Demo family member', role, created_at: new Date().toISOString(), synthetic_demo: true }, invalidated_sessions: 0 } : request<FamilyMemberMutationResponse>(`/homes/${homeId()}/family/members/${encodeURIComponent(memberId)}`, { method: 'PATCH', body: JSON.stringify({ role }) }),
-  removeFamilyMember: async (memberId: string): Promise<FamilyMemberMutationResponse> => demoMode ? { data: { id: memberId, display_name: 'Demo family member', role: 'resident', created_at: new Date().toISOString(), synthetic_demo: true }, invalidated_sessions: 0 } : request<FamilyMemberMutationResponse>(`/homes/${homeId()}/family/members/${encodeURIComponent(memberId)}`, { method: 'DELETE' }),
+  updateFamilyMember: async (memberId: string, role: EditableFamilyRole): Promise<FamilyMemberMutationResponse> => demoMode ? { data: { id: memberId, display_name: 'Family member', role, created_at: new Date().toISOString(), synthetic_demo: true }, invalidated_sessions: 0 } : request<FamilyMemberMutationResponse>(`/homes/${homeId()}/family/members/${encodeURIComponent(memberId)}`, { method: 'PATCH', body: JSON.stringify({ role }) }),
+  removeFamilyMember: async (memberId: string): Promise<FamilyMemberMutationResponse> => demoMode ? { data: { id: memberId, display_name: 'Household member', role: 'resident', created_at: new Date().toISOString(), synthetic_demo: true }, invalidated_sessions: 0 } : request<FamilyMemberMutationResponse>(`/homes/${homeId()}/family/members/${encodeURIComponent(memberId)}`, { method: 'DELETE' }),
   getMedicationReminders: async (day = new Date().toISOString().slice(0, 10), subjectUserId?: string): Promise<MedicationReminder[]> => demoMode ? [] : (await request<{ data: MedicationReminder[] }>(`/homes/${homeId()}/medication-reminders?day=${encodeURIComponent(day)}${subjectUserId ? `&subject_user_id=${encodeURIComponent(subjectUserId)}` : ''}`)).data,
   getMedicationPlans: async (subjectUserId?: string, activeOnly = true): Promise<MedicationPlan[]> => demoMode ? [] : (await request<{ data: MedicationPlan[] }>(`/homes/${homeId()}/medication-plans?active_only=${activeOnly}${subjectUserId ? `&subject_user_id=${encodeURIComponent(subjectUserId)}` : ''}`)).data,
   createMedicationPlan: async (input: Omit<MedicationPlan, 'id' | 'active' | 'version'> & { active?: boolean }): Promise<MedicationPlan> => demoMode ? { ...input, id: 'plan-demo', active: input.active ?? true, version: 1 } : request<MedicationPlan>(`/homes/${homeId()}/medication-plans`, { method: 'POST', body: JSON.stringify(input) }),
-  updateMedicationPlan: async (planId: string, input: Partial<Pick<MedicationPlan, 'name' | 'dose' | 'schedule' | 'instructions' | 'active' | 'assigned_caregiver_id'>> & { version?: number }): Promise<MedicationPlan> => demoMode ? { id: planId, subject_user_id: 'user-demo', name: input.name ?? 'Demo plan', dose: input.dose ?? '', schedule: input.schedule ?? '', instructions: input.instructions ?? '', active: input.active ?? true, version: (input.version ?? 1) + 1, assigned_caregiver_id: input.assigned_caregiver_id } : request<MedicationPlan>(`/homes/${homeId()}/medication-plans/${encodeURIComponent(planId)}`, { method: 'PATCH', body: JSON.stringify(input) }),
+  updateMedicationPlan: async (planId: string, input: Partial<Pick<MedicationPlan, 'name' | 'dose' | 'schedule' | 'instructions' | 'active' | 'assigned_caregiver_id'>> & { version?: number }): Promise<MedicationPlan> => demoMode ? { id: planId, subject_user_id: 'user-demo', name: input.name ?? 'Daily plan', dose: input.dose ?? '', schedule: input.schedule ?? '', instructions: input.instructions ?? '', active: input.active ?? true, version: (input.version ?? 1) + 1, assigned_caregiver_id: input.assigned_caregiver_id } : request<MedicationPlan>(`/homes/${homeId()}/medication-plans/${encodeURIComponent(planId)}`, { method: 'PATCH', body: JSON.stringify(input) }),
   updateMedicationCheckIn: async (planId: string, scheduledFor: string, status: MedicationCheckInStatus, note = ''): Promise<void> => {
     if (demoMode) return;
     await request(`/homes/${homeId()}/medication-plans/${encodeURIComponent(planId)}/check-ins`, { method: 'POST', body: JSON.stringify({ scheduled_for: scheduledFor, status, note }) });
   },
-  askFamilyAssistant: async (message: string, subjectUserId?: string) => demoMode ? { degraded: true, data: { summary: 'Demo mode keeps the organizer local.', next_action: 'Connect a backend family consent to review live reminders.', evidence_ids: [], limitations: 'Administrative summary only; not medical advice.' } } : request(`/homes/${homeId()}/family-assistant`, { method: 'POST', body: JSON.stringify({ message, subject_user_id: subjectUserId ?? null }) }),
+  askFamilyAssistant: async (message: string, subjectUserId?: string) => demoMode ? { degraded: true, data: { summary: 'The household organizer can review available reminders.', next_action: 'Review scheduled reminders after household consent is set up.', evidence_ids: [], limitations: 'Administrative summary only; not medical advice.' } } : request(`/homes/${homeId()}/family-assistant`, { method: 'POST', body: JSON.stringify({ message, subject_user_id: subjectUserId ?? null }) }),
 };
 
 export type ApiClient = typeof api;

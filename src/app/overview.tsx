@@ -107,6 +107,7 @@ export function OverviewPage({
   const homeName = session?.home.name ?? "The García home";
   const recipientsQuery = useQuery({ queryKey: ["care-recipients", session?.home.id], queryFn: api.getCareRecipients, enabled: demoMode || Boolean(session), retry: false });
   const residentName = recipientsQuery.data?.find((person) => person.id === recipientId)?.display_name ?? session?.home.residentName ?? "Resident";
+  const recentEvents = events.slice(0, 3);
   const checkInEvent = events.find((event) => event.careRecipientId === recipientId && (event.eventType === "daily_check_in" || /check[- ]?in/i.test(event.title)) && new Date(event.occurredAt).toDateString() === new Date().toDateString());
   const summariesQuery = useQuery({ queryKey: ["caregiver-summaries", session?.home.id, recipientId], queryFn: () => api.getCaregiverSummaries(recipientId || null), enabled: demoMode || Boolean(session), retry: false });
   const todaySummary = summariesQuery.data?.find((item) => item.careRecipientId === recipientId && new Date(item.createdAt).toDateString() === new Date().toDateString());
@@ -218,7 +219,7 @@ export function OverviewPage({
             <p>{savedCamera ? "Review the camera name, placement, or room map." : "Connect a camera to begin receiving home observations."}</p>
           </div>
           <button className="home-camera-action" onClick={() => demoMode ? navigate("/dashboard/cameras") : void openPairing()}>
-            {demoMode ? "View sample cameras" : savedCamera ? "Camera setup" : "Pair camera"} <ChevronRight size={16} />
+            {demoMode ? "View camera rooms" : savedCamera ? "Camera setup" : "Pair camera"} <ChevronRight size={16} />
           </button>
         </div>
       </section>
@@ -474,7 +475,7 @@ export function OverviewPage({
           </button>
         </div>
         <div className="observation-grid">
-          {events.slice(0, 3).map((event) => (
+          {recentEvents.map((event) => (
             <EventRow key={event.id} event={event} onClick={() => onEvent(event)} />
           ))}
         </div>
@@ -502,7 +503,7 @@ export function OverviewPage({
         <div className="section-heading"><div><span className="eyebrow">HOME AT A GLANCE</span><h3>Home at a glance</h3></div></div>
         <div className="home-glance-grid">
           <button onClick={() => navigate("/dashboard/cameras")}><Camera size={19} /><span><strong>{camerasQuery.data?.filter((camera) => camera.status === "online").length ?? 0} camera{camerasQuery.data?.filter((camera) => camera.status === "online").length === 1 ? "" : "s"} online</strong><small>Review camera status</small></span><ChevronRight size={16} /></button>
-          <button onClick={() => navigate("/dashboard/events")}><Video size={19} /><span><strong>{events.length} recent observations</strong><small>{demoMode ? "Sample household activity" : "Household activity for review"}</small></span><ChevronRight size={16} /></button>
+          <button onClick={() => navigate("/dashboard/events")}><Video size={19} /><span><strong>{recentEvents.length} recent observations</strong><small>Latest household activity</small></span><ChevronRight size={16} /></button>
           <button onClick={() => navigate("/dashboard/live")}><Check size={19} /><span><strong>{hasCheckIn ? "Check-in recorded" : "No check-in yet"}</strong><small>Today’s status for {residentName}</small></span><ChevronRight size={16} /></button>
         </div>
       </section>

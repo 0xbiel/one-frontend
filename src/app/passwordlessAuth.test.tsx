@@ -1,9 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
-import { api } from "../api/client";
 import type { EmailChallenge, EmailSession } from "../api/client";
-import { LoginPage } from "./login";
 
 const challenge: EmailChallenge = {
   verification_id: "verification-1",
@@ -34,8 +32,13 @@ afterEach(() => {
 
 describe("passwordless account access", () => {
   it("signs in by checking a one-time code for the submitted email", async () => {
-    const requestCode = vi.spyOn(api, "requestEmailCode").mockResolvedValue(challenge);
-    const verifyCode = vi.spyOn(api, "verifyEmailCode").mockResolvedValue(session);
+    const requestCode = vi.fn().mockResolvedValue(challenge);
+    const verifyCode = vi.fn().mockResolvedValue(session);
+    vi.doMock("../api/client", async () => {
+      const actual = await vi.importActual<typeof import("../api/client")>("../api/client");
+      return { ...actual, demoMode: false, api: { ...actual.api, requestEmailCode: requestCode, verifyEmailCode: verifyCode } };
+    });
+    const { LoginPage } = await import("./login");
     render(<MemoryRouter><LoginPage /></MemoryRouter>);
 
     expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();

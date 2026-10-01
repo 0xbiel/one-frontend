@@ -7,8 +7,8 @@ import "./siteHomeExperience.css";
 
 const homeProducts = [
   { name: "ONE Hub", to: "/products/hub", image: "/product-assets/hub-product-v3.png", description: "A display concept for home information." },
-  { name: "Standing Camera", to: "/products/camera", image: "/product-assets/camera-anatomy/standing-camera.webp", description: "An illustrative indoor camera concept." },
-  { name: "Wall Camera", to: "/products/exterior", image: "/product-assets/camera-anatomy/wall-camera.webp", description: "An illustrative wall-mounted camera concept." },
+  { name: "Standing Camera", to: "/products/camera", image: "/product-assets/camera-anatomy/standing-camera.webp", description: "An indoor camera for the home." },
+  { name: "Wall Camera", to: "/products/exterior", image: "/product-assets/camera-anatomy/wall-camera.webp", description: "A wall-mounted camera for the home." },
   { name: "ONE Family", to: "/products/family", image: "/one-app-icon-512.png", description: "Shared information for people with access." },
 ];
 
@@ -18,17 +18,17 @@ function HomeSystemPreview() {
   const rooms = ["Bedroom", "Bath", "Living room", "Kitchen"];
 
   return <div className="one-public-system-preview">
-    <div className="one-public-preview-topline"><strong>ONE HOME</strong><span>Sample preview</span></div>
-    <div className="one-public-preview-tabs" role="tablist" aria-label="Home page sample screens">
+    <div className="one-public-preview-topline"><strong>ONE HOME</strong></div>
+    <div className="one-public-preview-tabs" role="tablist" aria-label="Home screens">
       <button type="button" role="tab" aria-selected={view === "map"} onClick={() => setView("map")}>Home map</button>
       <button type="button" role="tab" aria-selected={view === "check-in"} onClick={() => setView("check-in")}>Check-in</button>
     </div>
     {view === "map" ? <div className="one-public-map-panel" role="tabpanel">
       <div className="one-public-map-visual"><SampleHomeMap2D /></div>
-      <div className="one-public-map-rooms" aria-label="Choose a sample room">
+      <div className="one-public-map-rooms" aria-label="Choose a room">
         {rooms.map(name => <button type="button" key={name} aria-pressed={room === name} onClick={() => setRoom(name)}>{name}</button>)}
       </div>
-      <div className="one-public-map-selected"><MapPin size={16} /><strong>{room}</strong><span>Sample room</span></div>
+      <div className="one-public-map-selected"><MapPin size={16} /><strong>{room}</strong></div>
     </div> : <div className="one-public-chat-panel" role="tabpanel"><SampleCheckinChat compact /></div>}
   </div>;
 }
@@ -77,7 +77,7 @@ export function HowItWorksPage() {
   return <>
     <section className="one-how-hero"><div><h1>How ONE works</h1><p>Home maps, connected cameras, and check-ins appear together for people with access.</p></div><div className="one-how-diagram" aria-label="Illustration of a home map, Hub concept, cameras, and family access"><div className="one-how-house"><House size={90} strokeWidth={1.2} /><span>ONE HOME</span></div><div className="one-how-orbit one-how-orbit-a"><Smartphone /><small>Map</small></div><div className="one-how-orbit one-how-orbit-b"><Wifi /><small>Hub concept</small></div><div className="one-how-orbit one-how-orbit-c"><Camera /><small>Cameras</small></div><div className="one-how-orbit one-how-orbit-d"><Heart /><small>Family</small></div></div></section>
     <section id="one-how-steps" className="one-how-steps"><div className="one-how-layout"><nav aria-label="System steps">{steps.map((step, index) => { const StepIcon = step.icon; return <button key={step.title} onClick={() => setActive(index)} className={active === index ? "active" : ""} aria-current={active === index ? "step" : undefined}><b>0{index + 1}</b><StepIcon size={21} /><span>{step.title}</span><ArrowRight size={16} /></button>; })}</nav><article className="one-how-step-card"><div className="one-how-step-icon"><Icon size={46} strokeWidth={1.4} /></div><h3>{steps[active].title}</h3><p>{steps[active].text}</p></article></div></section>
-    <section className="one-how-context"><div><h2>Response time needs human context.</h2><p>Review check-in response times alongside other home information. A change needs human review.</p></div><div className="one-how-chart" aria-label="Illustrative response-time sample, not live household data"><div className="one-how-chart-top"><span>Response time · sample data · not live</span></div><div className="one-how-bars">{[38,48,42,68,52,73,58].map((height,index) => <div key={index}><i style={{height: height + "%"}} /><small>{["M","T","W","T","F","S","S"][index]}</small></div>)}</div></div></section>
+    <section className="one-how-context"><div><h2>Response time needs human context.</h2><p>Review check-in response times alongside other home information. A change needs human review.</p></div><div className="one-how-chart" aria-label="Illustration of response times over a week"><div className="one-how-chart-top"><span>Response time · this week</span></div><div className="one-how-bars">{[38,48,42,68,52,73,58].map((height,index) => <div key={index}><i style={{height: height + "%"}} /><small>{["M","T","W","T","F","S","S"][index]}</small></div>)}</div></div></section>
     <section className="one-how-signals"><div className="one-public-heading"><h2>Available information</h2></div><div className="one-how-signals-grid"><article><House/><h3>Home map</h3><p>Review rooms linked to home information and connected devices. Locations are approximate.</p></article><article><Camera/><h3>Camera views</h3><p>Review connected camera views and available events according to household permissions.</p></article><article><MessageCircle/><h3>Check-ins</h3><p>Review submitted answers and response times. A person decides what follow-up is appropriate.</p></article></div></section>
   </>;
 }

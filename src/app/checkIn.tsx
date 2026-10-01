@@ -5,10 +5,12 @@ import { useQuery } from "@tanstack/react-query";
 import { api, demoMode } from "../api/client";
 import type { HomeEvent, Session } from "../models/domain";
 import { EventRow, formatTime } from "./shared";
+import { QuestionSignalChart } from "./QuestionSignalChart";
 
 export function CheckInPage({ events, session, onEvent, recipientId }: { events: HomeEvent[]; session?: Session; onEvent: (event: HomeEvent) => void; recipientId: string }) {
   const navigate = useNavigate();
   const summariesQuery = useQuery({ queryKey: ["caregiver-summaries", session?.home.id, recipientId], queryFn: () => api.getCaregiverSummaries(recipientId || null), enabled: demoMode || Boolean(session), retry: false });
+  const questionsQuery = useQuery({ queryKey: ["check-in-questions", recipientId], queryFn: () => api.getCheckInQuestions(recipientId || null), enabled: demoMode || Boolean(session), retry: false });
   const today = new Date().toDateString();
   const todaySummary = summariesQuery.data?.find((item) => item.careRecipientId === recipientId && new Date(item.createdAt).toDateString() === today);
   const recipientsQuery = useQuery({ queryKey: ["care-recipients", session?.home.id], queryFn: api.getCareRecipients, enabled: demoMode || Boolean(session), retry: false });
@@ -75,7 +77,8 @@ export function CheckInPage({ events, session, onEvent, recipientId }: { events:
           </div>
         </aside>
       </div>
-      <section className="panel checkin-week-card"><div><span className="eyebrow">WEEKLY CHECK-IN RHYTHM</span><h3>A calmer picture, over time</h3><p>Each day shows whether a check-in has been recorded for {residentName}.{demoMode ? " Sample data." : ""}</p></div><div className="checkin-week-days" role="group" aria-label="Check-in days">{week.map((day, index) => <button key={day.label} className={selectedDay === index ? "selected" : ""} aria-pressed={selectedDay === index} onClick={() => setSelectedDay(index)}><i className={day.recorded ? "recorded" : ""} /><span>{day.label}</span></button>)}</div><div className="checkin-week-status">{week[selectedDay].recorded ? "Check-in recorded" : "No check-in recorded"}<small>{week[selectedDay].label}</small></div></section>
+      <QuestionSignalChart questions={questionsQuery.data ?? []} events={events.filter((event) => !event.careRecipientId || event.careRecipientId === recipientId)} days={7} title="Questions and signals this week" />
+      <section className="panel checkin-week-card"><div><span className="eyebrow">WEEKLY CHECK-IN RHYTHM</span><h3>A calmer picture, over time</h3><p>Each day shows whether a check-in has been recorded for {residentName}.</p></div><div className="checkin-week-days" role="group" aria-label="Check-in days">{week.map((day, index) => <button key={day.label} className={selectedDay === index ? "selected" : ""} aria-pressed={selectedDay === index} onClick={() => setSelectedDay(index)}><i className={day.recorded ? "recorded" : ""} /><span>{day.label}</span></button>)}</div><div className="checkin-week-status">{week[selectedDay].recorded ? "Check-in recorded" : "No check-in recorded"}<small>{week[selectedDay].label}</small></div></section>
     </div>
   );
 }

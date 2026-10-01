@@ -127,8 +127,8 @@ describe("marketing navigation and controls", () => {
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
     renderAt("/technology");
 
-    expect(screen.getByRole("heading", { name: "Explore a sample home map" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Follow a sample route" })).toBeInTheDocument();
+    expect(screen.getAllByRole("heading", { name: "Home map" }).length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { name: "Movement route" })).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Illustrative animated route from Home to Shop" })).toBeInTheDocument();
     expect(document.querySelector(".one-tech-route-path")).toHaveAttribute("d", "M92 318H464V200H650V82");
     expect(document.querySelectorAll(".one-tech-map-2d rect")).toHaveLength(5);
@@ -224,10 +224,10 @@ describe("marketing navigation and controls", () => {
     expect(mainNavigation?.querySelector("a.active")).toHaveTextContent("ONE app");
   });
 
-  it("lets visitors explore a clearly labeled, interactive app sample", () => {
+  it("lets visitors explore the interactive app preview", () => {
     render(<MemoryRouter initialEntries={["/app"]}><AppDownloadPage /></MemoryRouter>);
 
-    expect(screen.getByLabelText("Interactive ONE app sample")).toBeInTheDocument();
+    expect(screen.getByLabelText("Interactive ONE app")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Welcome back" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Care overview" })).toBeInTheDocument();
     expect(screen.queryByText(/Pedro|Alex|Jamie/i)).not.toBeInTheDocument();
@@ -235,13 +235,13 @@ describe("marketing navigation and controls", () => {
     expect(screen.getByRole("tabpanel").querySelector("h2")).toHaveTextContent("Home map");
     fireEvent.click(screen.getByRole("button", { name: "Bedroom" }));
     expect(screen.getByRole("button", { name: "Bedroom" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByText("Illustrative room · no live location")).toBeInTheDocument();
+    expect(screen.getByText("Recent household observations")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("tab", { name: "Check-in" }));
     fireEvent.click(screen.getByRole("button", { name: "Okay" }));
-    fireEvent.click(screen.getByRole("button", { name: /Save sample answer/ }));
-    expect(screen.getByRole("button", { name: /Sample answer saved/ })).toBeInTheDocument();
-    expect(screen.getByText("This demo stays on this page and is not sent to ONE.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Save response/ }));
+    expect(screen.getByRole("button", { name: /Response saved/ })).toBeInTheDocument();
+    expect(screen.getByText("Your response is kept on this screen.")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("tab", { name: "Home" }));
     fireEvent.click(screen.getByRole("button", { name: /Cameras/ }));

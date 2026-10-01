@@ -47,13 +47,73 @@ export const demoObjects: LastSeenObject[] = [
   { id: 'glasses', label: 'Reading glasses', icon: '◌', status: 'seen', lastSeenAt: new Date(Date.now() - 1000 * 60 * 48).toISOString(), point: { x: 31, y: 48 }, confidenceRadiusM: 0.45, confidence: 0.91, zone: demoScene.zones[0], sourceEventId: 'evt-glasses', careRecipientId: 'recipient-maria' },
   { id: 'medication', label: 'Medication box', icon: '+', status: 'unknown', lastSeenAt: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString(), point: null, confidenceRadiusM: 1.8, confidence: 0.32, zone: demoScene.zones[2], sourceEventId: 'evt-medication', careRecipientId: null },
 ];
-export const demoEvents: HomeEvent[] = [
+const recentDemoEvents: HomeEvent[] = [
   { id: 'evt-keys', type: 'object.last_seen', eventType: 'object_observed', careRecipientId: null, title: 'Keys last seen', detail: 'Near the entryway console', occurredAt: new Date(Date.now() - 1000 * 60 * 18).toISOString(), objectId: 'keys', cameraName: 'Hallway camera', roomName: 'Hallway', tone: 'blue' },
-  { id: 'evt-checkin', type: 'presence.changed', eventType: 'daily_check_in', careRecipientId: 'recipient-maria', title: 'Morning check-in complete', detail: 'María answered 4 of 4 sample prompts', occurredAt: new Date(Date.now() - 1000 * 60 * 52).toISOString(), tone: 'green' },
+  { id: 'evt-checkin', type: 'presence.changed', eventType: 'daily_check_in', careRecipientId: 'recipient-maria', title: 'Morning check-in complete', detail: 'María answered four familiar morning prompts.', occurredAt: new Date(Date.now() - 1000 * 60 * 52).toISOString(), tone: 'green' },
   { id: 'evt-glasses', type: 'object.last_seen', eventType: 'object_observed', careRecipientId: 'recipient-maria', title: 'Reading glasses last seen', detail: 'On the living room side table', occurredAt: new Date(Date.now() - 1000 * 60 * 48).toISOString(), objectId: 'glasses', cameraName: 'Living room camera', roomName: 'Living room', tone: 'blue' },
   { id: 'evt-clip', type: 'clip.created', eventType: 'clip_created', careRecipientId: null, title: 'A short clip is ready', detail: 'Movement near the kitchen, 8 seconds', occurredAt: new Date(Date.now() - 1000 * 60 * 90).toISOString(), clipId: 'clip-demo', cameraName: 'Kitchen camera', roomName: 'Kitchen', tone: 'amber' },
   { id: 'evt-manuel', type: 'presence.changed', eventType: 'person_observed', careRecipientId: 'recipient-manuel', title: 'Person observed', detail: 'Manuel was seen in the living room', occurredAt: new Date(Date.now() - 1000 * 60 * 34).toISOString(), cameraName: 'Living room camera', roomName: 'Living room', tone: 'green' },
 ];
+const historicalDemoEvents: HomeEvent[] = [];
+const historicRooms = ['Living room', 'Hallway', 'Kitchen', 'Bedroom'] as const;
+for (let daysAgo = 0; daysAgo < 365; daysAgo += 1) {
+  const day = new Date();
+  day.setDate(day.getDate() - daysAgo);
+  day.setHours(7, 45, 0, 0);
+  const at = (hour: number, minute: number) => {
+    const timestamp = new Date(day);
+    timestamp.setHours(hour, minute, 0, 0);
+    return timestamp.toISOString();
+  };
+  if (daysAgo % 2 === 0) {
+    const repeats = daysAgo < 45 && daysAgo % 4 === 0;
+    historicalDemoEvents.push({
+      id: `history-checkin-manuel-${daysAgo}`,
+      type: 'presence.changed', eventType: 'daily_check_in', careRecipientId: 'recipient-manuel',
+      title: 'Morning check-in complete',
+      detail: repeats ? 'Manuel completed four prompts and asked to hear the plan again.' : 'Manuel answered four familiar morning prompts.',
+      occurredAt: at(8, 20), tone: 'green',
+    });
+  }
+  if (daysAgo % 3 === 1) {
+    const room = historicRooms[(daysAgo * 7) % historicRooms.length];
+    historicalDemoEvents.push({
+      id: `history-person-manuel-${daysAgo}`,
+      type: 'presence.changed', eventType: 'person_observed', careRecipientId: 'recipient-manuel',
+      title: 'Movement observed', detail: `Manuel was observed in the ${room.toLocaleLowerCase('en')}.`,
+      occurredAt: at(10 + (daysAgo % 5), 12 + (daysAgo % 40)), cameraName: `${room} camera`, roomName: room, tone: 'blue',
+    });
+  }
+  if (daysAgo % 4 === 2) {
+    const room = historicRooms[(daysAgo + 1) % historicRooms.length];
+    historicalDemoEvents.push({
+      id: `history-person-maria-${daysAgo}`,
+      type: 'presence.changed', eventType: 'person_observed', careRecipientId: 'recipient-maria',
+      title: 'Movement observed', detail: `María was observed in the ${room.toLocaleLowerCase('en')}.`,
+      occurredAt: at(11, 5 + (daysAgo % 45)), cameraName: `${room} camera`, roomName: room, tone: 'green',
+    });
+  }
+  if (daysAgo % 6 === 3) {
+    const item = daysAgo % 12 === 3 ? 'Keys' : 'Reading glasses';
+    const room = item === 'Keys' ? 'Entryway' : historicRooms[(daysAgo + 2) % historicRooms.length];
+    historicalDemoEvents.push({
+      id: `history-object-${daysAgo}`,
+      type: 'object.last_seen', eventType: 'object_observed', careRecipientId: null,
+      title: `${item} last seen`, detail: `Near the usual place in the ${room.toLocaleLowerCase('en')}.`,
+      occurredAt: at(14, 8 + (daysAgo % 50)), cameraName: `${room} camera`, roomName: room, tone: 'blue',
+    });
+  }
+  if (daysAgo % 8 === 5) {
+    const room = historicRooms[(daysAgo * 3) % historicRooms.length];
+    historicalDemoEvents.push({
+      id: `history-household-${daysAgo}`,
+      type: 'clip.created', eventType: 'clip_created', careRecipientId: null,
+      title: 'A short clip is ready', detail: `A brief movement was recorded near the ${room.toLocaleLowerCase('en')}.`,
+      occurredAt: at(16, 20 + (daysAgo % 35)), cameraName: `${room} camera`, roomName: room, tone: 'amber',
+    });
+  }
+}
+export const demoEvents: HomeEvent[] = [...recentDemoEvents, ...historicalDemoEvents];
 export const consentDefaults: Consent[] = [
   { purpose: 'video_capture', label: 'Camera capture', description: 'Use the camera to support the daily check-in.', granted: false, required: true },
   { purpose: 'audio_capture', label: 'Microphone', description: 'Use voice so María can answer naturally.', granted: false, required: true },

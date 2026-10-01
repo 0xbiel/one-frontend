@@ -346,14 +346,14 @@ function TechnologyPage() {
       <SampleCheckinChat />
     </section>
     <section className="one-tech-demos">
-      <div className="one-tech-demos-heading"><h2>Maps</h2><p>Illustrative layouts only; no live home or location data.</p></div>
+      <div className="one-tech-demos-heading"><h2>Maps</h2><p>Explore rooms and follow movement through the home.</p></div>
       <div className="one-tech-demo-grid">
         <article className="one-tech-demo">
-          <header><h3>Explore a sample home map</h3></header>
+          <header><h3>Home map</h3></header>
           <SampleHomeMap3D />
         </article>
         <article className="one-tech-demo">
-          <header><h3>Follow a sample route</h3></header>
+          <header><h3>Movement route</h3></header>
           <SampleRouteMap />
         </article>
       </div>

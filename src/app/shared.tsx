@@ -218,6 +218,8 @@ export function Shell({ children, paused, onTogglePause, onLogout, session }: { 
   };
   const context = location.pathname.includes("map")
     ? ["HOME MAP", "Home map"]
+    : location.pathname.includes("summary")
+      ? ["CARE SUMMARY", "Care summary"]
     : location.pathname.includes("live")
       ? ["CHECK-IN", "Today’s check-in"]
     : location.pathname.includes("questions")
@@ -241,7 +243,6 @@ export function Shell({ children, paused, onTogglePause, onLogout, session }: { 
             <button className="brand" onClick={() => nav("/dashboard")} aria-label="ONE home"><img className="one-logo" src="/one-logo.png" alt="" aria-hidden="true" /><span className="wordmark">ONE</span></button>
             <span className="topbar-divider" aria-hidden="true" />
             <div className="topbar-context"><span className="eyebrow">{context[0]}</span><h1>{context[1]}</h1></div>
-            {demoMode && <span className="dashboard-demo-badge">Demo · sample data</span>}
           </div>
           <div className="top-actions">
           <button
@@ -259,7 +260,6 @@ export function Shell({ children, paused, onTogglePause, onLogout, session }: { 
               <div className="profile-menu-account"><span className="avatar" aria-hidden="true">{accountInitials}</span><span><strong>{actorName}</strong><small>{roleLabel}</small></span></div>
               <div className="profile-menu-divider" />
               <button role="menuitem" onClick={() => { setProfileMenuOpen(false); nav("/dashboard/assistant"); }}><CircleHelp size={17} /><span>Help</span></button>
-              {demoMode && <button role="menuitem" onClick={() => { setProfileMenuOpen(false); nav("/designs"); }}><BookOpen size={17} /><span>Original designs</span></button>}
               <button role="menuitem" onClick={() => { setProfileMenuOpen(false); nav("/dashboard/account"); }}><Settings size={17} /><span>Settings</span></button>
               <div className="profile-menu-divider" />
               <button className="profile-menu-logout" role="menuitem" onClick={() => { setProfileMenuOpen(false); onLogout(); }}><LogOut size={17} /><span>Log out</span></button>
@@ -278,7 +278,7 @@ export function Shell({ children, paused, onTogglePause, onLogout, session }: { 
         <div className={`drawer-home-card ${careSpaceMenuOpen ? "is-managing" : ""}`}>
           <button className="drawer-home-summary" aria-expanded={careSpaceMenuOpen} aria-controls="care-space-menu" onClick={() => { setRecipientMenuOpen(false); setCareSpaceMenuOpen((value) => !value); setCreateCareSpaceOpen(false); setCareSpaceError(""); }}>
             <div className="drawer-home-icon"><HeartHandshake size={18} /></div>
-            <div className="drawer-home-copy"><span className="eyebrow">CARING FOR</span><strong>{homeName}</strong><span className="drawer-connection"><i className="status-dot" />{demoMode ? "Demo care space" : connectedLabel}</span></div>
+            <div className="drawer-home-copy"><span className="eyebrow">CARING FOR</span><strong>{homeName}</strong><span className="drawer-connection"><i className="status-dot" />{connectedLabel}</span></div>
             <ChevronsUpDown className="drawer-home-switch-icon" size={16} aria-hidden="true" />
           </button>
           <div className="recipient-switcher" ref={recipientMenuRef}>

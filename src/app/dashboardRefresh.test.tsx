@@ -8,6 +8,9 @@ import { DemoHomeMap } from "./DemoHomeMap";
 import { api } from "../api/client";
 
 function renderDashboard(path: string) {
+  sessionStorage.setItem("one_dashboard_access", "garcia-family");
+  sessionStorage.setItem("one_access_token", "demo");
+  sessionStorage.setItem("one_home_id", "home-demo");
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(<QueryClientProvider client={client}><MemoryRouter initialEntries={[path]}><App /></MemoryRouter></QueryClientProvider>);
 }
@@ -17,8 +20,8 @@ beforeEach(() => { sessionStorage.clear(); localStorage.clear(); });
 describe("shared dashboard demo", () => {
   it("scopes events to the selected person while retaining separate household activity", async () => {
     renderDashboard("/dashboard/events");
-    expect(await screen.findByText("Morning check-in complete")).toBeInTheDocument();
-    expect(screen.getByText("Keys last seen")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("María answered four familiar morning prompts.")).toBeInTheDocument());
+    expect(screen.getAllByText("Keys last seen").length).toBeGreaterThan(0);
     const switcher = screen.getByRole("button", { name: "Care recipient", hidden: true });
     await waitFor(() => expect(switcher).toHaveTextContent("María García"));
     fireEvent.click(switcher);
@@ -26,12 +29,13 @@ describe("shared dashboard demo", () => {
     await waitFor(() => expect(switcher).toHaveTextContent("Manuel García"));
     expect(sessionStorage.getItem("one_care_recipient_id")).toBe("recipient-manuel");
     expect((await api.getEvents("recipient-manuel")).map((event) => event.id)).not.toContain("evt-checkin");
-    await waitFor(() => expect(screen.queryByText("Morning check-in complete")).not.toBeInTheDocument());
-    expect(screen.getByText("Keys last seen")).toBeInTheDocument();
-    expect(screen.getByText("Person observed")).toBeInTheDocument();
-    expect(screen.getByText(/Household activity/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getAllByText("Manuel answered four familiar morning prompts.").length).toBeGreaterThan(0));
+    expect(screen.queryAllByText("María answered four familiar morning prompts.")).toHaveLength(0);
+    expect(screen.getAllByText("Keys last seen").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Person observed").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Household activity/).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: "Objects" }));
-    expect(screen.getByText("Keys last seen")).toBeInTheDocument();
+    expect(screen.getAllByText("Keys last seen").length).toBeGreaterThan(0);
     expect(screen.queryByText("Person observed")).not.toBeInTheDocument();
   });
 
@@ -40,7 +44,7 @@ describe("shared dashboard demo", () => {
     Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: { getUserMedia } });
     render(<DemoCameraGallery />);
     fireEvent.click(screen.getByRole("button", { name: /Kitchen camera/ }));
-    expect(screen.getByRole("img", { name: /sample view of the kitchen/i })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /view of the kitchen/i })).toBeInTheDocument();
     expect(getUserMedia).not.toHaveBeenCalled();
   });
 
@@ -49,6 +53,6 @@ describe("shared dashboard demo", () => {
     fireEvent.click(screen.getByRole("button", { name: "2D" }));
     fireEvent.click(screen.getByRole("button", { name: "Select Bedroom" }));
     expect(screen.getByRole("heading", { name: "Bedroom" })).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: /Interactive sample 2D floor plan/ })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: /Interactive 2D floor plan/ })).toBeInTheDocument();
   });
 });

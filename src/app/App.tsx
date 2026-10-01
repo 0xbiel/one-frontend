@@ -15,6 +15,7 @@ import { AssistantPage } from "./assistant";
 import { CameraManagerPage } from "./publisher";
 import { CheckInPage } from "./checkIn";
 import { QuestionsPage } from "./questions";
+import { CareSummaryPage } from "./careSummary";
 import { MarketingSite } from "./marketing";
 import { AppDownloadPage } from "./appDownload";
 import { OnboardingPage, onboardingKey } from "./auth";
@@ -41,6 +42,7 @@ function App() {
   const navigate = useNavigate();
   const location = useLocation();
   const hasToken = Boolean(sessionStorage.getItem("one_access_token"));
+  const hasDemoAccess = demoMode && sessionStorage.getItem("one_dashboard_access") === "garcia-family";
   const isCameraReconnect = location.pathname.startsWith("/camera/");
   const sessionQuery = useQuery({ queryKey: ["session"], queryFn: api.getSession, enabled: (demoMode || hasToken) && !isCameraReconnect, retry: false });
   const session = sessionQuery.data;
@@ -90,11 +92,13 @@ function App() {
     try { await (paused ? api.resume() : api.pause()); } catch { /* Local stop still protects privacy if the API is unavailable. */ }
     void query.invalidateQueries({ queryKey: ["events"] });
   };
-  const logout = async () => { stopActivePublisher(); clearPublisherRegistry(); await api.logout(); query.clear(); navigate("/login", { replace: true }); };
+  const logout = async () => { stopActivePublisher(); clearPublisherRegistry(); await api.logout(); sessionStorage.removeItem("one_dashboard_access"); sessionStorage.removeItem("one_care_recipient_id"); query.clear(); navigate("/login", { replace: true }); };
 
   if (location.pathname === "/designs") return <Navigate to="/products" replace />;
   if (location.pathname === "/app") return <AppDownloadPage />;
   if (["/", "/how-it-works", "/products", "/products/hub", "/products/camera", "/products/family", "/products/exterior", "/technology", "/support"].includes(location.pathname)) return <MarketingSite />;
+  if (demoMode && !hasDemoAccess && location.pathname !== "/login" && !location.pathname.startsWith("/join") && !location.pathname.startsWith("/camera/")) return <LoginPage />;
+  if (demoMode && hasDemoAccess && location.pathname === "/login") return <Navigate to="/dashboard" replace />;
   if (!demoMode && !hasToken && !["/create-account", "/join-household"].includes(location.pathname) && location.pathname !== "/join" && !location.pathname.startsWith("/join/") && !location.pathname.startsWith("/camera/")) return <LoginPage />;
   if (!demoMode && hasToken && sessionQuery.isPending && !isCameraReconnect) return <div className="join-page"><div className="join-card panel"><img className="one-logo large" src="/one-logo.png" alt="" aria-hidden="true" /><p className="muted">Checking your secure session…</p></div></div>;
   if (!demoMode && hasToken && sessionQuery.isError && !isCameraReconnect) return <LoginPage />;
@@ -113,10 +117,11 @@ function App() {
       <Route path="/publisher" element={<PublisherPage paused={paused} onTogglePause={togglePause} />} />
       <Route path="/publisher/live" element={<PublisherPage paused={paused} onTogglePause={togglePause} />} />
       <Route path="*" element={<Shell paused={paused} onTogglePause={togglePause} onLogout={logout} session={session}><Routes>
-        <Route index element={<Navigate to={demoMode ? "/designs" : "/dashboard"} replace />} />
+        <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<OverviewPage events={events} objects={objects} onEvent={setSelectedEvent} session={session} recipientId={recipientId} />} />
         <Route path="dashboard/live" element={<CheckInPage events={events} session={session} onEvent={setSelectedEvent} recipientId={recipientId} />} />
         <Route path="dashboard/questions" element={<QuestionsPage recipientId={recipientId} />} />
+        <Route path="dashboard/questions/summary" element={<CareSummaryPage recipientId={recipientId} />} />
         <Route path="dashboard/map" element={<MapPage objects={objects} scene={scene} recipientId={recipientId} />} />
         <Route path="dashboard/cameras" element={<CameraManagerPage paused={paused} />} />
         <Route path="dashboard/events" element={<EventsPage events={events} onEvent={setSelectedEvent} recipientId={recipientId} />} />

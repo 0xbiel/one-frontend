@@ -287,8 +287,8 @@ export function CameraManagerPage({ paused = false }: { paused?: boolean }) {
               {demoMode ? (
                 <div className="viewer-placeholder">
                   <Video size={31} />
-                  <strong>Demo live preview</strong>
-                  <span>Live video is intentionally unavailable in demo mode.</span>
+                  <strong>Camera preview</strong>
+                  <span>Live video is unavailable in this view.</span>
                 </div>
               ) : (
                 <>
