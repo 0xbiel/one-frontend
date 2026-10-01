@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api, demoMode } from "../api/client";
 import type { HomeEvent } from "../models/domain";
 import "./careSummary.css";
+import "./careSummary.interactions.css";
 
 type Period = "30 days" | "90 days" | "1 year";
 const periodDays: Record<Period, number> = { "30 days": 30, "90 days": 90, "1 year": 365 };
@@ -22,6 +23,8 @@ function locationEvents(events: HomeEvent[], recipientId: string, days: number) 
 export function CareSummaryPage({ recipientId }: { recipientId: string }) {
   const [period, setPeriod] = useState<Period>("30 days");
   const [activeRoom, setActiveRoom] = useState<string | null>(null);
+  const [hoveredPeriod, setHoveredPeriod] = useState<number | null>(null);
+  const [hoveredRepeat, setHoveredRepeat] = useState<number | null>(null);
   const days = periodDays[period];
   const questionsQuery = useQuery({ queryKey: ["check-in-questions", recipientId], queryFn: () => api.getCheckInQuestions(recipientId || null), enabled: demoMode || Boolean(sessionStorage.getItem("one_access_token")), retry: false });
   const eventsQuery = useQuery({ queryKey: ["events", "care-summary", recipientId], queryFn: () => api.getEvents(recipientId || null), enabled: demoMode || Boolean(sessionStorage.getItem("one_access_token")), retry: false });
@@ -72,15 +75,16 @@ export function CareSummaryPage({ recipientId }: { recipientId: string }) {
     </section>
     <div className="care-summary-grid">
       <section className="panel care-summary-chart-card"><div className="care-summary-card-heading"><div><span className="eyebrow">CHECK-IN RHYTHM</span><h3>Response time over the last {period}</h3><p>{period === "1 year" ? "Monthly" : "Weekly"} averages are compared with {name}’s own baseline.</p></div></div>
-        {chartPoints.some((item) => item.delay !== null) ? <svg className="care-summary-line-chart" viewBox="0 0 700 220" role="img" aria-label={`Weekly response time for ${name}`}>
+        {chartPoints.some((item) => item.delay !== null) ? <svg className="care-summary-line-chart" viewBox="0 0 700 220" role="group" aria-label={`Response time over the selected period for ${name}`} onMouseLeave={() => setHoveredPeriod(null)}>
           {[40, 83, 126, 169].map((y) => <line key={y} x1="35" y1={y} x2="655" y2={y} className="summary-gridline" />)}
           {baseline !== null && <line x1="35" y1={169 - baseline / maxDelay * 130} x2="655" y2={169 - baseline / maxDelay * 130} className="summary-baseline-path" />}
           <path d={chartPath} pathLength="1" className="summary-delay-path" />
-          {chartPoints.map((item, index) => item.delay === null ? null : <g key={item.date.toISOString()}><circle cx={35 + index * 620 / Math.max(1, chartPoints.length - 1)} cy={169 - item.delay / maxDelay * 130} r="5" className="summary-delay-point"><title>{`${item.label}: ${Math.round(item.delay / 1000)} seconds`}</title></circle><text x={35 + index * 620 / Math.max(1, chartPoints.length - 1)} y="203" textAnchor="middle">{item.label}</text></g>)}
+          {chartPoints.map((item, index) => item.delay === null ? null : <g key={item.date.toISOString()} className="summary-chart-point-group" onMouseEnter={() => setHoveredPeriod(index)} onFocus={() => setHoveredPeriod(index)} onBlur={() => setHoveredPeriod(null)}><circle cx={35 + index * 620 / Math.max(1, chartPoints.length - 1)} cy={169 - item.delay / maxDelay * 130} r={hoveredPeriod === index ? "7" : "5"} className="summary-delay-point" tabIndex={0} role="button" aria-label={`${item.label}: ${Math.round(item.delay / 1000)} seconds, ${item.questions} questions, ${item.repeats} follow-up questions`}><title>{`${item.label}: ${Math.round(item.delay / 1000)} seconds`}</title></circle><text x={35 + index * 620 / Math.max(1, chartPoints.length - 1)} y="203" textAnchor="middle">{item.label}</text></g>)}
+          {hoveredPeriod !== null && chartPoints[hoveredPeriod]?.delay !== null && <foreignObject x={Math.max(3, Math.min(510, 35 + hoveredPeriod * 620 / Math.max(1, chartPoints.length - 1) - 84))} y={Math.max(2, 169 - (chartPoints[hoveredPeriod].delay ?? 0) / maxDelay * 130 - 66)} width="184" height="61"><div className="summary-chart-tooltip"><strong>{chartPoints[hoveredPeriod].label} · {Math.round((chartPoints[hoveredPeriod].delay ?? 0) / 1000)} sec</strong><span>{chartPoints[hoveredPeriod].questions} questions · {chartPoints[hoveredPeriod].repeats} follow-ups</span></div></foreignObject>}
         </svg> : <div className="care-summary-empty">No individual responses are available in this period.</div>}
         <div className="care-summary-legend"><span><i /> Average response time</span><span><i className="baseline-legend" /> Personal baseline</span></div>
       </section>
-      <section className="panel care-summary-chart-card"><div className="care-summary-card-heading"><div><span className="eyebrow">FOLLOW-UP QUESTIONS</span><h3>Extra questions over time</h3><p>Follow-up questions by {period === "1 year" ? "month" : "week"}, without interpreting why.</p></div></div><div className="repeat-bars" role="img" aria-label={`Follow-up questions by ${period === "1 year" ? "month" : "week"}`}>{chartPoints.map((item) => <div key={item.date.toISOString()} title={`${item.label}: ${item.repeats} follow-up questions`}><i style={{ height: `${Math.max(5, item.repeats / Math.max(1, ...chartPoints.map((point) => point.repeats)) * 100)}%` }} /><span>{item.label}</span></div>)}</div><p className="care-summary-note">Changes can be useful context for a caregiver, but they are not a medical assessment.</p></section>
+      <section className="panel care-summary-chart-card"><div className="care-summary-card-heading"><div><span className="eyebrow">FOLLOW-UP QUESTIONS</span><h3>Extra questions over time</h3><p>Follow-up questions by {period === "1 year" ? "month" : "week"}, without interpreting why.</p></div></div><div className="repeat-bars" role="group" aria-label={`Follow-up questions by ${period === "1 year" ? "month" : "week"}`} onMouseLeave={() => setHoveredRepeat(null)}>{chartPoints.map((item,index) => <div key={item.date.toISOString()} className={hoveredRepeat === index ? "is-hovered" : ""} role="button" tabIndex={0} aria-label={`${item.label}: ${item.repeats} follow-up questions`} onMouseEnter={() => setHoveredRepeat(index)} onFocus={() => setHoveredRepeat(index)} onBlur={() => setHoveredRepeat(null)}><i style={{ height: `${Math.max(5, item.repeats / Math.max(1, ...chartPoints.map((point) => point.repeats)) * 100)}%` }} />{hoveredRepeat === index && <strong className="repeat-bar-tooltip">{item.label} · {item.repeats} follow-ups</strong>}<span>{item.label}</span></div>)}</div><p className="care-summary-note">Changes can be useful context for a caregiver, but they are not a medical assessment.</p></section>
     </div>
     <section className="panel care-location-card"><div className="care-summary-card-heading"><div><span className="eyebrow">HOUSEHOLD MOVEMENT</span><h3>Location changes</h3><p>Observed room sequence in the selected period.</p></div><strong>{places.length} moments</strong></div>
       <div className="care-location-layout"><svg viewBox="0 0 320 270" role="img" aria-label="Illustrative home map showing room observations">

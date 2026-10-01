@@ -89,8 +89,9 @@ describe("marketing navigation and controls", () => {
     expect(explodedView).toBeInTheDocument();
     expect(track?.compareDocumentPosition(explodedView!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     const anatomy = explodedView?.closest(".one-product-anatomy");
-    expect(anatomy?.nextElementSibling).toHaveClass("one-camera-parts-note");
-    expect(anatomy?.nextElementSibling?.nextElementSibling).toHaveClass("one-site-product-neighbors");
+    expect(anatomy?.nextElementSibling).toHaveClass("one-site-product-neighbors");
+    expect(screen.queryByText(/component images are illustrative concepts/i)).not.toBeInTheDocument();
+    expect(document.querySelectorAll(".one-product-anatomy-overview-list li").length).toBeGreaterThan(0);
     expect(document.querySelector(`.one-product-anatomy-visual img[src="/product-assets/camera-anatomy/${firstPartImage}"]`)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Inside the concept" })).toBeInTheDocument();
     expect(screen.getAllByRole("heading", { level: 3 })).toHaveLength(1);
@@ -131,7 +132,7 @@ describe("marketing navigation and controls", () => {
     expect(screen.getByRole("heading", { name: "Movement route" })).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Illustrative animated route from Home to Shop" })).toBeInTheDocument();
     expect(document.querySelector(".one-tech-route-path")).toHaveAttribute("d", "M92 318H464V200H650V82");
-    expect(document.querySelectorAll(".one-tech-map-2d rect")).toHaveLength(5);
+    expect(document.querySelectorAll(".one-tech-map-2d .one-tech-map-floors rect")).toHaveLength(4);
     expect(screen.getByRole("group", { name: "Home map view" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "2D" }));
     expect(screen.getByRole("button", { name: "2D" })).toHaveAttribute("aria-pressed", "true");
@@ -141,9 +142,12 @@ describe("marketing navigation and controls", () => {
   it("shows locally interactive, plain-language sample check-ins on Technology", () => {
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
     renderAt("/technology");
-    fireEvent.click(screen.getByRole("button", { name: "I feel worried" }));
-    expect(screen.getByText(/This sample cannot contact anyone or assess an emergency/)).toBeInTheDocument();
-    expect(screen.getByText("Sample only · not a live chat or medical service")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Where are my keys?" }));
+    expect(screen.getByText("They were last seen on the kitchen table.")).toBeInTheDocument();
+    expect(screen.getByText("Response added to today’s check-in")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "How are you feeling?" }));
+    fireEvent.click(screen.getByRole("button", { name: "What happens next?" }));
+    expect(screen.getByText("Today’s check-in is complete")).toBeInTheDocument();
     expect(document.querySelector(".one-tech-demo-hint")).not.toBeInTheDocument();
   });
 
@@ -153,11 +157,12 @@ describe("marketing navigation and controls", () => {
     expect(screen.getByRole("heading", { name: "Care, closer to home." })).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /Explore/ }).length).toBeGreaterThanOrEqual(4);
     fireEvent.click(screen.getByRole("tab", { name: "Check-in" }));
-    fireEvent.click(screen.getByRole("button", { name: "Who can see this?" }));
-    expect(screen.getByText(/People with access to this home/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Where are my keys?" }));
+    expect(screen.getByText("They were last seen on the kitchen table.")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: "Home map" }));
     fireEvent.click(screen.getByRole("button", { name: "Kitchen" }));
     expect(screen.getAllByText("Kitchen")).toHaveLength(2);
+    expect(screen.getByText("Keys last seen · counter")).toBeInTheDocument();
   });
 
   it("opens the selected support guide from search", async () => {

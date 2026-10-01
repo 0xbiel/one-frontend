@@ -46,7 +46,7 @@ describe('ONE web routes', () => {
   it('shows cameras in their dedicated dashboard page', async () => {
     renderAt('/dashboard/cameras');
     expect(await screen.findByRole('heading', { name: 'Cameras', level: 2 })).toBeInTheDocument();
-    expect(screen.getByText('Drag to explore the room')).toBeInTheDocument();
+    expect(screen.getByText('Drag horizontally to explore')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Kitchen camera/i }));
     expect(screen.getByRole('heading', { name: 'Kitchen camera' })).toBeInTheDocument();
   });

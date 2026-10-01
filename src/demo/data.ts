@@ -65,14 +65,25 @@ for (let daysAgo = 0; daysAgo < 365; daysAgo += 1) {
     timestamp.setHours(hour, minute, 0, 0);
     return timestamp.toISOString();
   };
-  if (daysAgo % 2 === 0) {
-    const repeats = daysAgo < 45 && daysAgo % 4 === 0;
+  const manuelStage = daysAgo < 30 ? 4 : daysAgo < 90 ? 3 : daysAgo < 180 ? 2 : daysAgo < 270 ? 1 : 0;
+  const manuelNeededRepeat = manuelStage >= 2 && daysAgo % 5 === 0;
+  historicalDemoEvents.push({
+    id: `history-checkin-manuel-${daysAgo}`,
+    type: 'presence.changed', eventType: 'daily_check_in', careRecipientId: 'recipient-manuel',
+    title: 'Morning check-in complete',
+    detail: manuelStage >= 4
+      ? manuelNeededRepeat ? 'Manuel completed the check-in with extra reminders; a few answers needed repeating.' : 'Manuel completed seven short prompts and asked for the day’s plan again.'
+      : manuelStage >= 3 ? 'Manuel needed a prompt repeated and asked to hear the plan again.'
+        : manuelStage >= 2 ? 'Manuel asked an additional question during his familiar check-in.'
+          : 'Manuel completed four familiar morning prompts.',
+    occurredAt: at(8, 45), tone: manuelStage >= 3 ? 'amber' : 'green',
+  });
+  if (daysAgo > 0) {
     historicalDemoEvents.push({
-      id: `history-checkin-manuel-${daysAgo}`,
-      type: 'presence.changed', eventType: 'daily_check_in', careRecipientId: 'recipient-manuel',
-      title: 'Morning check-in complete',
-      detail: repeats ? 'Manuel completed four prompts and asked to hear the plan again.' : 'Manuel answered four familiar morning prompts.',
-      occurredAt: at(8, 20), tone: 'green',
+      id: `history-checkin-maria-${daysAgo}`,
+      type: 'presence.changed', eventType: 'daily_check_in', careRecipientId: 'recipient-maria',
+      title: 'Morning check-in complete', detail: 'María completed four familiar morning prompts.',
+      occurredAt: at(8, 30), tone: 'green',
     });
   }
   if (daysAgo % 3 === 1) {

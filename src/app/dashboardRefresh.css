@@ -129,4 +129,31 @@
   .questions-summary-link { order: 2; }
   .event-period-filters { padding-inline: 14px; }
 }
-@media (prefers-reduced-motion: reduce) { .sample-map-3d *, .sample-map-2d *, .assistant-typing i { animation-duration: 0s !important; transition-duration: 0s !important; } }
+@media (prefers-reduced-motion: reduce) { .sample-map-3d *, .sample-map-2d *, .assistant-typing i { animation-duration: 0s !important; transition-duration: 0s !important; }.sample-camera-viewport>img { transition:none !important; } }
+
+.sample-map-layout { align-items: start; }
+.sample-map-stage { display: grid; grid-template-rows: auto minmax(360px,1fr) auto; }
+.sample-map-3d,.sample-map-2d { min-height: clamp(360px,46vw,600px); }
+.sample-map-3d canvas { height: 100%; }
+.sample-map-legend { justify-content: center; gap: 11px 20px; }
+.sample-map-legend svg:first-child { color: #4de0ca; }
+.sample-map-route.maria-route { stroke: #1cbdb0; }
+.sample-map-route.manuel-route { stroke: #1687ff; }
+.sample-map-marker-group.object circle { fill: currentColor; }
+.sample-map-marker-group.object path { stroke: #fff; }
+.sample-map-marker-group:focus-visible { outline: 2px solid #fff; }
+.sample-street-card { margin-top: 16px; padding: 18px; }
+.sample-street-heading { display:flex; align-items:start; justify-content:space-between; gap:16px; }
+.sample-street-heading h3 { margin:4px 0; font-size:19px; }
+.sample-street-heading p { margin:0; color:#71879a; font-size:12px; }
+.sample-street-heading>strong { padding:8px 11px; border-radius:999px; background:#eaf5ff; color:#1768bc; font-size:11px; }
+.sample-street-map { display:block; width:100%; height:clamp(220px,35vw,350px); margin-top:12px; border-radius:12px; background:#eff5f1; }
+.sample-street-map text { fill:#33586b; font:700 10px Inter,system-ui,sans-serif; letter-spacing:.05em; }
+.sample-street-route { animation:street-route-flow 2.5s linear infinite; }
+.sample-street-stops { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin-top:11px; }
+.sample-street-stops button { display:grid; gap:3px; padding:10px; border:1px solid #dce9e5; border-radius:9px; background:#fff; color:#29485d; text-align:left; font-size:11px; cursor:pointer; }
+.sample-street-stops button.active { border-color:#86baf0; background:#eff7ff; color:#1165c4; }
+.sample-street-stops small { color:#738996; font-size:9px; }
+@keyframes street-route-flow { to { stroke-dashoffset:-30; } }
+@media(max-width:620px) { .sample-map-stage { grid-template-rows:auto minmax(300px,1fr) auto; }.sample-street-heading { flex-direction:column; }.sample-street-stops { grid-template-columns:repeat(2,minmax(0,1fr)); }.sample-street-map { height:230px; } }
+@media(prefers-reduced-motion:reduce) { .sample-street-route { animation:none; } }

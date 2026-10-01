@@ -164,6 +164,11 @@ function ProductsPage() {
     </section>
     <section className="one-site-products-section">
       <div className="one-site-card-grid">{ids.map(id => <ProductCard key={id} id={id} />)}</div>
+      <div className="one-site-product-system-note">
+        <span className="eyebrow">ONE AT HOME</span>
+        <h2>One system, working together.</h2>
+        <p>ONE Hub brings shared home information into view. Room cameras add context, check-ins keep a familiar daily rhythm, and ONE Family helps the people around someone stay connected.</p>
+      </div>
     </section>
   </>;
 }
@@ -213,7 +218,7 @@ function ProductAnatomySequence({ name, parts, overviewSrc, overviewAlt, overvie
   if (!activePart) return null;
   return <section className="one-product-anatomy" aria-label={`${name} concept breakdown`}>
     <div className="one-product-anatomy-heading"><h2>Inside the concept</h2></div>
-    <div className="one-product-anatomy-track" ref={trackRef} style={{ height: `${parts.length * 100}svh` }}>
+    <div className="one-product-anatomy-track" ref={trackRef} style={{ "--part-count": parts.length } as React.CSSProperties}>
       <article className="one-product-anatomy-stage" ref={stageRef} tabIndex={0} aria-live="polite" onKeyDown={event => {
         if (event.key === "ArrowRight") goToPart(activeIndex + 1);
         if (event.key === "ArrowLeft") goToPart(activeIndex - 1);
@@ -223,6 +228,9 @@ function ProductAnatomySequence({ name, parts, overviewSrc, overviewAlt, overvie
           <span className="one-product-anatomy-count">{String(activeIndex + 1).padStart(2, "0")} / {String(parts.length).padStart(2, "0")}</span>
           <h3 key={activePart.name}>{activePart.name}</h3>
           <p>{activePart.description}</p>
+          <nav className="one-product-anatomy-part-list" aria-label={`${name} components`}>
+            {parts.map((part, index) => <button key={part.name} type="button" className={index === activeIndex ? "active" : ""} aria-current={index === activeIndex ? "step" : undefined} onClick={() => goToPart(index)}><span>{String(index + 1).padStart(2, "0")}</span>{part.name}</button>)}
+          </nav>
           <nav className="one-product-anatomy-controls" aria-label={`${name} component sequence`}>
             <button type="button" onClick={() => goToPart(activeIndex - 1)} disabled={activeIndex === 0} aria-label="Previous component"><ArrowLeft size={17} /></button>
             <button type="button" onClick={() => goToPart(activeIndex + 1)} disabled={activeIndex === parts.length - 1} aria-label="Next component"><ArrowRight size={17} /></button>
@@ -230,7 +238,10 @@ function ProductAnatomySequence({ name, parts, overviewSrc, overviewAlt, overvie
         </div>
       </article>
     </div>
-    <div className={`one-product-anatomy-overview is-${overviewLayout}`}><img src={overviewSrc} alt={overviewAlt} loading="lazy" /></div>
+    <div className={`one-product-anatomy-overview is-${overviewLayout}`}>
+      <div className="one-product-anatomy-overview-list"><span className="eyebrow">COMPONENTS</span><ol>{parts.map((part, index) => <li key={part.name}><span>{String(index + 1).padStart(2, "0")}</span>{part.name}</li>)}</ol></div>
+      <img src={overviewSrc} alt={overviewAlt} loading="lazy" />
+    </div>
   </section>;
 }
 
@@ -242,14 +253,14 @@ const detailCopy = {
     imageAlt: "Illustrative ONE Hub display concept",
     exploded: "/product-assets/hub-internals-v3.png",
     parts: [
-      { name: "Display", image: "/product-assets/hub-anatomy/display.webp", description: "A separate screen panel sits at the top of this concept." },
-      { name: "Inner chassis", image: "/product-assets/hub-anatomy/inner-chassis.webp", description: "The internal frame is shown beneath the display." },
-      { name: "Circuit board", image: "/product-assets/hub-anatomy/circuit-board.webp", description: "An illustrative board is pictured without its separate chip." },
-      { name: "Chip", image: "/product-assets/hub-anatomy/chip.webp", description: "A separate chip appears alongside the proposed board." },
-      { name: "Metal support", image: "/product-assets/hub-anatomy/metal-support.webp", description: "A support layer is included in the component study." },
-      { name: "Accent ring", image: "/product-assets/hub-anatomy/accent-ring.webp", description: "A separate ring is pictured as part of the outer assembly." },
-      { name: "Speaker", image: "/product-assets/hub-anatomy/speaker.webp", description: "The render includes a speaker component inside the housing." },
-      { name: "Textile shell", image: "/product-assets/hub-anatomy/textile-shell.webp", description: "A textile-covered shell completes this hardware concept." },
+      { name: "Display", image: "/product-assets/hub-anatomy/display.webp", description: "The screen is the main surface for viewing check-ins, household updates, and information shared by caregivers." },
+      { name: "Inner chassis", image: "/product-assets/hub-anatomy/inner-chassis.webp", description: "This internal frame supports the display and keeps the proposed electronics aligned inside the Hub." },
+      { name: "Circuit board", image: "/product-assets/hub-anatomy/circuit-board.webp", description: "The board represents the central electronics that would coordinate the display and connected home features." },
+      { name: "Chip", image: "/product-assets/hub-anatomy/chip.webp", description: "The processor concept is shown separately from the board to make the computing layer easier to identify." },
+      { name: "Metal support", image: "/product-assets/hub-anatomy/metal-support.webp", description: "A rigid support holds the screen and internal components in the proposed tabletop arrangement." },
+      { name: "Accent ring", image: "/product-assets/hub-anatomy/accent-ring.webp", description: "The ring is an exterior detail around the speaker area and forms part of the Hub’s visual identity." },
+      { name: "Speaker", image: "/product-assets/hub-anatomy/speaker.webp", description: "The speaker represents a way the Hub could provide audible prompts and spoken check-in responses." },
+      { name: "Textile shell", image: "/product-assets/hub-anatomy/textile-shell.webp", description: "The fabric-covered housing surrounds the lower body and gives the concept a softer finish for the home." },
     ],
   },
 } as const;
@@ -262,7 +273,6 @@ function DetailPage({ device }: { device: "hub" }) {
       <div className="one-camera-hero-image"><img src={details.image} alt={details.imageAlt} /></div>
     </section>
     <ProductAnatomySequence name="ONE Hub" parts={details.parts} overviewSrc={details.exploded} overviewAlt="Exploded illustrative rendering of the ONE Hub concept and its proposed components" />
-    <p className="one-camera-parts-note">All component images are illustrative concepts. Final assembly, materials, and specifications are not confirmed.</p>
     <ProductNeighborNav next={{ id: "camera", label: "Standing Camera" }} />
   </>;
 }
@@ -282,14 +292,14 @@ const cameraConcepts = {
     complete: "/product-assets/camera-anatomy/standing-camera.webp",
     exploded: "/product-assets/camera-anatomy/standing-exploded.webp",
     parts: [
-      { name: "Front panel", image: "standing-front-panel.webp", description: "The front panel frames the camera opening." },
-      { name: "Lens elements", image: "standing-lens-elements.webp", description: "Layered lenses sit at the front of the concept." },
-      { name: "Optical module", image: "standing-optical-module.webp", description: "The proposed module sits behind the lens." },
-      { name: "Sensor and board", image: "standing-sensor-board.webp", description: "A sensor and board are grouped in this render." },
-      { name: "Privacy shutter", image: "standing-privacy-shutter.webp", description: "A shutter is shown as a proposed design detail." },
-      { name: "Outer enclosure", image: "standing-enclosure.webp", description: "The spherical shell forms the outer body." },
-      { name: "Adjustable joint", image: "standing-adjustable-joint.webp", description: "A proposed joint connects the body and base." },
-      { name: "Base", image: "standing-base.webp", description: "The base completes the freestanding concept." },
+      { name: "Front panel", image: "standing-front-panel.webp", description: "The front face frames the optical opening and indicator while forming the camera’s clean, approachable front surface." },
+      { name: "Lens elements", image: "standing-lens-elements.webp", description: "Layered lens elements focus incoming light before it reaches the image sensor." },
+      { name: "Optical module", image: "standing-optical-module.webp", description: "The optical assembly holds the lens in alignment and directs the view toward the sensor." },
+      { name: "Sensor and board", image: "standing-sensor-board.webp", description: "This assembly represents the image sensor and supporting electronics behind the camera view." },
+      { name: "Privacy shutter", image: "standing-privacy-shutter.webp", description: "The proposed shutter gives a visible hardware way to cover the lens when camera access is paused." },
+      { name: "Outer enclosure", image: "standing-enclosure.webp", description: "The rounded outer shell protects the camera assembly and gives the standing camera its compact form." },
+      { name: "Adjustable joint", image: "standing-adjustable-joint.webp", description: "The joint connects the camera body to its stand and allows its angle to be adjusted around the room." },
+      { name: "Base", image: "standing-base.webp", description: "The weighted base supports the camera on a table or shelf and helps keep the view steady." },
     ],
   },
   wall: {
@@ -298,14 +308,14 @@ const cameraConcepts = {
     complete: "/product-assets/camera-anatomy/wall-camera.webp",
     exploded: "/product-assets/camera-anatomy/wall-exploded.webp",
     parts: [
-      { name: "Front panel", image: "wall-front-panel.webp", description: "The front panel frames the camera opening." },
-      { name: "Lens elements", image: "wall-lens-elements.webp", description: "Layered lenses sit at the front of the concept." },
-      { name: "Optical module", image: "wall-optical-module.webp", description: "The proposed module sits behind the lens." },
-      { name: "Image sensor", image: "wall-sensor.webp", description: "A sensor element appears behind the optics." },
-      { name: "Circuit board", image: "wall-board.webp", description: "An illustrative board is shown behind the sensor." },
-      { name: "Gasket", image: "wall-gasket.webp", description: "A gasket is pictured between the front and body." },
-      { name: "Outer enclosure", image: "wall-enclosure.webp", description: "The enclosure forms the outer body." },
-      { name: "Wall mount", image: "wall-mount.webp", description: "A separate bracket is shown for wall placement." },
+      { name: "Front panel", image: "wall-front-panel.webp", description: "The front face protects the opening and places the lens behind a single, weather-conscious surface." },
+      { name: "Lens elements", image: "wall-lens-elements.webp", description: "Layered lenses focus the scene before the light reaches the image sensor." },
+      { name: "Optical module", image: "wall-optical-module.webp", description: "The optical assembly keeps the lens aligned inside the mounted camera body." },
+      { name: "Image sensor", image: "wall-sensor.webp", description: "The sensor converts the incoming view into image data for an available camera stream." },
+      { name: "Circuit board", image: "wall-board.webp", description: "The electronics board supports the sensor and camera connection in this hardware concept." },
+      { name: "Gasket", image: "wall-gasket.webp", description: "A sealing layer sits between the front and the enclosure to help protect the internal assembly." },
+      { name: "Outer enclosure", image: "wall-enclosure.webp", description: "The enclosure covers the internal components and is shaped for a fixed wall-mounted position." },
+      { name: "Wall mount", image: "wall-mount.webp", description: "The bracket attaches the camera to a wall and sets its position toward an entry or outdoor area." },
     ],
   },
 } as const;
@@ -325,7 +335,6 @@ function CameraConceptPage({ model }: { model: "standing" | "wall" }) {
       <div className="one-camera-hero-image"><img src={camera.complete} alt={`${camera.name} hardware concept render`} /></div>
     </section>
     <ProductAnatomySequence name={camera.name} parts={camera.parts.map(part => ({ ...part, image: `/product-assets/camera-anatomy/${part.image}` }))} overviewSrc={camera.exploded} overviewAlt={`Exploded view of the ${camera.name} concept, showing its proposed components`} overviewLayout={model === "wall" ? "landscape" : "portrait"} />
-    <p className="one-camera-parts-note">These renders are illustrative. Final assembly, materials, and specifications are not confirmed.</p>
     <ProductNeighborNav previous={previous} next={next} />
   </>;
 }

@@ -258,46 +258,56 @@ export function SampleHomeMap3D() {
   </div>;
 }
 
-export function SampleHomeMap2D() {
-  return <svg className="one-tech-map-2d" viewBox="0 0 600 400" role="img" aria-label="Illustrative floor plan with separate bedroom, bathroom, living room, and kitchen">
+const publicHomeRooms = [
+  { id: "bedroom", label: "Bedroom", x: 60, y: 60, width: 240, height: 140 },
+  { id: "bath", label: "Bath", x: 300, y: 60, width: 240, height: 140 },
+  { id: "living", label: "Living room", x: 60, y: 200, width: 240, height: 140 },
+  { id: "kitchen", label: "Kitchen", x: 300, y: 200, width: 240, height: 140 },
+];
+
+export function SampleHomeMap2D({ selectedRoom, onSelectRoom }: { selectedRoom?: string; onSelectRoom?: (room: string) => void } = {}) {
+  return <svg className="one-tech-map-2d" viewBox="0 0 600 400" role={onSelectRoom ? "group" : "img"} aria-label="Illustrative floor plan with separate bedroom, bathroom, living room, and kitchen">
     <rect x="0" y="0" width="600" height="400" fill="#edf2ef" />
     <g className="one-tech-map-floors">
-      <rect x="60" y="60" width="240" height="140" fill="#d1d9e8" />
-      <rect x="300" y="60" width="240" height="140" fill="#c3dce2" />
-      <rect x="60" y="200" width="240" height="140" fill="#d8d2c6" />
-      <rect x="300" y="200" width="240" height="140" fill="#c6ded4" />
+      {publicHomeRooms.map(room => <rect key={room.id} x={room.x} y={room.y} width={room.width} height={room.height} fill={room.id === "bedroom" ? "#d1d9e8" : room.id === "bath" ? "#c3dce2" : room.id === "living" ? "#d8d2c6" : "#c6ded4"} className={selectedRoom === room.id ? "selected" : ""} role={onSelectRoom ? "button" : undefined} tabIndex={onSelectRoom ? 0 : undefined} aria-label={onSelectRoom ? `Select ${room.label}` : undefined} aria-pressed={onSelectRoom ? selectedRoom === room.id : undefined} onClick={onSelectRoom ? () => onSelectRoom(room.id) : undefined} onKeyDown={onSelectRoom ? event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onSelectRoom(room.id); } } : undefined} />)}
     </g>
     <g className="one-tech-map-walls" fill="none" stroke="#fff" strokeWidth="14" strokeLinecap="square">
       <path d="M60 60H540M60 340H540M60 60V340M540 60V260M540 320V340" />
       <path d="M300 60V120M300 168V200M300 200V252M300 300V340" />
       <path d="M60 200H198M248 200H300M300 200H362M412 200H540" />
     </g>
-    <g className="one-tech-map-labels" fill="#435a6d" fontFamily="Inter, Arial, sans-serif" fontSize="12" fontWeight="700" textAnchor="middle">
+    <g className="one-tech-map-labels" fill="#435a6d" fontFamily="Inter, Arial, sans-serif" fontSize="12" fontWeight="700" textAnchor="middle" pointerEvents="none">
       <text x="180" y="132">BEDROOM</text><text x="420" y="132">BATH</text>
       <text x="180" y="273">LIVING</text><text x="420" y="273">KITCHEN</text>
     </g>
     <path className="one-tech-home-route" d="M540 290H460H355H300H220V200V150H150" />
     <g className="one-tech-home-pins"><circle cx="540" cy="290" r="9" /><circle cx="150" cy="150" r="9" /></g>
+    <g className="one-public-home-person" aria-label="Person located in the bedroom"><circle cx="145" cy="145" r="8" /><path d="M145 154v12m0-7-7 6m7-6 7 6m-7 1-6 9m6-9 6 9" /></g>
+    <g className="one-public-home-object one-public-home-keys" aria-label="Keys in the kitchen"><circle cx="482" cy="280" r="8" /><path d="M478 280h9m-3 0v4m3-4v3" /></g>
+    <g className="one-public-home-object one-public-home-mug" aria-label="Mug in the living room"><rect x="105" y="282" width="17" height="14" rx="3" /><path d="M122 285h4a4 4 0 0 1 0 8h-4M109 278v-3m7 3v-3" /></g>
   </svg>;
 }
 
 const checkinAnswers = [
-  { question: "What happens next?", answer: "This example shows the next item shared for this home. Someone you trust can help you review it." },
-  { question: "Who can see this?", answer: "People with access to this home can review information shared with their role." },
-  { question: "I feel worried", answer: "You can speak with someone you trust nearby. This sample cannot contact anyone or assess an emergency." },
+  { question: "How are you feeling?", answer: "I’m feeling okay, thank you." },
+  { question: "What happens next?", answer: "After breakfast, we can look at today’s plan together." },
+  { question: "Where are my keys?", answer: "They were last seen on the kitchen table." },
 ];
 
 export function SampleCheckinChat({ compact = false }: { compact?: boolean }) {
-  const [selected, setSelected] = useState<number | null>(null);
-  return <section className={`one-sample-checkin-chat${compact ? " is-compact" : ""}`} aria-label="Interactive sample check-in">
+  const [answered, setAnswered] = useState<number[]>([]);
+  const addResponse = (index: number) => setAnswered(current => current.includes(index) ? current : [...current, index]);
+  const complete = answered.length === checkinAnswers.length;
+  return <section className={`one-sample-checkin-chat${compact ? " is-compact" : ""}`} aria-label="Interactive daily check-in">
+    <div className="one-sample-checkin-status"><span><i /> CHECK-IN</span><strong>3 short questions</strong></div>
     <div className="one-sample-checkin-messages" aria-live="polite">
-      <p className="one-sample-checkin-message from-one">Hello. This is an example check-in. Choose a question to see a sample reply.</p>
-      {selected !== null && <><p className="one-sample-checkin-message from-person">{checkinAnswers[selected].question}</p><p className="one-sample-checkin-message from-one">{checkinAnswers[selected].answer}</p></>}
+      <p className="one-sample-checkin-message from-one">Good morning. Let’s take a moment for today’s check-in.</p>
+      {answered.map(index => <div className="one-sample-checkin-turn" key={checkinAnswers[index].question}><p className="one-sample-checkin-message from-person">{checkinAnswers[index].question}</p><p className="one-sample-checkin-message from-one">{checkinAnswers[index].answer}</p></div>)}
     </div>
-    <div className="one-sample-checkin-questions" aria-label="Frequently asked questions">
-      {checkinAnswers.map((item, index) => <button type="button" key={item.question} aria-pressed={selected === index} onClick={() => setSelected(index)}>{item.question}</button>)}
+    <div className="one-sample-checkin-questions" aria-label="Quick check-in questions">
+      {checkinAnswers.map((item, index) => <button type="button" key={item.question} aria-pressed={answered.includes(index)} onClick={() => addResponse(index)}>{item.question}</button>)}
     </div>
-    <small>Sample only · not a live chat or medical service</small>
+    <div className="one-sample-checkin-progress" role="status">{complete ? "Today’s check-in is complete" : answered.length ? "Response added to today’s check-in" : "Ready when you are"}<span>{answered.length} of 3 prompts</span></div>
   </section>;
 }
 

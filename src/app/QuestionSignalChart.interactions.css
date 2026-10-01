@@ -1,0 +1,7 @@
+.question-signal-response-line{stroke:#1679ed;stroke-width:3;stroke-dasharray:1;stroke-dashoffset:1;animation:draw-question-signal 1.1s ease-out forwards}
+.question-signal-tooltip-wrap{overflow:visible;pointer-events:none}
+.question-signal-tooltip{display:grid;gap:3px;max-width:176px;padding:8px 10px;border:1px solid #cfe0e8;border-radius:9px;background:#fff;color:#153b54;box-shadow:0 7px 20px #153b5426;font:10px/1.3 Inter,system-ui,sans-serif}
+.question-signal-tooltip strong{font-size:10px}
+.question-signal-tooltip span{overflow:hidden;color:#5e7586;text-overflow:ellipsis;white-space:nowrap}
+.question-signal-chart-footer .response-key{background:#1679ed}
+@media(prefers-reduced-motion:reduce){.question-signal-response-line{animation:none;stroke-dashoffset:0}}

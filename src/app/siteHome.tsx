@@ -14,8 +14,14 @@ const homeProducts = [
 
 function HomeSystemPreview() {
   const [view, setView] = useState<"map" | "check-in">("map");
-  const [room, setRoom] = useState("Living room");
-  const rooms = ["Bedroom", "Bath", "Living room", "Kitchen"];
+  const [room, setRoom] = useState("living");
+  const rooms = [
+    { id: "bedroom", name: "Bedroom", status: "Manuel located · resting" },
+    { id: "bath", name: "Bath", status: "Room camera connected" },
+    { id: "living", name: "Living room", status: "Mug last seen · side table" },
+    { id: "kitchen", name: "Kitchen", status: "Keys last seen · counter" },
+  ];
+  const activeRoom = rooms.find(item => item.id === room) ?? rooms[0];
 
   return <div className="one-public-system-preview">
     <div className="one-public-preview-topline"><strong>ONE HOME</strong></div>
@@ -24,11 +30,11 @@ function HomeSystemPreview() {
       <button type="button" role="tab" aria-selected={view === "check-in"} onClick={() => setView("check-in")}>Check-in</button>
     </div>
     {view === "map" ? <div className="one-public-map-panel" role="tabpanel">
-      <div className="one-public-map-visual"><SampleHomeMap2D /></div>
+      <div className="one-public-map-visual"><SampleHomeMap2D selectedRoom={room} onSelectRoom={setRoom} /></div>
       <div className="one-public-map-rooms" aria-label="Choose a room">
-        {rooms.map(name => <button type="button" key={name} aria-pressed={room === name} onClick={() => setRoom(name)}>{name}</button>)}
+        {rooms.map(item => <button type="button" key={item.id} aria-pressed={room === item.id} onClick={() => setRoom(item.id)}>{item.name}</button>)}
       </div>
-      <div className="one-public-map-selected"><MapPin size={16} /><strong>{room}</strong></div>
+      <div className="one-public-map-selected" role="status"><MapPin size={16} /><strong>{activeRoom.status}</strong><span>{activeRoom.name}</span></div>
     </div> : <div className="one-public-chat-panel" role="tabpanel"><SampleCheckinChat compact /></div>}
   </div>;
 }

@@ -15,3 +15,70 @@
   backdrop-filter: none;
   transition: min-height 180ms ease, border-color 180ms ease, border-radius 180ms ease, background-color 180ms ease, box-shadow 180ms ease;
 }
+
+/* Public home demo: the room selectors, map and check-in share clear feedback. */
+.one-public-map-visual .one-tech-map-2d { padding: 0; }
+.one-public-map-visual .one-tech-map-floors rect[role="button"] { cursor: pointer; transition: filter .18s ease, stroke .18s ease; }
+.one-public-map-visual .one-tech-map-floors rect[role="button"]:hover,
+.one-public-map-visual .one-tech-map-floors rect[role="button"].selected { filter: brightness(1.04); stroke: #fff; stroke-width: 5px; }
+.one-public-map-visual .one-tech-map-floors rect[role="button"]:focus-visible { outline: none; stroke: #1484e7; stroke-width: 6px; }
+.one-public-home-person { fill: #147ce3; stroke: #fff; stroke-width: 3px; stroke-linecap: round; stroke-linejoin: round; }
+.one-public-home-object { fill: #17aa9a; stroke: #fff; stroke-width: 3px; stroke-linecap: round; stroke-linejoin: round; }
+.one-public-home-object path { fill: none; }
+.one-public-map-selected strong { color: #1b536c; }
+.one-sample-checkin-chat { border-radius: 17px; background: #fff; box-shadow: 0 14px 38px #173b5510; }
+.one-sample-checkin-turn { display:grid; gap:10px; }
+.one-sample-checkin-status { display:flex; align-items:center; justify-content:space-between; gap:10px; padding-bottom:10px; border-bottom:1px solid #e1e9ea; color:#456276; font-size:10px; }
+.one-sample-checkin-status span { display:flex; align-items:center; gap:6px; font-weight:800; letter-spacing:.06em; }
+.one-sample-checkin-status i { width:7px; height:7px; border-radius:50%; background:#39bd91; }
+.one-sample-checkin-status strong { font-size:10px; color:#6c8491; font-weight:600; }
+.one-sample-checkin-progress { display:flex; justify-content:space-between; gap:12px; padding:10px 12px; border-radius:9px; background:#eff7fb; color:#31617d; font-size:10px; }
+.one-sample-checkin-progress span { color:#728a99; }
+.one-public-chat-panel .one-sample-checkin-chat { box-shadow:none; }
+.one-site-product-system-note { max-width:760px; margin:48px auto 0; padding:24px 28px; border-left:3px solid #1988de; border-radius:0 14px 14px 0; background:#f3f9fc; }
+.one-site-product-system-note h2 { margin:7px 0 8px; color:#102b49; font-family:Georgia,serif; font-size:clamp(22px,2.3vw,30px); letter-spacing:-.03em; }
+.one-site-product-system-note p { max-width:68ch; margin:0; color:#627a8b; font-size:13px; line-height:1.65; }
+
+/* Product chapter navigation keeps the scroll sequence compact and directly selectable. */
+.one-product-anatomy { padding-top:42px; background:#f6f7f4; }
+.one-product-anatomy-heading { padding:0 clamp(24px,6vw,92px); }
+.one-product-anatomy-track { height:calc(var(--part-count, 8) * 56svh); }
+.one-product-anatomy-stage { top:76px; display:grid; grid-template-columns:minmax(0,1.15fr) minmax(300px,.85fr); align-items:center; gap:clamp(20px,5vw,70px); height:calc(100svh - 76px); min-height:600px; padding:28px clamp(28px,7vw,108px); }
+.one-product-anatomy-visual { grid-column:1; grid-row:1; min-height:0; }
+.one-product-anatomy-visual img { max-width:min(100%,720px); max-height:min(72svh,640px); }
+.one-product-anatomy-copy { position:static; grid-column:2; grid-row:1; width:auto; max-width:520px; padding:0; border:0; background:transparent; text-align:center; transform:none; backdrop-filter:none; }
+.one-product-anatomy-copy h3 { margin:9px 0; font-size:clamp(29px,3.2vw,44px); }
+.one-product-anatomy-copy>p { max-width:42ch; margin:0 auto; color:#586b70; font-size:14px; line-height:1.7; }
+.one-product-anatomy-part-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:5px 8px; margin:18px auto 0; }
+.one-product-anatomy-part-list button { display:flex; align-items:center; gap:8px; min-width:0; padding:7px 8px; border:1px solid transparent; border-radius:8px; background:transparent; color:#617681; text-align:left; font-size:10px; cursor:pointer; }
+.one-product-anatomy-part-list button span { color:#1684d9; font-size:9px; font-weight:800; }
+.one-product-anatomy-part-list button:hover,.one-product-anatomy-part-list button.active { border-color:#cbdfe8; background:#ffffffb8; color:#143a56; }
+.one-product-anatomy-controls { justify-content:center; margin-top:14px; }
+.one-product-anatomy-overview { display:grid; grid-template-columns:minmax(190px,.65fr) minmax(0,1.35fr); align-items:center; gap:clamp(20px,6vw,84px); width:min(100%,1320px); height:auto; min-height:0; margin:0 auto; padding:48px clamp(24px,6vw,92px) 66px; }
+.one-product-anatomy-overview img,.one-product-anatomy-overview.is-portrait img,.one-product-anatomy-overview.is-landscape img { width:100%; max-width:700px; height:clamp(320px,52svh,560px); max-height:560px; justify-self:end; object-fit:contain; }
+.one-product-anatomy-overview-list { align-self:center; }
+.one-product-anatomy-overview-list ol { display:grid; gap:8px; margin:15px 0 0; padding:0; list-style:none; }
+.one-product-anatomy-overview-list li { display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid #dce6e5; color:#264553; font-size:12px; }
+.one-product-anatomy-overview-list li span { color:#1886dd; font-size:10px; font-weight:800; }
+.one-camera-parts-note { display:none; }
+
+@media(max-width:760px) {
+  .one-site-product-system-note { margin-top:28px; padding:20px; }
+  .one-product-anatomy-track { height:calc(var(--part-count, 8) * 76svh); }
+  .one-product-anatomy-stage { top:60px; grid-template-columns:1fr; grid-template-rows:minmax(0,1fr) auto; gap:4px; height:calc(100svh - 60px); min-height:620px; padding:15px 22px; }
+  .one-product-anatomy-visual { grid-column:1; grid-row:1; }
+  .one-product-anatomy-visual img { max-height:36svh; }
+  .one-product-anatomy-copy { grid-column:1; grid-row:2; max-width:none; }
+  .one-product-anatomy-copy h3 { margin:5px 0; font-size:27px; }
+  .one-product-anatomy-copy>p { font-size:12px; line-height:1.45; }
+  .one-product-anatomy-part-list { display:flex; max-width:100%; overflow-x:auto; padding-bottom:4px; }
+  .one-product-anatomy-part-list button { flex:0 0 auto; }
+  .one-product-anatomy-controls { margin-top:4px; }
+  .one-product-anatomy-overview { grid-template-columns:1fr; gap:8px; padding:34px 22px; }
+  .one-product-anatomy-overview img,.one-product-anatomy-overview.is-portrait img,.one-product-anatomy-overview.is-landscape img { height:min(48svh,390px); justify-self:center; }
+  .one-product-anatomy-overview-list ol { grid-template-columns:repeat(2,minmax(0,1fr)); gap:2px 15px; }
+}
+
+@media(prefers-reduced-motion:reduce) {
+  .one-product-anatomy-part-list button,.one-public-map-visual .one-tech-map-floors rect[role="button"] { transition:none; }
+}

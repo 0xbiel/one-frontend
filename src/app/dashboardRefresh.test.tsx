@@ -29,7 +29,7 @@ describe("shared dashboard demo", () => {
     await waitFor(() => expect(switcher).toHaveTextContent("Manuel García"));
     expect(sessionStorage.getItem("one_care_recipient_id")).toBe("recipient-manuel");
     expect((await api.getEvents("recipient-manuel")).map((event) => event.id)).not.toContain("evt-checkin");
-    await waitFor(() => expect(screen.getAllByText("Manuel answered four familiar morning prompts.").length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getAllByText(/Manuel completed/).length).toBeGreaterThan(0));
     expect(screen.queryAllByText("María answered four familiar morning prompts.")).toHaveLength(0);
     expect(screen.getAllByText("Keys last seen").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Person observed").length).toBeGreaterThan(0);
@@ -52,7 +52,8 @@ describe("shared dashboard demo", () => {
     render(<DemoHomeMap />);
     fireEvent.click(screen.getByRole("button", { name: "2D" }));
     fireEvent.click(screen.getByRole("button", { name: "Select Bedroom" }));
-    expect(screen.getByRole("heading", { name: "Bedroom" })).toBeInTheDocument();
+    expect(document.querySelector(".sample-map-toolbar h3")).toHaveTextContent("Bedroom");
+    expect(screen.getByText("Manuel García, Reading glasses located here.")).toBeInTheDocument();
     expect(screen.getByRole("group", { name: /Interactive 2D floor plan/ })).toBeInTheDocument();
   });
 });

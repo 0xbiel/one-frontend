@@ -86,6 +86,7 @@ export interface CheckInQuestion {
   pulseBpm: number | null;
   askedAt: string;
   isRepeat?: boolean;
+  answerAccuracy?: 'accurate' | 'uncertain' | 'inaccurate';
 }
 export interface DailyCheckInInput {
   subjectUserId?: string | null;
@@ -832,7 +833,7 @@ export const api = {
     if (demoMode) {
       const summaries: CaregiverSummary[] = [
       { id: 'demo-summary-1', careRecipientId: 'recipient-maria', status: 'stable', trend: 'stable', explanation: 'The latest check-in is within the recent household pattern.', limitations: 'Demo observation; not a diagnosis.', evidenceIds: ['evt-checkin'], createdAt: new Date().toISOString() },
-      { id: 'demo-summary-2', careRecipientId: 'recipient-manuel', status: 'unknown', trend: 'unknown', explanation: 'There was not enough information to establish a trend.', limitations: 'Demo observation; not a diagnosis.', evidenceIds: [], createdAt: new Date(Date.now() - 86_400_000 * 2).toISOString() },
+      { id: 'demo-summary-2', careRecipientId: 'recipient-manuel', status: 'attention', trend: 'longer replies and more follow-up prompts', explanation: 'Recent check-ins include longer response times and more follow-up questions than Manuel’s earlier routine. Review these changes with the household context.', limitations: 'A change in responses is context for caregiver review, not a medical assessment.', evidenceIds: ['history-checkin-manuel-0'], createdAt: new Date().toISOString() },
       ];
       return summaries.filter((item) => !careRecipientId || item.careRecipientId === careRecipientId);
     }
@@ -849,18 +850,7 @@ export const api = {
   },
   getCheckInQuestions: async (careRecipientId?: string | null): Promise<CheckInQuestion[]> => {
     if (demoMode) {
-      const today = new Date();
-      const current = [
-        { id: 'demo-q-1', summaryId: 'demo-summary-1', careRecipientId: 'recipient-maria', question: 'How are you feeling today?', answer: 'Answered', responseTimeMs: 12_000, baselineMs: 9_000, pulseBpm: 74, askedAt: new Date(today.setHours(8, 23, 0, 0)).toISOString() },
-        { id: 'demo-q-2', summaryId: 'demo-summary-1', careRecipientId: 'recipient-maria', question: 'Did you have breakfast?', answer: 'Answered', responseTimeMs: 6_000, baselineMs: 9_000, pulseBpm: 74, askedAt: new Date(today.setHours(8, 24, 0, 0)).toISOString() },
-        { id: 'demo-q-3', summaryId: 'demo-summary-1', careRecipientId: 'recipient-maria', question: 'Where are your glasses?', answer: 'Answered', responseTimeMs: 12_000, baselineMs: 9_000, pulseBpm: 74, askedAt: new Date(today.setHours(8, 25, 0, 0)).toISOString() },
-        { id: 'demo-q-4', summaryId: 'demo-summary-1', careRecipientId: 'recipient-maria', question: 'Would you like some water?', answer: 'Answered', responseTimeMs: 12_000, baselineMs: 9_000, pulseBpm: 74, askedAt: new Date(today.setHours(8, 26, 0, 0)).toISOString() },
-      ];
-      const history = [11_000, 9_000, 14_000, 10_000, 12_000, 9_000].map((responseTimeMs, index) => {
-        const askedAt = new Date(); askedAt.setDate(askedAt.getDate() - (6 - index)); askedAt.setHours(8, 23, 0, 0);
-        return { id: `demo-q-history-${index}`, summaryId: 'demo-summary-2', careRecipientId: 'recipient-manuel', question: 'How are you feeling today?', answer: 'Answered', responseTimeMs, baselineMs: 9_000, pulseBpm: 74, askedAt: askedAt.toISOString() };
-      });
-      return [...demoDailyQuestions, ...current, ...history]
+      return demoDailyQuestions
         .filter((item) => !careRecipientId || item.careRecipientId === careRecipientId)
         .sort((a, b) => b.askedAt.localeCompare(a.askedAt));
     }

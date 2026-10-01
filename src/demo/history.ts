@@ -9,6 +9,7 @@ export interface DemoQuestionRecord {
   pulseBpm: number;
   askedAt: string;
   isRepeat?: boolean;
+  answerAccuracy?: "accurate" | "uncertain" | "inaccurate";
 }
 
 const prompts = [
@@ -29,17 +30,18 @@ function makeDailyQuestions(daysAgo: number, recipient: "manuel" | "maria"): Dem
   const date = new Date();
   date.setDate(date.getDate() - daysAgo);
   date.setHours(8, 0, 0, 0);
-  const delayBase = recipient === "manuel"
-    ? daysAgo < 45 ? 25_000 : daysAgo < 120 ? 17_000 : 9_000
-    : 8_000;
+  const stage = daysAgo < 30 ? 4 : daysAgo < 90 ? 3 : daysAgo < 180 ? 2 : daysAgo < 270 ? 1 : 0;
+  const delayBase = recipient === "manuel" ? 9_000 + stage * 6_000 : 8_000;
   const records = prompts.map<DemoQuestionRecord>(([question, answer], index) => {
-    const responseTimeMs = delayBase + ((daysAgo + index * 2) % 4) * 2_000;
+    const responseTimeMs = delayBase + ((daysAgo + index * 2) % 5) * (recipient === "manuel" ? 4_000 : 1_000);
+    const inaccurate = recipient === "manuel" && stage >= 2 && [1, 2].includes(index) && (daysAgo + index * 7) % 17 < stage;
     return {
       id: `history-${recipient}-${daysAgo}-${index}`,
       summaryId: `history-summary-${recipient}-${daysAgo}`,
       careRecipientId: recipientId,
       question,
-      answer,
+      answer: inaccurate ? index === 1 ? "I think I had breakfast yesterday." : "I’m not sure; didn’t I already answer that?" : answer,
+      answerAccuracy: inaccurate ? "inaccurate" : "accurate",
       responseTimeMs,
       baselineMs: recipient === "manuel" ? 9_000 : 8_000,
       pulseBpm: recipient === "manuel" ? 72 + ((daysAgo + index) % 7) : 70 + ((daysAgo + index) % 6),
@@ -47,30 +49,32 @@ function makeDailyQuestions(daysAgo: number, recipient: "manuel" | "maria"): Dem
     };
   });
 
-  if (recipient === "manuel" && daysAgo < 150 && (daysAgo % 3 === 0 || daysAgo < 25 && daysAgo % 2 === 0)) {
-    const repeats = daysAgo < 45 && daysAgo % 4 === 0 ? 2 : 1;
-    for (let index = 0; index < repeats; index += 1) {
+  const extraQuestions = recipient !== "manuel" ? 0
+    : stage >= 4 ? 2 + (daysAgo % 3 === 0 ? 1 : 0)
+      : stage === 3 ? (daysAgo % 2 === 0 ? 2 : 1)
+        : stage === 2 ? (daysAgo % 3 === 0 ? 1 : 0)
+          : stage === 1 ? (daysAgo % 6 === 0 ? 1 : 0)
+            : daysAgo % 12 === 0 ? 1 : 0;
+  const followUps = ["What time is my appointment?", "Can you remind me what happens next?", "Did you say we’re leaving now?"];
+  for (let index = 0; index < extraQuestions; index += 1) {
       records.push({
         id: `history-manuel-${daysAgo}-repeat-${index}`,
         summaryId: `history-summary-manuel-${daysAgo}`,
         careRecipientId: recipientId,
-        question: index === 0 ? "What time is my appointment?" : "Can you remind me what time I need to leave?",
-        answer: "The appointment is at 10:30 AM.",
-        responseTimeMs: delayBase + 8_000,
+        question: followUps[index % followUps.length],
+        answer: stage >= 3 && index > 0 ? "I thought you said we were staying home." : "The appointment is at 10:30 AM.",
+        answerAccuracy: stage >= 3 && index > 0 ? "inaccurate" : "accurate",
+        responseTimeMs: delayBase + 10_000 + index * 4_000,
         baselineMs: 9_000,
         pulseBpm: 76,
-        askedAt: addMinutes(date, 16 + index * 2).toISOString(),
+        askedAt: addMinutes(date, 16 + index * 4).toISOString(),
         isRepeat: true,
       });
-    }
   }
 
   return records;
 }
 
 export const demoQuestionHistory: DemoQuestionRecord[] = Array.from({ length: 365 }, (_, daysAgo) => {
-  const records: DemoQuestionRecord[] = [];
-  if (daysAgo % 2 === 0) records.push(...makeDailyQuestions(daysAgo, "manuel"));
-  if (daysAgo % 3 === 0) records.push(...makeDailyQuestions(daysAgo, "maria"));
-  return records;
+  return [...makeDailyQuestions(daysAgo, "manuel"), ...makeDailyQuestions(daysAgo, "maria")];
 }).flat();
