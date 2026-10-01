@@ -182,23 +182,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/homes/{home_id}/analytics": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Home Analytics */
-        get: operations["home_analytics_api_v1_homes__home_id__analytics_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/homes/{home_id}/calibrations": {
         parameters: {
             query?: never;
@@ -338,23 +321,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/homes/{home_id}/cameras/{camera_id}/localize-roomplan/progress": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Roomplan Localization Progress */
-        get: operations["get_roomplan_localization_progress_api_v1_homes__home_id__cameras__camera_id__localize_roomplan_progress_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/homes/{home_id}/cameras/{camera_id}/map-generation": {
         parameters: {
             query?: never;
@@ -407,58 +373,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/homes/{home_id}/cameras/{camera_id}/reference-snapshot": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Camera Reference Snapshot */
-        get: operations["camera_reference_snapshot_api_v1_homes__home_id__cameras__camera_id__reference_snapshot_get"];
-        put?: never;
-        /** Save Camera Reference Snapshot */
-        post: operations["save_camera_reference_snapshot_api_v1_homes__home_id__cameras__camera_id__reference_snapshot_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/homes/{home_id}/cameras/{camera_id}/reference-snapshot/capture-request": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Camera Reference Snapshot Capture Request */
-        get: operations["get_camera_reference_snapshot_capture_request_api_v1_homes__home_id__cameras__camera_id__reference_snapshot_capture_request_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/homes/{home_id}/cameras/{camera_id}/reference-snapshot/request-capture": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Request Camera Reference Snapshot Capture */
-        post: operations["request_camera_reference_snapshot_capture_api_v1_homes__home_id__cameras__camera_id__reference_snapshot_request_capture_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/homes/{home_id}/cameras/{camera_id}/roomplan-calibration-session": {
         parameters: {
             query?: never;
@@ -471,34 +385,11 @@ export interface paths {
         put?: never;
         /**
          * Start Roomplan Calibration Session
-         * @description Start a transient fixed-scene reference calibration session.
-         *
-         *     The caregiver no longer has to stand on floor targets. The paired
-         *     publisher camera supplies several short, stationary scene captures and
-         *     ordinary RoomPlan visual localization decides the pose. People and
-         *     movable furniture are treated as transient evidence by the geometry
-         *     worker.
+         * @description Start a transient caregiver-guided calibration for a fixed publisher camera.
          */
         post: operations["start_roomplan_calibration_session_api_v1_homes__home_id__cameras__camera_id__roomplan_calibration_session_post"];
         /** Cancel Roomplan Calibration Session */
         delete: operations["cancel_roomplan_calibration_session_api_v1_homes__home_id__cameras__camera_id__roomplan_calibration_session_delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/homes/{home_id}/cameras/{camera_id}/roomplan-calibration-session/commit-reference": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Commit Roomplan Calibration Reference */
-        post: operations["commit_roomplan_calibration_reference_api_v1_homes__home_id__cameras__camera_id__roomplan_calibration_session_commit_reference_post"];
-        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -584,7 +475,7 @@ export interface paths {
         };
         /**
          * Camera Roomplan Readiness
-         * @description Expose only the RoomPlan state needed for explicitly requested positioning.
+         * @description Expose only the RoomPlan state a camera needs for automatic localization.
          */
         get: operations["camera_roomplan_readiness_api_v1_homes__home_id__cameras__camera_id__roomplan_readiness_get"];
         put?: never;
@@ -631,41 +522,6 @@ export interface paths {
         patch: operations["care_recipient_update_api_v1_homes__home_id__care_recipients__recipient_id__patch"];
         trace?: never;
     };
-    "/api/v1/homes/{home_id}/care-recipients/{recipient_id}/face-profile": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Face Profile Get */
-        get: operations["face_profile_get_api_v1_homes__home_id__care_recipients__recipient_id__face_profile_get"];
-        put?: never;
-        post?: never;
-        /** Face Profile Delete */
-        delete: operations["face_profile_delete_api_v1_homes__home_id__care_recipients__recipient_id__face_profile_delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/homes/{home_id}/care-recipients/{recipient_id}/face-profile/enroll": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Face Profile Enroll */
-        post: operations["face_profile_enroll_api_v1_homes__home_id__care_recipients__recipient_id__face_profile_enroll_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/homes/{home_id}/caregiver-summary": {
         parameters: {
             query?: never;
@@ -694,6 +550,23 @@ export interface paths {
         put?: never;
         /** Check In */
         post: operations["check_in_api_v1_homes__home_id__check_ins_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/homes/{home_id}/check-ins/questions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Check In Questions */
+        get: operations["check_in_questions_api_v1_homes__home_id__check_ins_questions_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -797,23 +670,6 @@ export interface paths {
         put?: never;
         /** Clip Create */
         post: operations["clip_create_api_v1_homes__home_id__events__event_id__clips_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/homes/{home_id}/events/{event_id}/snapshot": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Event Snapshot */
-        get: operations["event_snapshot_api_v1_homes__home_id__events__event_id__snapshot_get"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1328,24 +1184,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/homes/{home_id}/rooms/{room_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Room Delete */
-        delete: operations["room_delete_api_v1_homes__home_id__rooms__room_id__delete"];
-        options?: never;
-        head?: never;
-        /** Room Update */
-        patch: operations["room_update_api_v1_homes__home_id__rooms__room_id__patch"];
-        trace?: never;
-    };
     "/api/v1/homes/{home_id}/runtime": {
         parameters: {
             query?: never;
@@ -1651,8 +1489,11 @@ export interface components {
         };
         /** CameraLocalizationIn */
         CameraLocalizationIn: {
-            /** Fov Degrees */
-            fov_degrees?: number | null;
+            /**
+             * Fov Degrees
+             * @default 60
+             */
+            fov_degrees: number;
             /** Frames */
             frames: components["schemas"]["CameraLocalizationFrameIn"][];
             intrinsics?: components["schemas"]["Matrix3x3In"] | null;
@@ -1771,14 +1612,6 @@ export interface components {
             created_at: string;
             /** Display Name */
             display_name: string;
-            /** Face Profile Updated At */
-            face_profile_updated_at?: string | null;
-            /**
-             * Face Recognition Status
-             * @default not_enrolled
-             * @enum {string}
-             */
-            face_recognition_status: "not_enrolled" | "ready" | "unavailable" | "revoked";
             /** Id */
             id: string;
             /**
@@ -1817,8 +1650,8 @@ export interface components {
         };
         /** CheckInIn */
         CheckInIn: {
-            /** Care Recipient Id */
-            care_recipient_id?: string | null;
+            /** Questions */
+            questions?: components["schemas"]["CheckInQuestionIn"][];
             /** Subject User Id */
             subject_user_id?: string | null;
             /**
@@ -1826,6 +1659,22 @@ export interface components {
              * @default
              */
             transcript: string;
+        };
+        /** CheckInQuestionIn */
+        CheckInQuestionIn: {
+            /**
+             * Answer
+             * @default
+             */
+            answer: string;
+            /** Baseline Ms */
+            baseline_ms?: number | null;
+            /** Pulse Bpm */
+            pulse_bpm?: number | null;
+            /** Question */
+            question: string;
+            /** Response Time Ms */
+            response_time_ms?: number | null;
         };
         /** ClipBytesIn */
         ClipBytesIn: {
@@ -1928,45 +1777,6 @@ export interface components {
             code: string;
             /** Email */
             email: string;
-        };
-        /** FaceEnrollmentFrameIn */
-        FaceEnrollmentFrameIn: {
-            /**
-             * Camera Position
-             * @default front
-             * @enum {string}
-             */
-            camera_position: "front" | "back";
-            /** Frame Base64 */
-            frame_base64: string;
-            /** Height */
-            height: number;
-            /** Width */
-            width: number;
-        };
-        /** FaceEnrollmentIn */
-        FaceEnrollmentIn: {
-            /** Frames */
-            frames: components["schemas"]["FaceEnrollmentFrameIn"][];
-        };
-        /** FaceProfileOut */
-        FaceProfileOut: {
-            /** Care Recipient Id */
-            care_recipient_id: string;
-            /** Model Version */
-            model_version?: string | null;
-            /**
-             * Sample Count
-             * @default 0
-             */
-            sample_count: number;
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "not_enrolled" | "ready" | "unavailable" | "revoked";
-            /** Updated At */
-            updated_at?: string | null;
         };
         /** FamilyAssistantIn */
         FamilyAssistantIn: {
@@ -2313,9 +2123,6 @@ export interface components {
         };
         /** RoomPlanMapIn */
         RoomPlanMapIn: {
-            /** Alignment Status */
-            alignment_status?: ("aligned" | "needs_alignment") | null;
-            fragment_to_home?: components["schemas"]["RoomPlanTransform4x4"] | null;
             normalized_scan: components["schemas"]["RoomPlanNormalizedScan"];
             /** Room Id */
             room_id?: string | null;
@@ -2408,9 +2215,9 @@ export interface components {
             lidar: true;
             /**
              * Provenance
-             * @enum {string}
+             * @constant
              */
-            provenance: "native-roomplan" | "native-roomplan-structure";
+            provenance: "native-roomplan";
             /** Roomplan Version */
             roomplan_version: string;
             /**
@@ -2425,8 +2232,6 @@ export interface components {
             up_axis: "Y" | "y";
             /** Visual Depth Sample Count */
             visual_depth_sample_count?: number | null;
-            /** Visual Estimated Area Square Meters */
-            visual_estimated_area_square_meters?: number | null;
             /** Visual Image Encoding Failure Count */
             visual_image_encoding_failure_count?: number | null;
             /** Visual Invalid Matrix Count */
@@ -2435,8 +2240,6 @@ export interface components {
             visual_last_tracking_state?: ("normal" | "limited" | "unavailable") | null;
             /** Visual Missing Frame Count */
             visual_missing_frame_count?: number | null;
-            /** Visual Recommended Sample Count */
-            visual_recommended_sample_count?: number | null;
             /** Visual Sample Count */
             visual_sample_count?: number | null;
             /** Visual Sampling Attempts */
@@ -2451,11 +2254,6 @@ export interface components {
             label: string;
             /** Story */
             story: number;
-        };
-        /** RoomPlanTransform4x4 */
-        RoomPlanTransform4x4: {
-            /** Values */
-            values: number[][];
         };
         /** RoomPlanVisualFrameIn */
         RoomPlanVisualFrameIn: {
@@ -2481,11 +2279,6 @@ export interface components {
         RoomPlanVisualLandmarksIn: {
             /** Frames */
             frames: components["schemas"]["RoomPlanVisualFrameIn"][];
-        };
-        /** RoomUpdate */
-        RoomUpdate: {
-            /** Name */
-            name: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -2833,40 +2626,6 @@ export interface operations {
             };
         };
     };
-    home_analytics_api_v1_homes__home_id__analytics_get: {
-        parameters: {
-            query?: {
-                care_recipient_id?: string | null;
-                window_days?: number;
-            };
-            header?: never;
-            path: {
-                home_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     calibrations_api_v1_homes__home_id__calibrations_get: {
         parameters: {
             query?: never;
@@ -3208,38 +2967,6 @@ export interface operations {
             };
         };
     };
-    get_roomplan_localization_progress_api_v1_homes__home_id__cameras__camera_id__localize_roomplan_progress_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                home_id: string;
-                camera_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     map_generation_status_api_v1_homes__home_id__cameras__camera_id__map_generation_get: {
         parameters: {
             query?: never;
@@ -3378,138 +3105,6 @@ export interface operations {
             };
         };
     };
-    camera_reference_snapshot_api_v1_homes__home_id__cameras__camera_id__reference_snapshot_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                home_id: string;
-                camera_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    save_camera_reference_snapshot_api_v1_homes__home_id__cameras__camera_id__reference_snapshot_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                home_id: string;
-                camera_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CameraLocalizationFrameIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_camera_reference_snapshot_capture_request_api_v1_homes__home_id__cameras__camera_id__reference_snapshot_capture_request_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                home_id: string;
-                camera_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    request_camera_reference_snapshot_capture_api_v1_homes__home_id__cameras__camera_id__reference_snapshot_request_capture_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                home_id: string;
-                camera_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     get_roomplan_calibration_session_api_v1_homes__home_id__cameras__camera_id__roomplan_calibration_session_get: {
         parameters: {
             query?: never;
@@ -3575,38 +3170,6 @@ export interface operations {
         };
     };
     cancel_roomplan_calibration_session_api_v1_homes__home_id__cameras__camera_id__roomplan_calibration_session_delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                home_id: string;
-                camera_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    commit_roomplan_calibration_reference_api_v1_homes__home_id__cameras__camera_id__roomplan_calibration_session_commit_reference_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -3938,106 +3501,6 @@ export interface operations {
             };
         };
     };
-    face_profile_get_api_v1_homes__home_id__care_recipients__recipient_id__face_profile_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                home_id: string;
-                recipient_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FaceProfileOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    face_profile_delete_api_v1_homes__home_id__care_recipients__recipient_id__face_profile_delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                home_id: string;
-                recipient_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FaceProfileOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    face_profile_enroll_api_v1_homes__home_id__care_recipients__recipient_id__face_profile_enroll_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                home_id: string;
-                recipient_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["FaceEnrollmentIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FaceProfileOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     caregiver_summary_api_v1_homes__home_id__caregiver_summary_get: {
         parameters: {
             query?: never;
@@ -4083,6 +3546,39 @@ export interface operations {
                 "application/json": components["schemas"]["CheckInIn"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    check_in_questions_api_v1_homes__home_id__check_ins_questions_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                home_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -4326,39 +3822,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    event_snapshot_api_v1_homes__home_id__events__event_id__snapshot_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                home_id: string;
-                event_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "image/jpeg": unknown;
-                    "image/png": unknown;
                 };
             };
             /** @description Validation Error */
@@ -5499,74 +4962,6 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["RoomIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    room_delete_api_v1_homes__home_id__rooms__room_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                home_id: string;
-                room_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    room_update_api_v1_homes__home_id__rooms__room_id__patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                home_id: string;
-                room_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RoomUpdate"];
             };
         };
         responses: {

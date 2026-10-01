@@ -182,23 +182,6 @@ export function CameraMap2D({ scene, objects, selectedId, onSelect, measurement 
             <Camera size={4} x={-2} y={-2} color="#ffffff" aria-hidden="true" />
           </g>
         )}
-        {(scene.cameraRegistrations ?? []).map((registration, index) => {
-          const positions = [
-            { x: 22, y: 30 },
-            { x: 84, y: 24 },
-            { x: 62, y: 62 },
-            { x: 45, y: 42 },
-          ];
-          const point = positions[index % positions.length];
-          const online = registration.status === "positioned";
-          return (
-            <g key={registration.cameraId ?? index} className={`camera-map-camera-registration ${online ? "online" : "offline"}`} transform={`translate(${point.x} ${point.y})`}>
-              <circle r="3.8" />
-              <text x="0" y="1.1" textAnchor="middle">{online ? "✓" : "×"}</text>
-              <title>{`${registration.cameraName ?? "Camera"} · ${online ? "online registered camera" : "expected camera offline"}`}</title>
-            </g>
-          );
-        })}
         {objects.filter((object) => object.point).map((object) => {
           const point = object.point!;
           const selected = selectedId === object.id;

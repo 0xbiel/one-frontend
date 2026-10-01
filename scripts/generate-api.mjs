@@ -15,7 +15,8 @@ if (!existsSync(source)) {
 }
 
 console.log(`Generating TypeScript client types from ${source}`);
-const result = spawnSync("openapi-typescript", [source, "-o", output], {
+const generator = resolve(root, "node_modules", "openapi-typescript", "bin", "cli.js");
+const result = spawnSync(process.execPath, [generator, source, "-o", output], {
   cwd: root,
   stdio: "inherit",
 });

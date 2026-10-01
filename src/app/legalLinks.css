@@ -1,0 +1,54 @@
+.one-login-legal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  width: min(100%, 352px);
+  margin-top: 17px;
+}
+
+.one-login-legal a {
+  color: #59738c;
+  font-size: 11px;
+  line-height: 1.5;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.one-login-legal a:hover,
+.privacy-notice-link:hover {
+  color: #0877cf;
+}
+
+.privacy-notice-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 7px;
+  color: #1769a5;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.dd-sidebar nav a.dd-legal-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 10px 13px;
+  border-radius: 10px;
+  color: #273b60;
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.dd-sidebar nav a.dd-legal-nav-link svg {
+  flex: none;
+  color: #587395;
+}
+
+.dd-sidebar nav a.dd-legal-nav-link:hover {
+  background: #e3efff;
+  color: #1266f9;
+}

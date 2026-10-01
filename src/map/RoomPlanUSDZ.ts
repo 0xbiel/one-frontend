@@ -36,14 +36,9 @@ function meshTransform(source: string): number[] | undefined {
 function materialFor(path: string, source: string): THREE.MeshStandardMaterial {
   const isFloor = path.includes("/Floors/");
   const isWall = path.includes("/Walls/");
-  const isOpening = /(?:Door|Window|Opening)/i.test(path);
   const nativeColor = numberList(/color3f\s+inputs:diffuseColor\s*=\s*\(([^)]*)\)/.exec(source)?.[1]);
   const nativeOpacity = numberList(/float\s+inputs:opacity\s*=\s*([^\n]+)/.exec(source)?.[1])[0];
-  // RoomPlan exports door/window leaf meshes as separate assets. They are
-  // useful as visual hints, but a closed opaque leaf makes the web viewer look
-  // like the room has sealed walls. Keep openings visible while preserving the
-  // walkable room volume.
-  const opacity = isOpening ? 0.12 : (nativeOpacity === undefined ? 1 : THREE.MathUtils.clamp(nativeOpacity, 0, 1));
+  const opacity = nativeOpacity === undefined ? 1 : THREE.MathUtils.clamp(nativeOpacity, 0, 1);
   const color = nativeColor.length >= 3
     ? new THREE.Color(nativeColor[0], nativeColor[1], nativeColor[2])
     : new THREE.Color(isFloor ? 0xdadada : isWall ? 0xe7e7e7 : 0xf1f1f1);

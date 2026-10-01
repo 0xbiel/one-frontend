@@ -1,6 +1,6 @@
 export type Role = 'caregiver' | 'publisher';
 export type DeviceStatus = 'online' | 'offline' | 'paused';
-export type EventType = 'object.last_seen' | 'presence.changed' | 'daily.check_in' | 'fall.suspected' | 'clip.created' | 'device.status' | 'privacy.changed';
+export type EventType = 'object.last_seen' | 'presence.changed' | 'clip.created' | 'device.status' | 'privacy.changed';
 export type MapDimension = '2d' | '3d';
 export type MapSource = 'camera-cv-2d' | 'roomplan-lidar-3d' | 'arkit-video-3d' | 'legacy-2d';
 export type GeometryStatus = 'collecting' | 'processing' | 'ready' | 'needs_rescan' | 'unavailable' | 'failed' | 'legacy' | string;
@@ -90,72 +90,15 @@ export interface CameraRegistration {
   source: string;
   intrinsics?: Record<string, unknown>;
   metrics?: Record<string, unknown>;
-  referenceSnapshot?: {
-    capturedAt?: string | null;
-    mapId?: string | null;
-    width?: number | null;
-    height?: number | null;
-    downloadPath?: string | null;
-  } | null;
 }
 export interface Zone { id: string; name: string; x: number; y: number; width: number; height: number; polygon?: Point2D[]; confidence?: number; }
 export interface LastSeenObject {
   id: string; label: string; icon: string; status: 'seen' | 'unknown'; lastSeenAt: string | null;
   point: { x: number; y: number } | null; confidenceRadiusM: number; confidence: number;
-  worldPoint?: Point3D | null; mapId?: string | null; cameraId?: string | null; roomId?: string | null;
-  presenceState?: 'current' | 'recent' | 'stale' | null;
+  worldPoint?: Point3D | null; mapId?: string | null; cameraId?: string | null;
   zone: Zone | null; sourceEventId: string | null;
 }
-export interface HomeEvent { id: string; type: EventType; title: string; detail: string; occurredAt: string; objectId?: string; clipId?: string; status?: string; confidence?: number; careRecipientId?: string | null; snapshotPath?: string | null; snapshotContentType?: string | null; tone: 'blue' | 'green' | 'amber'; }
-export type CheckInStatus = 'stable' | 'attention' | 'unknown';
-export type CheckInTrend = 'stable' | 'improving' | 'changing' | 'unknown';
-export interface DailyCheckInResult {
-  id: string;
-  event_id?: string;
-  care_recipient_id?: string | null;
-  status: CheckInStatus;
-  trend: CheckInTrend;
-  explanation: string;
-  evidence_ids?: string[];
-  limitations: string;
-  degraded?: boolean;
-  inference_status?: string;
-  model_version?: string;
-}
-export interface AnalyticsDay { date: string; count: number; }
-export interface FallAnalytics {
-  window_days: number;
-  total_signals: number;
-  needs_review: number;
-  reviewed: number;
-  last_signal_at?: string | null;
-  trend: 'stable' | 'increasing' | 'decreasing' | 'unknown';
-  by_day: AnalyticsDay[];
-  recent: Array<{ id: string; status?: string; confidence?: number | null; explanation?: string | null; occurred_at?: string | null }>;
-  limitations: string[];
-}
-export interface DailyCheckInAnalytics {
-  window_days: number;
-  total: number;
-  completed_today: number;
-  status_counts: Record<string, number>;
-  last_recorded_at?: string | null;
-  last_status?: CheckInStatus | null;
-  last_trend?: CheckInTrend | null;
-  last_explanation?: string | null;
-  trend: 'stable' | 'increasing' | 'decreasing' | 'unknown';
-  by_day: AnalyticsDay[];
-  recent: Array<{ id: string; status?: string; trend?: string; explanation?: string | null; recorded_at?: string | null }>;
-  limitations: string[];
-}
-export interface CareAnalytics {
-  window_days: number;
-  fall: FallAnalytics;
-  daily_check_in: DailyCheckInAnalytics;
-  event_counts: Record<string, number>;
-  assistant_context: { includes: string[]; excludes: string[] };
-  limitations: string[];
-}
+export interface HomeEvent { id: string; type: EventType; title: string; detail: string; occurredAt: string; objectId?: string; clipId?: string; cameraId?: string | null; cameraName?: string | null; roomName?: string | null; confidence?: number | null; tone: 'blue' | 'green' | 'amber'; }
 export interface Scene {
   sceneId: string;
   version: number;
