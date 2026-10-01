@@ -289,32 +289,34 @@
   display: grid;
   place-items: center;
   width: 100%;
-  height: min(88svh, 850px);
-  min-height: 540px;
+  height: clamp(340px, 68svh, 700px);
+  min-height: 0;
   margin: 0;
   padding: 28px clamp(24px, 6vw, 92px);
+  overflow: hidden;
   background: #f6f7f4;
 }
 
 .one-product-anatomy-overview img {
   display: block;
-  width: 100%;
-  height: 100%;
+  width: auto;
+  height: auto;
+  max-width: min(100%, 1120px);
   max-height: 100%;
   object-fit: contain;
 }
 
 .one-product-anatomy-overview.is-portrait img {
   width: auto;
-  max-width: min(100%, 940px);
+  max-width: min(100%, 760px);
 }
 
 .one-product-anatomy-overview.is-landscape {
-  height: min(78svh, 760px);
+  height: clamp(320px, 64svh, 660px);
 }
 
 .one-product-anatomy-overview.is-landscape img {
-  max-width: 1400px;
+  max-width: min(100%, 1200px);
   max-height: 100%;
 }
 
@@ -329,10 +331,7 @@
   position: sticky;
   top: 86px;
   z-index: 1;
-  display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(230px, .75fr);
-  align-items: center;
-  gap: clamp(22px, 4.5vw, 68px);
+  display: block;
   min-height: 0;
   height: min(74vh, 700px);
   padding: 24px clamp(24px, 7vw, 108px);
@@ -345,23 +344,32 @@
   width: 100%;
   height: 100%;
   min-width: 0;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .one-product-anatomy-visual img {
   display: block;
-  width: 100%;
-  height: 100%;
-  max-width: min(100%, 900px);
-  max-height: 64vh;
+  width: auto;
+  height: auto;
+  max-width: min(68vw, 820px);
+  max-height: min(58vh, 560px);
   padding: 0;
   object-fit: contain;
   animation: one-anatomy-arrive 440ms cubic-bezier(.2, .72, .24, 1) both;
 }
 
 .one-product-anatomy-copy {
-  max-width: 370px;
-  padding-right: 0;
+  position: absolute;
+  top: 50%;
+  right: clamp(24px, 7vw, 108px);
+  z-index: 2;
+  width: min(290px, 25vw);
+  max-width: 290px;
+  padding: 17px;
+  border-left: 2px solid #d1e2de;
+  background: #f6f7f4ef;
+  backdrop-filter: blur(5px);
+  transform: translateY(-50%);
 }
 
 .one-product-anatomy-count {
@@ -1067,6 +1075,7 @@
   }
 
   .one-product-anatomy-stage {
+    display: grid;
     top: 75px;
     grid-template-columns: minmax(0, 1fr) minmax(200px, .72fr);
     gap: 20px;
@@ -1076,6 +1085,17 @@
   .one-product-anatomy-visual img {
     max-height: 60vh;
     padding: 8px;
+  }
+
+  .one-product-anatomy-copy {
+    position: static;
+    width: auto;
+    max-width: 330px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    backdrop-filter: none;
+    transform: none;
   }
 
   .one-site-tech-hero {
@@ -1272,10 +1292,18 @@
 }
 
 .one-site {
+  display: flex;
+  flex-direction: column;
+  min-height: 100svh;
   overflow-x: clip;
   overflow-y: visible;
   overscroll-behavior-y: none;
   background: #fff;
+}
+
+.one-site > #site-footer {
+  width: 100%;
+  margin-top: auto;
 }
 
 .one-site-header {
@@ -1560,6 +1588,35 @@
   }
 }
 
+@media (min-width: 801px) and (max-width: 1100px) {
+  .one-product-anatomy-stage {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(230px, .8fr);
+    align-items: center;
+    gap: clamp(18px, 4vw, 48px);
+  }
+
+  .one-product-anatomy-visual img {
+    max-width: 100%;
+  }
+
+  .one-product-anatomy-copy {
+    position: static;
+    width: auto;
+    max-width: 330px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    backdrop-filter: none;
+    transform: none;
+  }
+
+  .one-tech-checkins {
+    grid-template-columns: 1fr;
+    gap: 26px;
+  }
+}
+
 @media (max-width: 580px) {
   .one-site-header-main {
     min-height: 58px;
@@ -1606,13 +1663,13 @@
   }
 
   .one-product-anatomy-overview {
-    height: min(84svh, 720px);
+    height: min(68svh, 600px);
     min-height: 0;
     padding: 18px;
   }
 
   .one-product-anatomy-overview.is-landscape {
-    height: min(64svh, 500px);
+    height: min(64svh, 540px);
   }
 }
 
