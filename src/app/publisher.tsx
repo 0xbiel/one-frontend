@@ -21,6 +21,7 @@ import { rememberDashboardSession } from "./cameraReturnSession";
 import type { Device } from "../models/domain";
 import { connectViewer, type ViewerConnection } from "../livekit/viewer";
 import { LocalCameraPreview } from "./LocalCameraPreview";
+import { DemoCameraGallery } from "./DemoCameraGallery";
 
 type Pairing = { pairing_id: string; code: string; expires_at: string };
 
@@ -201,6 +202,8 @@ export function CameraManagerPage({ paused = false }: { paused?: boolean }) {
 
   const statusLabel = viewerState === "live" ? "Live" : viewerState === "connecting" ? "Connecting" : viewerState === "error" ? "Unavailable" : selectedCamera ? "Waiting" : "No camera";
   const pairingStatus = pairingStatusQuery.data?.status;
+
+  if (demoMode) return <DemoCameraGallery />;
 
   return (
     <div className="camera-manager-page">
