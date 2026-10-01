@@ -92,11 +92,6 @@ export interface DailyCheckInInput {
   questions: Array<{ question: string; answer: string; responseTimeMs: number | null; baselineMs: number | null; pulseBpm: number | null }>;
 }
 const demoDailyQuestions: CheckInQuestion[] = [...demoQuestionHistory];
-interface BackendCheckInQuestion {
-  id: string; summary_id: string; question: string; answer: string;
-  response_time_ms: number | null; baseline_ms: number | null;
-  pulse_bpm: number | null; asked_at: string;
-}
 interface BackendCaregiverSummary {
   id: string; care_recipient_id?: string | null; status: string; trend: string; explanation: string;
   limitations: string; evidence_json: string; created_at: string;
