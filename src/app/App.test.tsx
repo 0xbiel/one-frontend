@@ -27,8 +27,8 @@ describe('ONE web routes', () => {
   it('shows cameras in their dedicated dashboard page', async () => {
     renderAt('/dashboard/cameras');
     expect(await screen.findByRole('heading', { name: 'Cameras' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /conectar cámara/i })).toBeInTheDocument();
-    expect(screen.getByText('La cámara aparecerá aquí')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /connect camera/i })).toBeInTheDocument();
+    expect(screen.getByText('Your camera preview will appear here')).toBeInTheDocument();
   });
 
   it('keeps family members visible and lets the demo add a person', async () => {

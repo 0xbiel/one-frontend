@@ -246,7 +246,7 @@ export function CameraManagerPage({ paused = false }: { paused?: boolean }) {
       )}
       {pairingError && <div className="error-note camera-manager-error" role="alert">{pairingError}</div>}
 
-      {paused ? <div className="panel" role="status">La captación de cámaras está pausada.</div> : <LocalCameraPreview />}
+      {paused ? <div className="panel" role="status">Camera capture is paused.</div> : <LocalCameraPreview />}
       <div className="camera-manager-layout">
         <aside className="panel camera-list-panel">
           <div className="camera-list-heading">

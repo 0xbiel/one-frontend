@@ -1,14 +1,45 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { ArrowRight, Bell, Camera, Heart, Map, MonitorDown, ShieldCheck, Smartphone, X } from "lucide-react";
+import { ArrowRight, Camera, House, MessageCircle, MonitorDown, Smartphone, Users, X } from "lucide-react";
+import { SiteFooter, SiteHeader } from "./marketing";
 import "./appDownload.css";
 
 type InstallEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
 
+const features = [
+  { icon: House, title: "Home map", text: "Review rooms and approximate context for connected devices." },
+  { icon: Camera, title: "Camera views", text: "Open available views and events according to household permissions." },
+  { icon: MessageCircle, title: "Check-ins", text: "Review submitted answers and response times." },
+  { icon: Users, title: "Family access", text: "See the home information shared with your account." },
+];
+
 export function AppDownloadPage() {
-  const [installEvent,setInstallEvent]=useState<InstallEvent|null>(null);
-  const [instructions,setInstructions]=useState<"Android"|"Windows"|null>(null);
-  useEffect(()=>{const capture=(event:Event)=>{event.preventDefault();setInstallEvent(event as InstallEvent)};window.addEventListener("beforeinstallprompt",capture);return()=>window.removeEventListener("beforeinstallprompt",capture)},[]);
-  const install=async(platform:"Android"|"Windows")=>{if(installEvent){await installEvent.prompt();await installEvent.userChoice;setInstallEvent(null)}else setInstructions(platform)};
-  return <main className="one-app-page"><header><Link to="/" className="one-login-brand"><img src="/one-logo.png" alt=""/><span>one</span></Link><nav><Link to="/products">Productos</Link><Link to="/technology">Tecnología</Link><Link to="/login">Mi ONE</Link></nav></header><section className="one-app-hero"><div><span>ONE FAMILY · EN TU MÓVIL Y ORDENADOR</span><h1>Tu familia, más cerca de casa.</h1><p>Instala ONE como aplicación web en Android o Windows y consulta el hogar desde donde estés. La familia autorizada puede ver cámaras, check-ins, mapa y preguntas según los permisos concedidos.</p><div className="one-app-cta"><button onClick={()=>void install("Android")}><Smartphone/> Instalar en Android <ArrowRight size={18}/></button><button onClick={()=>void install("Windows")}><MonitorDown/> Instalar en Windows <ArrowRight size={18}/></button></div><small>Aplicación web instalable (PWA). Requiere navegador compatible y conexión para datos en directo; no hay APK ni EXE en esta demo.</small></div><div className="one-app-device"><div className="one-app-phone"><div className="one-app-phone-top">one <span>● Hogar conectado</span></div><h2>Your Home, in view</h2><div className="one-app-phone-wave">A calmer, safer today.</div><div className="one-app-phone-tile">◉ &nbsp; Camera online</div><div className="one-app-phone-tile">♡ &nbsp; Today's check-in</div><div className="one-app-phone-tile">⌂ &nbsp; Home map</div></div></div></section><section className="one-app-features"><h2>La información importante, en un lugar.</h2><div>{[[Camera,"Cámaras desde el móvil","Abre la vista de cada estancia conectada y revisa su estado. Las imágenes de esta demo son ejemplos."],[Map,"Mapa de la casa","Consulta la última estancia observada y el contexto de movimiento cuando el sistema esté conectado."],[Heart,"Preguntas y respuestas","Revisa qué preguntas se hicieron, las respuestas y el tiempo de reacción frente a la referencia personal."],[Bell,"Avisos para la familia","Consulta eventos y cambios relevantes sin tener que mirar las cámaras todo el día."],[ShieldCheck,"Permisos claros","Decide quién puede ver el hogar y pausa la captación desde el panel cuando corresponda."]].map(([Icon,title,text])=><article key={String(title)}><Icon size={27}/><h3>{String(title)}</h3><p>{String(text)}</p></article>)}</div></section><section className="one-app-previews"><span>VISTAS DE LA APP · DEMOSTRACIÓN</span><h2>Todo el contexto, en la mano.</h2><div className="one-app-preview-grid"><article><img src="/dashboard-assets/camera-feed-living-room.png" alt="Ejemplo de la vista de cámara del salón"/><div><Camera size={24}/><h3>Cámaras de cada estancia</h3><p>La familia autorizada puede abrir la cámara, comprobar la conexión y revisar los eventos de la habitación.</p><Link to="/dashboard/cameras">Ver cámaras <ArrowRight size={16}/></Link></div></article><article><img src="/dashboard-assets/home-map-reference.png" alt="Ejemplo de mapa 3D del hogar y posición aproximada"/><div><Map size={24}/><h3>Mapa 3D y posición</h3><p>El mapa sitúa las estancias y muestra la última posición aproximada y el recorrido cuando llegan datos del sistema.</p><Link to="/dashboard/map">Ver mapa <ArrowRight size={16}/></Link></div></article></div></section><section className="one-app-alerts"><span>SEÑALES QUE IMPORTAN</span><h2>Avisos para actuar a tiempo.</h2><div><article><Bell/><h3>Caídas y posibles emergencias</h3><p>ONE Family plantea avisar a los familiares ante una posible caída o una señal grave. La llamada a emergencias o a la policía requiere una integración verificada, consentimiento y revisión del evento; no está activa en esta demo.</p></article><article><Heart/><h3>Cambios en la rutina</h3><p>Visitas al baño más frecuentes u otros cambios respecto a la rutina pueden generar una alerta para que la familia revise el contexto.</p></article><article><ShieldCheck/><h3>Decisión humana</h3><p>Los avisos son señales de apoyo, no diagnósticos de infarto ni sustituyen la atención médica. La familia puede revisar cámaras, mapa y preguntas antes de actuar.</p></article></div></section><section className="one-app-family"><div><span>UN ESPACIO COMPARTIDO</span><h2>Cada familiar ve lo que necesita para acompañar.</h2><p>ONE reúne observaciones del hogar, preguntas, tiempos de respuesta y señales disponibles del Hub. Un familiar autorizado puede seguir el día desde su teléfono, revisar un evento y contactar con la persona o con otros cuidadores cuando haga falta.</p><p>Las señales sirven para aportar contexto y no para diagnosticar deterioro cognitivo. Los datos reales aparecerán cuando el Hub y las cámaras estén conectados.</p><Link to="/dashboard">Explorar panel de demostración <ArrowRight size={17}/></Link></div><img src="/product-assets/family.png" alt="Familia conectada mediante ONE"/></section>{instructions&&<div className="one-app-instructions" onClick={()=>setInstructions(null)}><section role="dialog" aria-modal="true" aria-label={`Instalar en ${instructions}`} onClick={e=>e.stopPropagation()}><button onClick={()=>setInstructions(null)} aria-label="Cerrar"><X/></button><h2>Instalar ONE en {instructions}</h2><p>{instructions==="Android"?"Abre esta página en Chrome para Android. En el menú del navegador, elige «Instalar aplicación» o «Añadir a pantalla de inicio».":"Abre esta página en Microsoft Edge o Chrome para Windows. Usa el icono de instalación de la barra de direcciones o el menú «Aplicaciones» → «Instalar este sitio como aplicación»."}</p><p>En localhost la instalación puede depender del navegador. Para usarla en otros dispositivos, sirve la web por HTTPS.</p></section></div>}</main>;
+  const [installEvent, setInstallEvent] = useState<InstallEvent | null>(null);
+  const [instructions, setInstructions] = useState<"Android" | "Windows" | null>(null);
+
+  useEffect(() => {
+    const capture = (event: Event) => {
+      event.preventDefault();
+      setInstallEvent(event as InstallEvent);
+    };
+    window.addEventListener("beforeinstallprompt", capture);
+    return () => window.removeEventListener("beforeinstallprompt", capture);
+  }, []);
+
+  const install = async (platform: "Android" | "Windows") => {
+    if (installEvent) {
+      await installEvent.prompt();
+      await installEvent.userChoice;
+      setInstallEvent(null);
+    } else {
+      setInstructions(platform);
+    }
+  };
+
+  return <main className="one-app-page">
+    <SiteHeader section="app" />
+    <section className="one-app-hero"><div><h1>ONE on your devices</h1><p>Install ONE as a web app on Android or Windows. Available information depends on your account, home setup, and permissions.</p><div className="one-app-cta"><button onClick={() => void install("Android")}><Smartphone /> Install on Android <ArrowRight size={18} /></button><button onClick={() => void install("Windows")}><MonitorDown /> Install on Windows <ArrowRight size={18} /></button></div><small>A supported browser and an internet connection are required for live information.</small></div><div className="one-app-device"><div className="one-app-phone"><div className="one-app-phone-top">one <span>Example</span></div><h2>Home overview</h2><div className="one-app-phone-wave">Illustrative preview</div><div className="one-app-phone-tile">⌂ &nbsp; Home map</div><div className="one-app-phone-tile">◉ &nbsp; Camera views</div><div className="one-app-phone-tile">✓ &nbsp; Check-ins</div></div></div></section>
+    <section className="one-app-features"><h2>In the ONE app</h2><div>{features.map(({ icon: Icon, title, text }) => <article key={title}><Icon size={27} /><h3>{title}</h3><p>{text}</p></article>)}</div></section>
+    {instructions && <div className="one-app-instructions" onClick={() => setInstructions(null)}><section role="dialog" aria-modal="true" aria-label={`Install on ${instructions}`} onClick={event => event.stopPropagation()}><button onClick={() => setInstructions(null)} aria-label="Close"><X /></button><h2>Install ONE on {instructions}</h2><p>{instructions === "Android" ? "Open this page in Chrome for Android. From the browser menu, choose ‘Install app’ or ‘Add to Home screen’." : "Open this page in Microsoft Edge or Chrome for Windows. Use the install icon in the address bar or choose ‘Apps’ → ‘Install this site as an app’ from the menu."}</p><p>Installation on localhost depends on the browser. Serve the site over HTTPS to install it on other devices.</p></section></div>}
+    <SiteFooter />
+  </main>;
 }

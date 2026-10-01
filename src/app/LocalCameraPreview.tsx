@@ -27,19 +27,20 @@ export function LocalCameraPreview() {
   };
 
   useEffect(() => {
+    const video = videoRef.current;
     void refreshDevices();
     navigator.mediaDevices?.addEventListener?.("devicechange", refreshDevices);
     return () => {
       requestId.current += 1;
       streamRef.current?.getTracks().forEach((track) => track.stop());
-      if (videoRef.current) videoRef.current.srcObject = null;
+      if (video) video.srcObject = null;
       navigator.mediaDevices?.removeEventListener?.("devicechange", refreshDevices);
     };
   }, []);
 
   const start = async (selected = deviceId) => {
     if (!navigator.mediaDevices?.getUserMedia) {
-      setError("El navegador no permite acceder a la cámara aquí. Abre la web en localhost con Chrome o Edge.");
+      setError("This browser cannot access the camera here. Open the site on localhost in Chrome or Edge.");
       return;
     }
     stop();
@@ -61,14 +62,14 @@ export function LocalCameraPreview() {
       if (currentRequest !== requestId.current) return;
       setState("off");
       const name = cause instanceof DOMException ? cause.name : "";
-      setError(name === "NotAllowedError" ? "Permite el acceso a la cámara en el navegador y vuelve a intentarlo." : name === "NotFoundError" || name === "OverconstrainedError" ? "No se encuentra esa cámara. Conéctala y pulsa «Buscar cámaras»." : name === "NotReadableError" ? "Otro programa está usando la cámara. Ciérralo y vuelve a intentarlo." : "No se pudo abrir la cámara. Comprueba la conexión y los permisos del navegador.");
+      setError(name === "NotAllowedError" ? "Allow camera access in your browser and try again." : name === "NotFoundError" || name === "OverconstrainedError" ? "That camera could not be found. Connect it and select “Find cameras”." : name === "NotReadableError" ? "Another app is using the camera. Close it and try again." : "The camera could not be opened. Check its connection and your browser permissions.");
     }
   };
 
-  return <section className="one-local-camera" aria-label="Prueba de cámara de este ordenador">
-    <div className="one-local-camera-heading"><div><span>PRUEBA LOCAL · CÁMARA DEL ORDENADOR</span><h2>Conecta y prueba tu cámara</h2><p>Elige una cámara USB o integrada y mira su imagen en directo. Esta prueba se ve solo en este ordenador; no envía vídeo al Hub ni a otros usuarios.</p></div><span className={`one-local-camera-status ${state}`}>{state === "live" ? "● En directo" : state === "starting" ? "Conectando…" : "Cámara apagada"}</span></div>
-    <div className="one-local-camera-controls"><label>Cámara <select value={deviceId} onChange={(event) => { setDeviceId(event.target.value); if (state === "live") void start(event.target.value); }}><option value="">Cámara predeterminada</option>{devices.map((device, index) => <option key={device.deviceId || index} value={device.deviceId}>{device.label || `Cámara ${index + 1}`}</option>)}</select></label><button type="button" onClick={() => void refreshDevices()}><RefreshCw size={16}/> Buscar cámaras</button>{state === "live" ? <button type="button" className="primary" onClick={stop}><CameraOff size={17}/> Apagar cámara</button> : <button type="button" className="primary" disabled={state === "starting"} onClick={() => void start()}><Camera size={17}/> {state === "starting" ? "Conectando…" : "Conectar cámara"}</button>}</div>
-    <div className="one-local-camera-stage"><video ref={videoRef} autoPlay muted playsInline aria-label="Imagen en directo de la cámara de este ordenador" />{state !== "live" && <div className="one-local-camera-placeholder"><Camera size={31}/><strong>La cámara está apagada</strong><span>Solo se activará cuando pulses «Conectar cámara».</span></div>}</div>
+  return <section className="one-local-camera" aria-label="Local computer camera preview">
+    <div className="one-local-camera-heading"><div><span>LOCAL PREVIEW · COMPUTER CAMERA</span><h2>Connect and test your camera</h2><p>Choose a USB or built-in camera to see a live preview. The video stays on this computer; it is not sent to the Hub or other users.</p></div><span className={`one-local-camera-status ${state}`}>{state === "live" ? "● Live" : state === "starting" ? "Starting…" : "Camera off"}</span></div>
+    <div className="one-local-camera-controls"><label>Camera <select value={deviceId} onChange={(event) => { setDeviceId(event.target.value); if (state === "live") void start(event.target.value); }}><option value="">Default camera</option>{devices.map((device, index) => <option key={device.deviceId || index} value={device.deviceId}>{device.label || `Camera ${index + 1}`}</option>)}</select></label><button type="button" onClick={() => void refreshDevices()}><RefreshCw size={16}/> Find cameras</button>{state === "live" ? <button type="button" className="primary" onClick={stop}><CameraOff size={17}/> Turn camera off</button> : <button type="button" className="primary" disabled={state === "starting"} onClick={() => void start()}><Camera size={17}/> {state === "starting" ? "Starting…" : "Connect camera"}</button>}</div>
+    <div className="one-local-camera-stage"><video ref={videoRef} autoPlay muted playsInline aria-label="Live preview from this computer’s camera" />{state !== "live" && <div className="one-local-camera-placeholder"><Camera size={31}/><strong>The camera is off</strong><span>It will only turn on when you select “Connect camera”.</span></div>}</div>
     {error && <p className="one-local-camera-error" role="alert">{error}</p>}
   </section>;
 }

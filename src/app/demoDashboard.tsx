@@ -5,6 +5,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Activity, Box, CalendarDays, Camera, ChevronRight, Heart, Home, Map, MessageSquareText, Pause, Play, Plus, Settings, ShieldCheck, Sparkles, Users, X } from "lucide-react";
 import "./demoDashboard.css";
 import { LocalCameraGallery } from "./LocalCameraGallery";
+import "./legalLinks.css";
 
 const A = "/dashboard-assets/";
 const nav = [
@@ -48,7 +49,7 @@ function MapPage({ go }: { go: (path: string) => void }) {
 }
 
 function Cameras() {
-  return <><SectionHead eyebrow="CAMERAS" title="Cameras" subtitle="Conecta las cámaras de este ordenador y míralas en directo."/><LocalCameraGallery/></>;
+  return <><SectionHead eyebrow="CAMERAS" title="Cameras" subtitle="Connect your computer’s cameras and view them live."/><LocalCameraGallery/></>;
 }
 
 function Questions() {
@@ -88,7 +89,20 @@ export function DemoDashboard() {
   const location=useLocation(); const navigate=useNavigate(); const [paused,setPaused]=useState(false); const [mobileMenu,setMobileMenu]=useState(false); const [people,setPeople]=useState<DemoPerson[]>(initialPeople); const [recipient,setRecipient]=useState("Biel Oliver Mas"); const [recipientOpen,setRecipientOpen]=useState(false);
   const go=(path:string)=>{navigate(path);setMobileMenu(false);window.scrollTo(0,0)};
   const path=location.pathname;
-  return <main className="dd-shell"><button className="dd-mobile-menu" onClick={()=>setMobileMenu(!mobileMenu)}>☰ Menu</button><aside className={`dd-sidebar ${mobileMenu?"open":""}`}><Link to="/" className="dd-home-logo"><Brand/></Link><label>Caring for</label><button className="dd-home-select"><span className="dd-round"/><span><strong>ONE Home</strong><small>● Connected House</small></span></button><label>Care recipient</label><button className="dd-recipient" onClick={()=>setRecipientOpen(!recipientOpen)} aria-expanded={recipientOpen}>{recipient} · baseline</button>{recipientOpen&&<div className="dd-recipient-list">{people.filter(person=>person.role==="Care recipient").map(person=><button key={person.name} onClick={()=>{setRecipient(person.name);setRecipientOpen(false)}}>{person.name}</button>)}</div>}<nav>{nav.map(([to,label,Icon])=><button key={to} className={path===to?"active":""} onClick={()=>go(to)}><Icon size={17}/>{label}</button>)}<small>HOUSEHOLD</small><button onClick={()=>go("/dashboard/assistant")}><Sparkles size={17}/>Assistants</button><button className={path==="/dashboard/family"?"active":""} onClick={()=>go("/dashboard/family")}><Users size={17}/>Family & care team</button><small>SETTINGS</small><button onClick={()=>go("/dashboard/privacy")}><ShieldCheck size={17}/>Privacy & consent</button><button onClick={()=>go("/dashboard/account")}><Settings size={17}/>Account settings</button></nav></aside><div className="dd-main"><div className="dd-top-actions"><span className="dd-demo-label">DEMO · example data</span><button onClick={()=>setPaused(!paused)}>{paused?<Play size={14}/>:<Pause size={14}/>} {paused?"RESUME CARE":"PAUSE CARE"}</button><span className="dd-avatar"/></div>{paused&&<div className="dd-paused">Care is paused in this demo.</div>}{path==="/dashboard/map"?<MapPage go={go}/>:path==="/dashboard/live"?<Checkin go={go}/>:path==="/dashboard/cameras"?(paused?<section className="dd-card" role="status">La captación de cámaras está pausada. Pulsa «RESUME CARE» para volver a conectarlas.</section>:<Cameras/>):path==="/dashboard/questions"?<Questions/>:path==="/dashboard/events"?<Events/>:path==="/dashboard/family"?<FamilyUsers people={people} onAdd={person=>setPeople(current=>[...current,person])} onSelect={name=>{setRecipient(name);go("/dashboard")}}/>:<Overview go={go}/>}</div></main>;
+  return <main className="dd-shell">
+    <button className="dd-mobile-menu" onClick={() => setMobileMenu(!mobileMenu)}>☰ Menu</button>
+    <aside className={`dd-sidebar ${mobileMenu ? "open" : ""}`}>
+      <Link to="/" className="dd-home-logo"><Brand /></Link>
+      <label>Caring for</label><button className="dd-home-select"><span className="dd-round" /><span><strong>ONE Home</strong><small>● Connected home</small></span></button>
+      <label>Care recipient</label><button className="dd-recipient" onClick={() => setRecipientOpen(!recipientOpen)} aria-expanded={recipientOpen}>{recipient} · baseline</button>
+      {recipientOpen && <div className="dd-recipient-list">{people.filter(person => person.role === "Care recipient").map(person => <button key={person.name} onClick={() => { setRecipient(person.name); setRecipientOpen(false); }}>{person.name}</button>)}</div>}
+      <nav>{nav.map(([to, label, Icon]) => <button key={to} className={path === to ? "active" : ""} onClick={() => go(to)}><Icon size={17} />{label}</button>)}<small>HOUSEHOLD</small><button onClick={() => go("/dashboard/assistant")}><Sparkles size={17} />Assistant</button><button className={path === "/dashboard/family" ? "active" : ""} onClick={() => go("/dashboard/family")}><Users size={17} />Family & care team</button><small>SETTINGS</small><a className="dd-legal-nav-link" href="/legal/privacy-notice.html#privacy" aria-label="Open the Privacy Notice in English or Spanish"><ShieldCheck size={17} />Privacy notice</a><button onClick={() => go("/dashboard/account")}><Settings size={17} />Account settings</button></nav>
+    </aside>
+    <div className="dd-main"><div className="dd-top-actions"><span className="dd-demo-label">DEMO · sample data</span><button onClick={() => setPaused(!paused)}>{paused ? <Play size={14} /> : <Pause size={14} />} {paused ? "RESUME CARE" : "PAUSE CARE"}</button><span className="dd-avatar" /></div>
+      {paused && <div className="dd-paused">Care is paused in this demo.</div>}
+      {path === "/dashboard/map" ? <MapPage go={go} /> : path === "/dashboard/live" ? <Checkin go={go} /> : path === "/dashboard/cameras" ? (paused ? <section className="dd-card" role="status">Camera capture is paused. Select “RESUME CARE” to reconnect.</section> : <Cameras />) : path === "/dashboard/questions" ? <Questions /> : path === "/dashboard/events" ? <Events /> : path === "/dashboard/family" ? <FamilyUsers people={people} onAdd={person => setPeople(current => [...current, person])} onSelect={name => { setRecipient(name); go("/dashboard"); }} /> : <Overview go={go} />}
+    </div>
+  </main>;
 }
 
 

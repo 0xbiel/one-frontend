@@ -17,9 +17,9 @@ describe("local camera preview", () => {
     const view = render(<LocalCameraPreview />);
     await waitFor(() => expect(screen.getByRole("option", { name: "USB camera" })).toBeInTheDocument());
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "usb-1" } });
-    fireEvent.click(screen.getByRole("button", { name: "Conectar cámara" }));
+    fireEvent.click(screen.getByRole("button", { name: "Connect camera" }));
     await waitFor(() => expect(getUserMedia).toHaveBeenCalledWith({ video: { deviceId: { exact: "usb-1" } }, audio: false }));
-    await waitFor(() => expect(screen.getByText("● En directo")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("● Live")).toBeInTheDocument());
     view.unmount();
     expect(stop).toHaveBeenCalledOnce();
   });

@@ -1,50 +1,60 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
-import { ArrowRight, Bell, Camera, Heart, House, MessageCircle, ScanLine, ShieldCheck, Smartphone, Users, Wifi } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ArrowRight, Camera, Heart, House, MessageCircle, ScanLine, ShieldCheck, Smartphone, Users, Wifi } from "lucide-react";
 import "./siteHome.css";
 
 export function SiteHome() {
   return <>
     <section className="one-public-hero">
       <div className="one-public-hero-copy">
-        <span className="one-public-kicker"><span className="one-public-dot" /> CUIDADO CONECTADO EN CASA</span>
-        <h1>Más cerca,<br />sin estar pendiente<br />cada minuto.</h1>
-        <p>ONE está pensado para personas que viven en casa y necesitan un acompañamiento más atento, y para familias que quieren saber cómo va el día sin vigilar una pantalla constantemente.</p>
-        <div className="one-public-actions"><Link to="/how-it-works" className="one-public-primary">Descubre cómo funciona <ArrowRight size={18} /></Link><Link to="/products" className="one-public-secondary">Explorar productos</Link></div>
-        <div className="one-public-hero-foot"><span><ShieldCheck size={19} /> Privacidad y permisos</span><span><Heart size={19} /> Cuidado compartido</span></div>
+        <h1>Care,<br />closer to home.</h1>
+        <p>ONE brings together home maps, camera views, check-ins, and family access. Features depend on each home’s setup and permissions.</p>
       </div>
-      <div className="one-public-hero-graphic" aria-label="Resumen ilustrativo del cuidado de un hogar">
+      <div className="one-public-hero-graphic" aria-label="Illustrative home overview. This is not live household data.">
         <div className="one-public-graphic-glow" />
-        <div className="one-public-graphic-card main"><span className="one-public-graphic-overline"><House size={15} /> HOGAR ONE · EJEMPLO</span><h3>Un día tranquilo en casa.</h3><p>La familia recibe un resumen claro cuando quiere consultarlo.</p><div className="one-public-graphic-status"><span><i /> Actividad habitual</span><span>9:42</span></div><div className="one-public-graphic-status"><span><i /> Check-in registrado</span><span>10:15</span></div></div>
-        <div className="one-public-graphic-card float family"><Users size={24} /><strong>Familia informada</strong><small>Sin consultar todo el día</small></div>
-        <div className="one-public-graphic-card float notice"><Bell size={23} /><strong>Avisos relevantes</strong><small>Solo cuando algo requiere atención</small></div>
+        <div className="one-public-graphic-card main"><h3>Home overview</h3><p>Example only · not live household data.</p><div className="one-public-graphic-status"><span><i /> Home map and rooms</span></div><div className="one-public-graphic-status"><span><i /> Check-in answers</span></div></div>
+        <div className="one-public-graphic-card float family"><Users size={24} /><strong>Shared care</strong></div>
       </div>
     </section>
-    <section className="one-public-audience"><div className="one-public-heading"><span>PARA QUIÉN ES</span><h2>Más autonomía para quien vive en casa. Más tranquilidad para quien cuida.</h2></div><div className="one-public-audience-grid"><article><Heart /><h3>Personas en etapas tempranas de cambios de memoria</h3><p>Un acompañamiento diario, con preguntas sencillas, rutinas y señales que ayudan a mantener la conexión con su entorno. ONE no sustituye una valoración profesional.</p></article><article><Users /><h3>Familias y personas cuidadoras</h3><p>Un resumen de actividad, respuestas y eventos relevantes en un solo lugar. Pueden compartir el cuidado y revisar cambios sin estar pendientes de la cámara todo el tiempo.</p></article><article><ShieldCheck /><h3>Equipos de apoyo autorizados</h3><p>Acceso a la información que corresponda a su función, con permisos y contexto para acompañar mejor a la persona y a su familia.</p></article></div></section>
-    <section className="one-public-overview"><div className="one-public-heading"><span>QUÉ HACEMOS</span><h2>Entender el hogar para cuidar mejor.</h2><p>ONE desarrolla un sistema de apoyo al cuidado en casa. Ayuda a reunir observaciones y tendencias para que las personas autorizadas puedan revisarlas con contexto.</p></div><div className="one-public-pillars">
-      <article><House /><span>01 / EL HOGAR</span><h3>Una casa que se entiende</h3><p>El plano escaneado con el móvil sitúa las estancias y da contexto a la actividad registrada por los dispositivos conectados.</p></article>
-      <article><Camera /><span>02 / LAS SEÑALES</span><h3>Lo que sucede, en contexto</h3><p>Las cámaras asociadas al hogar envían observaciones de movimiento y ubicación aproximada a las personas con permiso.</p></article>
-      <article><MessageCircle /><span>03 / LA PERSONA</span><h3>Preguntas que acompañan</h3><p>Los check-ins muestran respuestas y tiempos respecto al ritmo habitual de cada persona. Las variaciones requieren revisión humana.</p></article>
+    <section className="one-public-audience"><div className="one-public-heading"><h2>Support at home, shared with family.</h2></div><div className="one-public-audience-grid"><article><Heart /><h3>People at home</h3><p>See home information and check-in answers shared with you.</p></article><article><Users /><h3>Families and caregivers</h3><p>Review shared information according to household permissions.</p></article><article><ShieldCheck /><h3>Care teams</h3><p>Access the home information included in your role.</p></article></div></section>
+    <section className="one-public-overview"><div className="one-public-heading"><h2>Home information, in context.</h2></div><div className="one-public-pillars">
+      <article><House /><h3>Home map</h3><p>Rooms and connected devices share a reference. Locations are approximate.</p></article>
+      <article><Camera /><h3>Camera observations</h3><p>When configured, connected cameras can provide observations with approximate room context.</p></article>
+      <article><MessageCircle /><h3>Check-ins</h3><p>Review submitted answers and response times. Changes need human review.</p></article>
     </div></section>
-    <section className="one-public-band"><div><span>ONE EN CASA</span><h2>Tecnología al servicio de las personas.</h2><p>El Hub reúne las señales, las cámaras aportan contexto y la familia consulta la información desde Mi ONE.</p></div><img src="/product-assets/hub-tablet.png" alt="ONE Hub con pantalla y base de altavoz" /><Link to="/products" className="one-public-primary">Ver productos <ArrowRight size={17} /></Link></section>
+    <section className="one-public-band"><div><h2>Tools for care at home.</h2><p>Review maps, camera views, questions, and check-ins in ONE.</p><small>The Hub image is a hardware concept.</small></div><img src="/product-assets/hub-product-v3.png" alt="Illustrative concept rendering of a home display" /></section>
   </>;
 }
 
 const steps = [
-  { icon: Smartphone, title: "Escanea la casa con el móvil", text: "Un escáner compatible captura la geometría de las habitaciones. El modelo se envía a ONE y se asocia al hogar. Esta función depende de un dispositivo y una aplicación de escaneo compatibles." },
-  { icon: Wifi, title: "Conecta el Hub y las cámaras", text: "El Hub organiza el hogar conectado. Cada cámara se vincula a una habitación y envía sus observaciones al sistema según los permisos configurados." },
-  { icon: ScanLine, title: "Sitúa la actividad en el mapa", text: "Al combinar el plano con las cámaras registradas, ONE puede mostrar en qué estancia se ha observado a una persona y cómo cambia su movimiento. La ubicación es aproximada." },
-  { icon: MessageCircle, title: "Realiza preguntas de seguimiento", text: "El Hub plantea preguntas breves sobre el día, la orientación y recuerdos cotidianos. Guarda la respuesta y el tiempo empleado para compararlos con el ritmo habitual de la propia persona. Sirven para acompañar y observar cambios, no para diagnosticar." },
-  { icon: Heart, title: "Comparte señales con quienes cuidan", text: "Las personas autorizadas consultan tendencias, eventos y cámaras. Si observan cambios preocupantes, pueden valorarlos con profesionales sanitarios." },
+  { icon: Smartphone, title: "Create a map of the home", text: "Add rooms to the home map. Setup depends on the tools available for each home." },
+  { icon: Wifi, title: "Connect cameras and assign rooms", text: "Supported cameras can be associated with rooms. Hub images on this site are hardware concepts." },
+  { icon: ScanLine, title: "Review observations in context", text: "View available camera observations alongside a home map. Room context is approximate." },
+  { icon: MessageCircle, title: "Use questions and check-ins", text: "Review submitted answers and response times. They are not a medical diagnosis." },
+  { icon: Heart, title: "Share information with caregivers", text: "People with access can review information allowed by household permissions." },
 ];
 
 export function HowItWorksPage() {
   const [active, setActive] = useState(0);
   const Icon = steps[active].icon;
+  useEffect(() => {
+    const chart = document.querySelector<HTMLElement>(".one-how-chart");
+    if (!chart) return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches || typeof IntersectionObserver === "undefined") {
+      chart.classList.add("is-visible");
+      return;
+    }
+    const observer = new IntersectionObserver(entries => {
+      if (!entries.some(entry => entry.isIntersecting)) return;
+      chart.classList.add("is-visible");
+      observer.disconnect();
+    }, { threshold: 0.2, rootMargin: "0px 0px -10% 0px" });
+    observer.observe(chart);
+    return () => observer.disconnect();
+  }, []);
   return <>
-    <section className="one-how-hero"><div><span className="one-public-kicker">CÓMO FUNCIONA ONE</span><h1>Una visión del hogar,<br /><em>con la persona en el centro.</em></h1><p>Un sistema conectado que reúne plano, cámaras y preguntas diarias para ayudar a entender los cambios en casa.</p><a href="#one-how-steps" className="one-public-primary">Ver el recorrido <ArrowRight size={18} /></a></div><div className="one-how-diagram" aria-label="Móvil, Hub, cámaras y familia conectados"><div className="one-how-house"><House size={90} strokeWidth={1.2} /><span>HOGAR ONE</span></div><div className="one-how-orbit one-how-orbit-a"><Smartphone /><small>Escaneo</small></div><div className="one-how-orbit one-how-orbit-b"><Wifi /><small>Hub</small></div><div className="one-how-orbit one-how-orbit-c"><Camera /><small>Cámaras</small></div><div className="one-how-orbit one-how-orbit-d"><Heart /><small>Familia</small></div></div></section>
-    <section id="one-how-steps" className="one-how-steps"><div className="one-public-heading"><span>EL RECORRIDO</span><h2>Del hogar a una señal comprensible.</h2></div><div className="one-how-layout"><nav aria-label="Pasos del sistema">{steps.map((step, index) => { const StepIcon = step.icon; return <button key={step.title} onClick={() => setActive(index)} className={active === index ? "active" : ""} aria-current={active === index ? "step" : undefined}><b>0{index + 1}</b><StepIcon size={21} /><span>{step.title}</span><ArrowRight size={16} /></button>; })}</nav><article className="one-how-step-card"><div className="one-how-step-icon"><Icon size={46} strokeWidth={1.4} /></div><span>PASO 0{active + 1} / 05</span><h3>{steps[active].title}</h3><p>{steps[active].text}</p><div className="one-how-progress">{steps.map((step, index) => <button key={step.title} aria-label={`Ir al paso ${index + 1}`} className={index === active ? "active" : ""} onClick={() => setActive(index)} />)}</div></article></div></section>
-    <section className="one-how-context"><div><span>SEÑALES CON CONTEXTO</span><h2>El tiempo de respuesta cuenta una historia, nunca un diagnóstico.</h2><p>El panel puede mostrar el tiempo de cada respuesta junto con la referencia personal. Un cambio aislado no basta para concluir que exista deterioro cognitivo; sirve para orientar la conversación y la revisión por profesionales.</p><Link to="/dashboard/questions" className="one-public-secondary">Ver preguntas y señales <ArrowRight size={17} /></Link></div><div className="one-how-chart" aria-label="Ejemplo de evolución del tiempo de respuesta"><div className="one-how-chart-top"><span>TIEMPO DE RESPUESTA · EJEMPLO</span><strong>Últimos 7 días</strong></div><div className="one-how-bars">{[38,48,42,68,52,73,58].map((height,index) => <div key={index}><i style={{height:`${height}%`}} /><small>{["L","M","X","J","V","S","D"][index]}</small></div>)}</div><p>Las líneas de referencia se calculan con datos reales cuando el Hub y los check-ins están conectados.</p></div></section>
-    <section className="one-how-signals"><div className="one-public-heading"><span>PREGUNTAS, TIEMPO Y PULSO</span><h2>¿Qué observa cada check-in?</h2><p>Las preguntas invitan a recordar, orientarse y contar cómo va el día. La familia autorizada puede consultar las respuestas y sus tendencias para decidir si conviene hablar con la persona o pedir una valoración profesional.</p></div><div className="one-how-signals-grid"><article><MessageCircle/><h3>Preguntas con propósito</h3><p>«¿Has desayunado?», «¿Dónde dejaste las llaves?» o «¿Cómo te sientes hoy?» ayudan a mantener una rutina de conversación y aportan contexto sobre memoria y atención.</p></article><article><Heart/><h3>Frecuencia cardiaca (HR)</h3><p>Si hay un sensor compatible, ONE puede mostrar el pulso en latidos por minuto junto a la respuesta. El pulso puede cambiar por actividad, estrés, sueño o medicación. Por sí solo no indica deterioro cognitivo.</p></article><article><Bell/><h3>Cambios frente a la referencia personal</h3><p>El tiempo de respuesta, las respuestas y el pulso se revisan a lo largo del tiempo. Algunas investigaciones estudian asociaciones entre señales cardiacas y cognición, pero estos datos no permiten detectar Alzheimer de forma automática.</p></article></div><p className="one-how-source">Información de contexto: <a href="https://pubmed.ncbi.nlm.nih.gov/34883203/" target="_blank" rel="noreferrer">revisión sobre variabilidad cardiaca y cognición</a> y <a href="https://www.alz.org/media/documents/cognitive-assessment-toolkit.pdf" target="_blank" rel="noreferrer">guía de evaluación cognitiva</a>.</p></section>
+    <section className="one-how-hero"><div><h1>How ONE works</h1><p>Home maps, connected cameras, and check-ins appear together for people with access.</p></div><div className="one-how-diagram" aria-label="Illustration of a home map, Hub concept, cameras, and family access"><div className="one-how-house"><House size={90} strokeWidth={1.2} /><span>ONE HOME</span></div><div className="one-how-orbit one-how-orbit-a"><Smartphone /><small>Map</small></div><div className="one-how-orbit one-how-orbit-b"><Wifi /><small>Hub concept</small></div><div className="one-how-orbit one-how-orbit-c"><Camera /><small>Cameras</small></div><div className="one-how-orbit one-how-orbit-d"><Heart /><small>Family</small></div></div></section>
+    <section id="one-how-steps" className="one-how-steps"><div className="one-how-layout"><nav aria-label="System steps">{steps.map((step, index) => { const StepIcon = step.icon; return <button key={step.title} onClick={() => setActive(index)} className={active === index ? "active" : ""} aria-current={active === index ? "step" : undefined}><b>0{index + 1}</b><StepIcon size={21} /><span>{step.title}</span><ArrowRight size={16} /></button>; })}</nav><article className="one-how-step-card"><div className="one-how-step-icon"><Icon size={46} strokeWidth={1.4} /></div><h3>{steps[active].title}</h3><p>{steps[active].text}</p></article></div></section>
+    <section className="one-how-context"><div><h2>Response time needs human context.</h2><p>Review check-in response times alongside other home information. A change needs human review.</p></div><div className="one-how-chart" aria-label="Illustrative response-time sample, not live household data"><div className="one-how-chart-top"><span>Response time · sample data · not live</span></div><div className="one-how-bars">{[38,48,42,68,52,73,58].map((height,index) => <div key={index}><i style={{height: height + "%"}} /><small>{["M","T","W","T","F","S","S"][index]}</small></div>)}</div></div></section>
+    <section className="one-how-signals"><div className="one-public-heading"><h2>Available information</h2></div><div className="one-how-signals-grid"><article><House/><h3>Home map</h3><p>Review rooms linked to home information and connected devices. Locations are approximate.</p></article><article><Camera/><h3>Camera views</h3><p>Review connected camera views and available events according to household permissions.</p></article><article><MessageCircle/><h3>Check-ins</h3><p>Review submitted answers and response times. A person decides what follow-up is appropriate.</p></article></div></section>
   </>;
 }

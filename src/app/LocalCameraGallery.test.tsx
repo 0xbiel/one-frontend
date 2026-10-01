@@ -15,13 +15,13 @@ describe("camera gallery", () => {
     vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
 
     const view = render(<LocalCameraGallery />);
-    await waitFor(() => expect(screen.getByText("1 detectadas · 0 en directo")).toBeInTheDocument());
-    expect(screen.getByText("La cámara aparecerá aquí")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("1 detected · 0 live")).toBeInTheDocument());
+    expect(screen.getByText("Your camera preview will appear here")).toBeInTheDocument();
     expect(document.querySelector(".dd-local-gallery img")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /conectar cámara/i }));
+    fireEvent.click(screen.getByRole("button", { name: /connect camera/i }));
     await waitFor(() => expect(getUserMedia).toHaveBeenCalledWith({ video: { deviceId: { exact: "usb-1" } }, audio: false }));
-    await waitFor(() => expect(screen.getByText("1 detectadas · 1 en directo")).toBeInTheDocument());
-    expect(screen.getAllByLabelText("Imagen en directo de USB camera")).toHaveLength(2);
+    await waitFor(() => expect(screen.getByText("1 detected · 1 live")).toBeInTheDocument());
+    expect(screen.getAllByLabelText("Live preview from USB camera")).toHaveLength(2);
     view.unmount();
     expect(stop).toHaveBeenCalledOnce();
   });

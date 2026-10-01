@@ -11,7 +11,7 @@ function CameraVideo({ stream, label }: { stream: MediaStream; label: string }) 
     void video.play().catch(() => undefined);
     return () => { video.srcObject = null; };
   }, [stream]);
-  return <video ref={ref} autoPlay muted playsInline aria-label={`Imagen en directo de ${label}`} />;
+  return <video ref={ref} autoPlay muted playsInline aria-label={`Live preview from ${label}`} />;
 }
 
 export function LocalCameraGallery() {
@@ -51,7 +51,7 @@ export function LocalCameraGallery() {
 
   const connect = async (id = selectedId) => {
     if (!navigator.mediaDevices?.getUserMedia) {
-      setError("La cámara necesita localhost o HTTPS y un navegador con acceso a dispositivos.");
+      setError("Camera access requires localhost or HTTPS and a browser that supports media devices.");
       return;
     }
     if (busy) return;
@@ -69,25 +69,25 @@ export function LocalCameraGallery() {
     } catch (cause) {
       if (!mounted.current) return;
       const name = cause instanceof DOMException ? cause.name : "";
-      setError(name === "NotAllowedError" ? "Autoriza la cámara en el navegador para verla aquí." : name === "NotFoundError" || name === "OverconstrainedError" ? "No se encuentra esa cámara. Comprueba el cable y pulsa Buscar cámaras." : name === "NotReadableError" ? "Otro programa está usando la cámara. Ciérralo e inténtalo de nuevo." : "No se pudo abrir la cámara.");
+      setError(name === "NotAllowedError" ? "Allow camera access in your browser to view it here." : name === "NotFoundError" || name === "OverconstrainedError" ? "That camera could not be found. Check the connection and select Find cameras." : name === "NotReadableError" ? "Another app is using the camera. Close it and try again." : "The camera could not be opened.");
     } finally { if (mounted.current) setBusy(false); }
   };
 
-  const available = devices.length ? devices : [{ deviceId: "", label: "Cámara del ordenador" }];
+  const available = devices.length ? devices : [{ deviceId: "", label: "Computer camera" }];
   const chosen = available.find((item) => item.deviceId === selectedId) ?? available[0];
   const chosenId = selectedId || chosen.deviceId;
   const chosenStream = streams[chosenId] ?? (chosenId === "" ? streams.default : undefined);
   const connectedCount = Object.keys(streams).length;
 
   return <div className="dd-local-gallery">
-    <div className="dd-camera-summary"><div><span className="dd-round big"><Camera/></span><span><strong>Cámaras de este ordenador</strong><small>{devices.length} detectadas · {connectedCount} en directo</small></span><span className="dd-online">◉ &nbsp;{connectedCount ? `${connectedCount} conectada${connectedCount === 1 ? "" : "s"}` : "Sin conectar"}</span><button className="dd-blue-button" onClick={() => void connect(chosenId)} disabled={busy}><Plus size={17}/> {busy ? "Conectando…" : "Conectar cámara"}</button></div><div><span className="dd-round big"><ShieldCheck/></span><span><strong>Prueba local y privada</strong><small>El vídeo se ve en este ordenador. No se envía a familiares ni a la IA.</small></span></div></div>
+    <div className="dd-camera-summary"><div><span className="dd-round big"><Camera/></span><span><strong>This computer’s cameras</strong><small>{devices.length} detected · {connectedCount} live</small></span><span className="dd-online">◉ &nbsp;{connectedCount ? `${connectedCount} connected` : "Not connected"}</span><button className="dd-blue-button" onClick={() => void connect(chosenId)} disabled={busy}><Plus size={17}/> {busy ? "Connecting…" : "Connect camera"}</button></div><div><span className="dd-round big"><ShieldCheck/></span><span><strong>Local and private preview</strong><small>Video stays on this computer. It is not sent to family or AI.</small></span></div></div>
     {error && <p className="dd-local-error" role="alert">{error}</p>}
-    <section className="dd-camera-feature dd-local-feature"><div className="dd-local-feature-head"><h2>{chosen.label || "Cámara del ordenador"} <small>{chosenStream ? "● En directo" : "● Sin conectar"}</small></h2>{chosenStream && <button onClick={() => close(chosenId)}><CameraOff size={15}/> Desconectar</button>}</div><div className="dd-local-stage">{chosenStream ? <CameraVideo stream={chosenStream} label={chosen.label || "cámara del ordenador"}/> : <div className="dd-local-empty"><Video size={42}/><strong>La cámara aparecerá aquí</strong><span>Conecta una cámara USB o usa la integrada y pulsa «Conectar cámara».</span></div>}</div></section>
+    <section className="dd-camera-feature dd-local-feature"><div className="dd-local-feature-head"><h2>{chosen.label || "Computer camera"} <small>{chosenStream ? "● Live" : "● Not connected"}</small></h2>{chosenStream && <button onClick={() => close(chosenId)}><CameraOff size={15}/> Disconnect</button>}</div><div className="dd-local-stage">{chosenStream ? <CameraVideo stream={chosenStream} label={chosen.label || "computer camera"}/> : <div className="dd-local-empty"><Video size={42}/><strong>Your camera preview will appear here</strong><span>Connect a USB or built-in camera, then select “Connect camera”.</span></div>}</div></section>
     <div className="dd-camera-grid dd-local-grid">{available.map((device, index) => {
       const id = device.deviceId || "default";
       const stream = streams[id];
-      return <button key={id || index} onClick={() => { setSelectedId(device.deviceId); if (!stream) void connect(device.deviceId); }} className={chosenId === device.deviceId ? "selected" : ""}><strong>{device.label || `Cámara ${index + 1}`} <small>{stream ? "● En directo" : "● Conectar"}</small></strong><div className="dd-local-tile">{stream ? <CameraVideo stream={stream} label={device.label || `cámara ${index + 1}`}/> : <span><Camera size={31}/>Pulsa para conectar</span>}</div></button>;
+      return <button key={id || index} onClick={() => { setSelectedId(device.deviceId); if (!stream) void connect(device.deviceId); }} className={chosenId === device.deviceId ? "selected" : ""}><strong>{device.label || `Camera ${index + 1}`} <small>{stream ? "● Live" : "● Connect"}</small></strong><div className="dd-local-tile">{stream ? <CameraVideo stream={stream} label={device.label || `camera ${index + 1}`}/> : <span><Camera size={31}/>Select to connect</span>}</div></button>;
     })}</div>
-    <button className="dd-manage-camera" onClick={() => void refresh()}><Settings size={19}/><span><strong>Buscar cámaras</strong><small>Actualiza la lista después de conectar una cámara USB. El navegador puede pedir permiso antes de mostrar su nombre.</small></span><RefreshCw size={17}/><ChevronRight size={17}/></button>
+    <button className="dd-manage-camera" onClick={() => void refresh()}><Settings size={19}/><span><strong>Find cameras</strong><small>Refresh the list after connecting a USB camera. Your browser may ask for permission before showing device names.</small></span><RefreshCw size={17}/><ChevronRight size={17}/></button>
   </div>;
 }

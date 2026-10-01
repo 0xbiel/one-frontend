@@ -993,18 +993,6 @@ export const api = {
     const result = demoMode ? { access_token: 'demo', token_type: 'bearer', expires_in: 3600, home_id: 'home-demo', user_id: 'user-demo', role: 'admin', email } : await request<EmailSession>('/auth/email/verify', { method: 'POST', auth: false, body: JSON.stringify({ email, code }) });
     sessionStorage.setItem('one_access_token', result.access_token); sessionStorage.setItem('one_home_id', result.home_id); sessionStorage.setItem('one_user_id', result.user_id); return result;
   },
-  setPassword: async (newPassword: string, currentPassword?: string): Promise<void> => {
-    if (demoMode) return;
-    await request('/auth/password/set', { method: 'POST', body: JSON.stringify({ new_password: newPassword, current_password: currentPassword || null }) });
-  },
-  loginPassword: async (email: string, password: string): Promise<EmailSession> => {
-    const result = demoMode ? { access_token: 'demo', token_type: 'bearer', expires_in: 3600, home_id: 'home-demo', user_id: 'user-demo', role: 'admin', email } : await request<EmailSession>('/auth/password/login', { method: 'POST', auth: false, body: JSON.stringify({ email, password }) });
-    sessionStorage.setItem('one_access_token', result.access_token); sessionStorage.setItem('one_home_id', result.home_id); sessionStorage.setItem('one_user_id', result.user_id); return result;
-  },
-  resetPassword: async (email: string, code: string, newPassword: string): Promise<EmailSession> => {
-    const result = demoMode ? { access_token: 'demo', token_type: 'bearer', expires_in: 3600, home_id: 'home-demo', user_id: 'user-demo', role: 'admin', email } : await request<EmailSession>('/auth/password/reset', { method: 'POST', auth: false, body: JSON.stringify({ email, code, new_password: newPassword }) });
-    sessionStorage.setItem('one_access_token', result.access_token); sessionStorage.setItem('one_home_id', result.home_id); sessionStorage.setItem('one_user_id', result.user_id); return result;
-  },
   acceptFamilyInvite: async (code: string, displayName: string, email = ''): Promise<InviteAcceptResponse> => {
     const result = demoMode ? { access_token: 'demo', token_type: 'bearer', expires_in: 3600, home_id: 'home-demo', user_id: 'invite-demo', role: 'caregiver' } : await request<InviteAcceptResponse>('/family/invites/accept', { method: 'POST', auth: false, body: JSON.stringify({ code, email: email || null, display_name: displayName || null }) });
     sessionStorage.setItem('one_access_token', result.access_token); sessionStorage.setItem('one_home_id', result.home_id); sessionStorage.setItem('one_user_id', result.user_id); return result;
