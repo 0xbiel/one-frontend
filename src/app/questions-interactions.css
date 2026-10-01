@@ -5,3 +5,11 @@
 .response-chart-interactive-point{cursor:default}
 .response-chart-interactive-point:focus-visible .response-chart-point{stroke:#fff;stroke-width:3px}
 .answer-needs-review{display:block;margin-top:3px;color:#a56b13;font-size:9px}
+.questions-history-toggle,.questions-history-count{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;color:#1479ed;font-size:11px}
+.questions-history-toggle{padding:7px 2px 7px 8px;background:transparent;border-radius:6px}
+.questions-history-toggle:hover{color:#075bb8;background:#eff6ff}
+.questions-history-toggle:focus-visible{outline:2px solid #1479ed;outline-offset:2px}
+.questions-history-toggle svg{transition:transform .18s ease}
+.questions-history-toggle.expanded svg{transform:rotate(90deg)}
+.questions-history-count{color:#60778a}
+@media (prefers-reduced-motion:reduce){.questions-history-toggle svg{transition:none}}

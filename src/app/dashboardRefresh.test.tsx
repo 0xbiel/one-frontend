@@ -19,8 +19,11 @@ beforeEach(() => { sessionStorage.clear(); localStorage.clear(); });
 
 describe("shared dashboard demo", () => {
   it("scopes events to the selected person while retaining separate household activity", async () => {
+    const mariaEventCount = (await api.getEvents("recipient-maria")).length;
+    const manuelEventCount = (await api.getEvents("recipient-manuel")).length;
     renderDashboard("/dashboard/events");
     await waitFor(() => expect(screen.getByText("María answered four familiar morning prompts.")).toBeInTheDocument());
+    await waitFor(() => expect(document.querySelector(".nav-badge")).toHaveAttribute("aria-label", `${mariaEventCount} events`));
     expect(screen.getAllByText("Keys last seen").length).toBeGreaterThan(0);
     const switcher = screen.getByRole("button", { name: "Care recipient", hidden: true });
     await waitFor(() => expect(switcher).toHaveTextContent("María García"));
@@ -30,6 +33,7 @@ describe("shared dashboard demo", () => {
     expect(sessionStorage.getItem("one_care_recipient_id")).toBe("recipient-manuel");
     expect((await api.getEvents("recipient-manuel")).map((event) => event.id)).not.toContain("evt-checkin");
     await waitFor(() => expect(screen.getAllByText(/Manuel completed/).length).toBeGreaterThan(0));
+    await waitFor(() => expect(document.querySelector(".nav-badge")).toHaveAttribute("aria-label", `${manuelEventCount} events`));
     expect(screen.queryAllByText("María answered four familiar morning prompts.")).toHaveLength(0);
     expect(screen.getAllByText("Keys last seen").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Person observed").length).toBeGreaterThan(0);

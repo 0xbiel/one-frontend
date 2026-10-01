@@ -1,4 +1,5 @@
 import type { Consent, Device, Home, HomeEvent, LastSeenObject, Scene, Session } from '../models/domain';
+import { demoQuestionCount } from './history';
 
 export const demoHome: Home = { id: 'home-demo', name: 'The García home', residentName: 'María' };
 export const demoDevice: Device = { id: 'device-demo', label: 'Hallway iPhone', platform: 'iOS Safari', status: 'online', lastSeenAt: new Date().toISOString() };
@@ -72,17 +73,17 @@ for (let daysAgo = 0; daysAgo < 365; daysAgo += 1) {
     type: 'presence.changed', eventType: 'daily_check_in', careRecipientId: 'recipient-manuel',
     title: 'Morning check-in complete',
     detail: manuelStage >= 4
-      ? manuelNeededRepeat ? 'Manuel completed the check-in with extra reminders; a few answers needed repeating.' : 'Manuel completed seven short prompts and asked for the day’s plan again.'
-      : manuelStage >= 3 ? 'Manuel needed a prompt repeated and asked to hear the plan again.'
-        : manuelStage >= 2 ? 'Manuel asked an additional question during his familiar check-in.'
-          : 'Manuel completed four familiar morning prompts.',
+      ? manuelNeededRepeat ? `Manuel completed ${demoQuestionCount(daysAgo, 'manuel')} prompts with extra reminders; a few answers needed repeating.` : `Manuel completed ${demoQuestionCount(daysAgo, 'manuel')} short prompts and asked for the day’s plan again.`
+      : manuelStage >= 3 ? `Manuel completed ${demoQuestionCount(daysAgo, 'manuel')} prompts; he needed one repeated and asked to hear the plan again.`
+        : manuelStage >= 2 ? `Manuel completed ${demoQuestionCount(daysAgo, 'manuel')} prompts and asked an additional question during his familiar check-in.`
+          : `Manuel completed ${demoQuestionCount(daysAgo, 'manuel')} familiar morning prompts.`,
     occurredAt: at(8, 45), tone: manuelStage >= 3 ? 'amber' : 'green',
   });
   if (daysAgo > 0) {
     historicalDemoEvents.push({
       id: `history-checkin-maria-${daysAgo}`,
       type: 'presence.changed', eventType: 'daily_check_in', careRecipientId: 'recipient-maria',
-      title: 'Morning check-in complete', detail: 'María completed four familiar morning prompts.',
+      title: 'Morning check-in complete', detail: `María completed ${demoQuestionCount(daysAgo, 'maria')} familiar morning prompts.`,
       occurredAt: at(8, 30), tone: 'green',
     });
   }

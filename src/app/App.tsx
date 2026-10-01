@@ -116,7 +116,7 @@ function App() {
       <Route path="/camera/:cameraId" element={<CameraReconnectPage paused={paused} onTogglePause={togglePause} />} />
       <Route path="/publisher" element={<PublisherPage paused={paused} onTogglePause={togglePause} />} />
       <Route path="/publisher/live" element={<PublisherPage paused={paused} onTogglePause={togglePause} />} />
-      <Route path="*" element={<Shell paused={paused} onTogglePause={togglePause} onLogout={logout} session={session}><Routes>
+      <Route path="*" element={<Shell paused={paused} onTogglePause={togglePause} onLogout={logout} session={session} eventCount={events.length}><Routes>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<OverviewPage events={events} objects={objects} onEvent={setSelectedEvent} session={session} recipientId={recipientId} />} />
         <Route path="dashboard/live" element={<CheckInPage events={events} session={session} onEvent={setSelectedEvent} recipientId={recipientId} />} />

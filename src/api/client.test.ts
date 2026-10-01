@@ -54,4 +54,24 @@ describe('FastAPI contract mapping', () => {
     expect(saved?.responseTimeMs).toBeNull();
     expect(saved?.pulseBpm).toBeNull();
   });
+
+  it('varies the number of sample questions from one day to another', async () => {
+    const dateKey = (date: Date) => `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+    const today = new Date();
+    const recentDayKeys = new Set(Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(today);
+      date.setDate(today.getDate() - index);
+      return dateKey(date);
+    }));
+    for (const recipientId of ['recipient-maria', 'recipient-manuel']) {
+      const questions = await api.getCheckInQuestions(recipientId);
+      const counts = new Map<string, number>();
+      for (const item of questions) {
+        const key = dateKey(new Date(item.askedAt));
+        if (recentDayKeys.has(key)) counts.set(key, (counts.get(key) ?? 0) + 1);
+      }
+      expect(counts.size).toBe(7);
+      expect(new Set(counts.values()).size).toBeGreaterThan(1);
+    }
+  });
 });

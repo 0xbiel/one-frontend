@@ -33,7 +33,7 @@ export function ObjectCard({ object, onClick }: { object: LastSeenObject; onClic
   );
 }
 
-export function Shell({ children, paused, onTogglePause, onLogout, session }: { children: React.ReactNode; paused: boolean; onTogglePause: () => void; onLogout: () => void; session?: Session }) {
+export function Shell({ children, paused, onTogglePause, onLogout, session, eventCount }: { children: React.ReactNode; paused: boolean; onTogglePause: () => void; onLogout: () => void; session?: Session; eventCount: number }) {
   const location = useLocation();
   const nav = useNavigate();
   const queryClient = useQueryClient();
@@ -213,7 +213,7 @@ export function Shell({ children, paused, onTogglePause, onLogout, session }: { 
     return <NavLink key={to} to={to} end={to === "/dashboard"} className={`drawer-item ${active ? "active" : ""}`} onClick={closeMenu}>
       {renderNavIcon(to, Icon, active)}
       <span>{label}</span>
-      {label === "Events" && <span className="nav-badge">3</span>}
+      {label === "Events" && eventCount > 0 && <span className="nav-badge" aria-label={`${eventCount} events`} title={`${eventCount} events`}>{eventCount > 99 ? "99+" : eventCount}</span>}
     </NavLink>;
   };
   const context = location.pathname.includes("map")
