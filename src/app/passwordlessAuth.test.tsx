@@ -52,6 +52,29 @@ describe("passwordless account access", () => {
     await waitFor(() => expect(verifyCode).toHaveBeenCalledWith("alex@example.com", "123456"));
   });
 
+  it("opens the García family preview from the regular sign-in screen", async () => {
+    const requestCode = vi.fn();
+    const verifyCode = vi.fn().mockResolvedValue({ ...session, email: "garciafamily@gmail.com" });
+    const enableDemoMode = vi.fn();
+    vi.doMock("../api/client", async () => {
+      const actual = await vi.importActual<typeof import("../api/client")>("../api/client");
+      return { ...actual, demoMode: false, activateDemoMode: enableDemoMode, api: { ...actual.api, requestEmailCode: requestCode, verifyEmailCode: verifyCode } };
+    });
+    const { LoginPage } = await import("./login");
+    render(<MemoryRouter><LoginPage /></MemoryRouter>);
+
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "garciafamily@gmail.com" } });
+    fireEvent.click(screen.getByRole("button", { name: /send sign-in code/i }));
+    expect(await screen.findByLabelText("One-time code")).toHaveValue("482701");
+    expect(requestCode).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: /^sign in/i }));
+    await waitFor(() => expect(enableDemoMode).toHaveBeenCalledOnce());
+    expect(verifyCode).toHaveBeenCalledWith("garciafamily@gmail.com", "482701");
+    expect(sessionStorage.getItem("one_dashboard_access")).toBe("garcia-family");
+    expect(sessionStorage.getItem("one_care_recipient_id")).toBe("recipient-manuel");
+  });
+
   it("creates an account by verifying an email code, without a password", async () => {
     const requestCode = vi.fn().mockResolvedValue({ ...challenge, purpose: "create" });
     const verifyCode = vi.fn().mockResolvedValue(session);

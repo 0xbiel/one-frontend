@@ -28,8 +28,21 @@ export const API_BASE = configuredApiBase && configuredApiBase !== '/api/v1'
   : import.meta.env.DEV
     ? 'http://localhost:8000/api/v1'
     : '/api/v1';
-// Live API is the safe default. Demo data must be explicitly enabled.
-export const demoMode = import.meta.env.VITE_DEMO_MODE === 'true';
+// Live API is the safe default. The García family preview can enable the same
+// fixture-backed experience for the current browser session after code entry.
+const configuredDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
+const runtimeDemoModeKey = 'one_demo_mode';
+function hasRuntimeDemoMode(): boolean {
+  if (typeof window === 'undefined') return false;
+  try { return window.sessionStorage.getItem(runtimeDemoModeKey) === 'true'; } catch { return false; }
+}
+export let demoMode = configuredDemoMode || hasRuntimeDemoMode();
+export function activateDemoMode(): void {
+  if (!configuredDemoMode && typeof window !== 'undefined') {
+    try { window.sessionStorage.setItem(runtimeDemoModeKey, 'true'); } catch { /* The current page can still use the in-memory preview. */ }
+  }
+  demoMode = true;
+}
 let demoMapScale: MapScale | undefined;
 let demoActiveCareSpaceId = 'home-demo';
 const demoCareSpaces: CareSpaceSummary[] = [
@@ -719,6 +732,7 @@ export function clearSession(): void {
   const user = sessionStorage.getItem('one_user_id');
   if (home && user) localStorage.removeItem(`one_onboarding_complete:${home}:${user}`);
   sessionStorage.clear();
+  demoMode = configuredDemoMode;
 }
 
 async function request<T>(path: string, init?: RequestOptions): Promise<T> {

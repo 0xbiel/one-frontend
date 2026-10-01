@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { api, demoMode } from "../api/client";
+import { activateDemoMode, api, demoMode } from "../api/client";
 import "./login.css";
 import "./legalLinks.css";
 
@@ -20,8 +20,9 @@ export function LoginPage() {
     setBusy(true);
     setError("");
     try {
-      if (demoMode) {
-        if (email.trim().toLocaleLowerCase("en") !== "garciafamily@gmail.com") throw new Error("email-not-found");
+      const isGarciaFamily = email.trim().toLocaleLowerCase("en") === "garciafamily@gmail.com";
+      if (demoMode || isGarciaFamily) {
+        if (!isGarciaFamily) throw new Error("email-not-found");
         setCode("482701");
         setStep("code");
         return;
@@ -46,8 +47,10 @@ export function LoginPage() {
     if (busy) return;
     setBusy(true);
     try {
-      if (demoMode) {
-        if (email.trim().toLocaleLowerCase("en") !== "garciafamily@gmail.com" || code !== "482701") throw new Error("invalid-code");
+      const isGarciaFamily = email.trim().toLocaleLowerCase("en") === "garciafamily@gmail.com";
+      if (demoMode || isGarciaFamily) {
+        if (!isGarciaFamily || code !== "482701") throw new Error("invalid-code");
+        activateDemoMode();
         await api.verifyEmailCode(email, code);
         sessionStorage.setItem("one_dashboard_access", "garcia-family");
         sessionStorage.setItem("one_care_recipient_id", "recipient-manuel");
