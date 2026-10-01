@@ -1,27 +1,50 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, Camera, Heart, House, MessageCircle, ScanLine, ShieldCheck, Smartphone, Users, Wifi } from "lucide-react";
+import { Link } from "react-router-dom";
+import { ArrowRight, Camera, Heart, House, MapPin, MessageCircle, ScanLine, Smartphone, Wifi } from "lucide-react";
+import { SampleCheckinChat, SampleHomeMap2D } from "./marketingDemos";
 import "./siteHome.css";
+import "./siteHomeExperience.css";
+
+const homeProducts = [
+  { name: "ONE Hub", to: "/products/hub", image: "/product-assets/hub-product-v3.png", description: "A display concept for home information." },
+  { name: "Standing Camera", to: "/products/camera", image: "/product-assets/camera-anatomy/standing-camera.webp", description: "An illustrative indoor camera concept." },
+  { name: "Wall Camera", to: "/products/exterior", image: "/product-assets/camera-anatomy/wall-camera.webp", description: "An illustrative wall-mounted camera concept." },
+  { name: "ONE Family", to: "/products/family", image: "/one-app-icon-512.png", description: "Shared information for people with access." },
+];
+
+function HomeSystemPreview() {
+  const [view, setView] = useState<"map" | "check-in">("map");
+  const [room, setRoom] = useState("Living room");
+  const rooms = ["Bedroom", "Bath", "Living room", "Kitchen"];
+
+  return <div className="one-public-system-preview">
+    <div className="one-public-preview-topline"><strong>ONE HOME</strong><span>Sample preview</span></div>
+    <div className="one-public-preview-tabs" role="tablist" aria-label="Home page sample screens">
+      <button type="button" role="tab" aria-selected={view === "map"} onClick={() => setView("map")}>Home map</button>
+      <button type="button" role="tab" aria-selected={view === "check-in"} onClick={() => setView("check-in")}>Check-in</button>
+    </div>
+    {view === "map" ? <div className="one-public-map-panel" role="tabpanel">
+      <div className="one-public-map-visual"><SampleHomeMap2D /></div>
+      <div className="one-public-map-rooms" aria-label="Choose a sample room">
+        {rooms.map(name => <button type="button" key={name} aria-pressed={room === name} onClick={() => setRoom(name)}>{name}</button>)}
+      </div>
+      <div className="one-public-map-selected"><MapPin size={16} /><strong>{room}</strong><span>Sample room</span></div>
+    </div> : <div className="one-public-chat-panel" role="tabpanel"><SampleCheckinChat compact /></div>}
+  </div>;
+}
 
 export function SiteHome() {
   return <>
     <section className="one-public-hero">
       <div className="one-public-hero-copy">
-        <h1>Care,<br />closer to home.</h1>
-        <p>ONE brings together home maps, camera views, check-ins, and family access. Features depend on each home’s setup and permissions.</p>
+        <h1>Care, closer to home.</h1>
+        <p>Home maps, camera views, check-ins, and shared information in one place. What is available depends on each home’s setup and permissions.</p>
+        <div className="one-public-actions"><Link to="/products" className="one-public-primary">Explore products <ArrowRight size={17} /></Link><Link to="/how-it-works" className="one-public-secondary">How it works</Link></div>
       </div>
-      <div className="one-public-hero-graphic" aria-label="Illustrative home overview. This is not live household data.">
-        <div className="one-public-graphic-glow" />
-        <div className="one-public-graphic-card main"><h3>Home overview</h3><p>Example only · not live household data.</p><div className="one-public-graphic-status"><span><i /> Home map and rooms</span></div><div className="one-public-graphic-status"><span><i /> Check-in answers</span></div></div>
-        <div className="one-public-graphic-card float family"><Users size={24} /><strong>Shared care</strong></div>
-      </div>
+      <HomeSystemPreview />
     </section>
-    <section className="one-public-audience"><div className="one-public-heading"><h2>Support at home, shared with family.</h2></div><div className="one-public-audience-grid"><article><Heart /><h3>People at home</h3><p>See home information and check-in answers shared with you.</p></article><article><Users /><h3>Families and caregivers</h3><p>Review shared information according to household permissions.</p></article><article><ShieldCheck /><h3>Care teams</h3><p>Access the home information included in your role.</p></article></div></section>
-    <section className="one-public-overview"><div className="one-public-heading"><h2>Home information, in context.</h2></div><div className="one-public-pillars">
-      <article><House /><h3>Home map</h3><p>Rooms and connected devices share a reference. Locations are approximate.</p></article>
-      <article><Camera /><h3>Camera observations</h3><p>When configured, connected cameras can provide observations with approximate room context.</p></article>
-      <article><MessageCircle /><h3>Check-ins</h3><p>Review submitted answers and response times. Changes need human review.</p></article>
-    </div></section>
-    <section className="one-public-band"><div><h2>Tools for care at home.</h2><p>Review maps, camera views, questions, and check-ins in ONE.</p><small>The Hub image is a hardware concept.</small></div><img src="/product-assets/hub-product-v3.png" alt="Illustrative concept rendering of a home display" /></section>
+    <section className="one-public-products"><div className="one-public-products-heading"><h2>One connected home</h2><Link to="/products">View all products <ArrowRight size={16} /></Link></div><div className="one-public-product-row">{homeProducts.map(product => <Link to={product.to} key={product.name} className="one-public-product"><span className="one-public-product-image"><img src={product.image} alt={`${product.name} concept`} /></span><strong>{product.name}</strong><small>{product.description}</small><span className="one-public-product-explore">Explore <ArrowRight size={15} /></span></Link>)}</div></section>
+    <section className="one-public-sharing"><div><h2>Shared with clear boundaries.</h2><p>People see information according to household permissions. Camera and microphone access require separate consent. ONE organizes information for people to review; it does not provide a medical diagnosis.</p></div><Link to="/technology" aria-label="Explore technology and permissions">Explore Technology <ArrowRight size={16} /></Link></section>
   </>;
 }
 
