@@ -1995,17 +1995,103 @@
   position: sticky;
   top: 68px;
   z-index: 5;
+  display: flex;
   align-items: center;
-  min-height: 64px;
-  margin-bottom: 0;
-  padding-top: 8px;
-  padding-bottom: 8px;
-  background: #f6f7f4;
-  box-shadow: 0 1px 0 #e3e9e6;
+  justify-content: center;
+  min-height: 72px;
+  margin: 0 auto;
+  padding: 8px 24px;
+  border: 1px solid #dce5e2;
+  border-radius: 14px;
+  background: #fbfcfa;
+  box-shadow: 0 8px 24px rgb(16 43 54 / 4%);
 }
 
 .one-product-anatomy-heading h2 {
-  font-size: clamp(27px, 3vw, 40px);
+  font-size: clamp(26px, 3vw, 38px);
+  text-align: center;
+}
+
+.one-product-anatomy-intro {
+  display: block;
+  width: min(100%, 1320px);
+  margin: clamp(28px, 4svh, 44px) auto clamp(36px, 5svh, 54px);
+  overflow: hidden;
+  border: 1px solid #dce5e2;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 12px 36px rgb(16 43 54 / 4%);
+}
+
+.one-product-anatomy-intro-summary {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+  gap: 12px 24px;
+  padding: 22px clamp(24px, 3.2vw, 46px);
+  border-bottom: 1px solid #e1e9e6;
+  background: linear-gradient(145deg, #fff 20%, #f1f9fa 100%);
+}
+
+.one-product-anatomy-intro-summary .eyebrow {
+  color: #1681a0;
+}
+
+.one-product-anatomy-intro-summary p {
+  max-width: 900px;
+  margin: 0;
+  color: #415665;
+  font-size: clamp(14px, 1.25vw, 16px);
+  line-height: 1.65;
+}
+
+.one-product-anatomy-intro-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.one-product-anatomy-intro-steps li {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 14px;
+  min-width: 0;
+  padding: 20px clamp(18px, 2.2vw, 32px);
+}
+
+.one-product-anatomy-intro-steps li + li {
+  border-left: 1px solid #e1e9e6;
+}
+
+.one-product-anatomy-intro-steps li > span {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #e8f5f7;
+  color: #087fa4;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .06em;
+}
+
+.one-product-anatomy-intro-steps h3 {
+  margin: 0 0 6px;
+  color: #11243f;
+  font-size: 15px;
+  letter-spacing: -.02em;
+}
+
+.one-product-anatomy-intro-steps p {
+  margin: 0;
+  color: #62727c;
+  font-size: 13px;
+  line-height: 1.55;
 }
 
 .one-product-anatomy-stage {
@@ -2014,8 +2100,8 @@
 }
 
 .one-product-anatomy-track {
-  padding-top: min(18svh, 170px);
-  min-height: calc(var(--part-scroll-height) + min(calc(100svh - 150px), 700px) + min(18svh, 170px));
+  padding-top: 0;
+  min-height: calc(var(--part-scroll-height) + min(calc(100svh - 150px), 700px));
 }
 
 @media (max-width: 800px) {
@@ -2030,8 +2116,24 @@
   }
 
   .one-product-anatomy-track {
-    padding-top: min(16svh, 130px);
-    min-height: calc(var(--part-scroll-height) + min(calc(100svh - 142px), 620px) + min(16svh, 130px));
+    padding-top: 0;
+    min-height: calc(var(--part-scroll-height) + min(calc(100svh - 142px), 620px));
+  }
+
+  .one-product-anatomy-intro {
+    display: block;
+  }
+
+  .one-product-anatomy-intro-summary {
+    padding: 20px 28px;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    border-right: 0;
+    border-bottom: 1px solid #e1e9e6;
+  }
+
+  .one-product-anatomy-intro-steps li {
+    padding: 22px 18px;
   }
 }
 
@@ -2052,8 +2154,29 @@
   }
 
   .one-product-anatomy-track {
-    padding-top: min(15svh, 100px);
-    min-height: calc(var(--part-scroll-height) + min(calc(100svh - 136px), 560px) + min(15svh, 100px));
+    padding-top: 0;
+    min-height: calc(var(--part-scroll-height) + min(calc(100svh - 136px), 560px));
+  }
+
+  .one-product-anatomy-intro-steps {
+    grid-template-columns: 1fr;
+  }
+
+  .one-product-anatomy-intro-steps li {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 14px;
+    padding: 18px 22px;
+  }
+
+  .one-product-anatomy-intro-steps li + li {
+    border-top: 1px solid #e1e9e6;
+    border-left: 0;
+  }
+
+  .one-product-anatomy-intro-summary {
+    padding: 22px;
   }
 }
 

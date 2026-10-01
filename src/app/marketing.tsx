@@ -174,8 +174,9 @@ function ProductsPage() {
 }
 
 type ProductPart = { name: string; image: string; description: string };
+type ProductAnatomyStep = { title: string; description: string };
 
-function ProductAnatomySequence({ name, parts, overviewSrc, overviewAlt, overviewLayout = "portrait" }: { name: string; parts: readonly ProductPart[]; overviewSrc: string; overviewAlt: string; overviewLayout?: "portrait" | "landscape" }) {
+function ProductAnatomySequence({ name, intro, steps, parts, overviewSrc, overviewAlt, overviewLayout = "portrait" }: { name: string; intro: string; steps: readonly ProductAnatomyStep[]; parts: readonly ProductPart[]; overviewSrc: string; overviewAlt: string; overviewLayout?: "portrait" | "landscape" }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const trackRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLElement>(null);
@@ -217,6 +218,18 @@ function ProductAnatomySequence({ name, parts, overviewSrc, overviewAlt, overvie
 
   if (!activePart) return null;
   return <section className="one-product-anatomy" aria-label={`${name} concept breakdown`}>
+    <div className="one-product-anatomy-intro">
+      <div className="one-product-anatomy-intro-summary">
+        <span className="eyebrow">HOW IT WORKS</span>
+        <p>{intro}</p>
+      </div>
+      <ol className="one-product-anatomy-intro-steps">
+        {steps.map((step, index) => <li key={step.title}>
+          <span>{String(index + 1).padStart(2, "0")}</span>
+          <div><h3>{step.title}</h3><p>{step.description}</p></div>
+        </li>)}
+      </ol>
+    </div>
     <div className="one-product-anatomy-heading"><h2>Inside the concept</h2></div>
     <div className="one-product-anatomy-track" ref={trackRef} style={{ "--part-count": parts.length, "--part-scroll-height": `${parts.length * 52}svh` } as React.CSSProperties}>
       <article className="one-product-anatomy-stage" ref={stageRef} tabIndex={0} aria-live="polite" onKeyDown={event => {
@@ -249,6 +262,12 @@ const detailCopy = {
   hub: {
     title: "ONE Hub",
     description: "A home display concept for bringing shared home information into one place.",
+    intro: "ONE Hub is designed as a shared information point for the home. It brings together check-ins, camera updates, and family summaries that household members are allowed to see, making recent context easier to review in one place.",
+    steps: [
+      { title: "Gather", description: "Bring in check-ins and home updates shared with the household." },
+      { title: "Organize", description: "Present recent information together on one clear display." },
+      { title: "Share", description: "Make information available according to each person’s access." },
+    ],
     image: "/product-assets/hub-product-v3.png",
     imageAlt: "Illustrative ONE Hub display concept",
     exploded: "/product-assets/hub-internals-v3.png",
@@ -272,7 +291,7 @@ function DetailPage({ device }: { device: "hub" }) {
       <div className="one-camera-hero-copy"><h1>{details.title}</h1><p>{details.description}</p><p className="one-camera-concept-note">Illustrative hardware concept. Final design and specifications are not confirmed.</p></div>
       <div className="one-camera-hero-image"><img src={details.image} alt={details.imageAlt} /></div>
     </section>
-    <ProductAnatomySequence name="ONE Hub" parts={details.parts} overviewSrc={details.exploded} overviewAlt="Exploded illustrative rendering of the ONE Hub concept and its proposed components" />
+    <ProductAnatomySequence name="ONE Hub" intro={details.intro} steps={details.steps} parts={details.parts} overviewSrc={details.exploded} overviewAlt="Exploded illustrative rendering of the ONE Hub concept and its proposed components" />
     <ProductNeighborNav next={{ id: "camera", label: "Standing Camera" }} />
   </>;
 }
@@ -289,6 +308,12 @@ const cameraConcepts = {
   standing: {
     name: "Standing Camera",
     description: "A freestanding indoor camera concept, shown as a complete render and component study.",
+    intro: "The optical module turns incoming light into image data. Software could look for configured changes in the room view and present them as events for a caregiver to review; available analysis will depend on the final product and home setup.",
+    steps: [
+      { title: "Capture a view", description: "The lens and image sensor form a view of the room." },
+      { title: "Find changes", description: "Configured software could identify selected changes in that view." },
+      { title: "Review context", description: "Caregivers can review available camera events alongside home updates." },
+    ],
     complete: "/product-assets/camera-anatomy/standing-camera.webp",
     exploded: "/product-assets/camera-anatomy/standing-exploded.webp",
     parts: [
@@ -305,6 +330,12 @@ const cameraConcepts = {
   wall: {
     name: "Wall Camera",
     description: "A wall-mounted camera concept, shown as a complete render and component study.",
+    intro: "The wall camera concept keeps a fixed view of a chosen area, such as an entrance. Its optical module turns incoming light into image data; configured software could identify selected changes and make them available for caregiver review, depending on the final product and home setup.",
+    steps: [
+      { title: "Set the view", description: "A fixed mount points the camera toward a chosen area." },
+      { title: "Find changes", description: "Configured software could identify selected changes in that view." },
+      { title: "Review context", description: "Caregivers can review available camera events alongside home updates." },
+    ],
     complete: "/product-assets/camera-anatomy/wall-camera.webp",
     exploded: "/product-assets/camera-anatomy/wall-exploded.webp",
     parts: [
@@ -334,7 +365,7 @@ function CameraConceptPage({ model }: { model: "standing" | "wall" }) {
       </div>
       <div className="one-camera-hero-image"><img src={camera.complete} alt={`${camera.name} hardware concept render`} /></div>
     </section>
-    <ProductAnatomySequence name={camera.name} parts={camera.parts.map(part => ({ ...part, image: `/product-assets/camera-anatomy/${part.image}` }))} overviewSrc={camera.exploded} overviewAlt={`Exploded view of the ${camera.name} concept, showing its proposed components`} overviewLayout={model === "wall" ? "landscape" : "portrait"} />
+    <ProductAnatomySequence name={camera.name} intro={camera.intro} steps={camera.steps} parts={camera.parts.map(part => ({ ...part, image: `/product-assets/camera-anatomy/${part.image}` }))} overviewSrc={camera.exploded} overviewAlt={`Exploded view of the ${camera.name} concept, showing its proposed components`} overviewLayout={model === "wall" ? "landscape" : "portrait"} />
     <ProductNeighborNav previous={previous} next={next} />
   </>;
 }

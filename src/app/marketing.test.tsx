@@ -94,11 +94,15 @@ describe("marketing navigation and controls", () => {
     expect(screen.queryByText(/component images are illustrative concepts/i)).not.toBeInTheDocument();
     expect(document.querySelectorAll(".one-product-anatomy-overview-list li").length).toBeGreaterThan(0);
     expect(document.querySelector(`.one-product-anatomy-visual img[src="/product-assets/camera-anatomy/${firstPartImage}"]`)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Inside the concept" })).toBeInTheDocument();
-    expect(screen.getAllByRole("heading", { level: 3 })).toHaveLength(1);
-    expect(screen.getByRole("heading", { level: 3 })).toHaveTextContent("Front panel");
+    const explanatoryPanel = document.querySelector(".one-product-anatomy-intro");
+    const conceptHeading = screen.getByRole("heading", { name: "Inside the concept" });
+    expect(conceptHeading.parentElement).toHaveClass("one-product-anatomy-heading");
+    expect(explanatoryPanel?.compareDocumentPosition(conceptHeading)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(screen.getByText(/optical module turns incoming light into image data/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Find changes" })).toBeInTheDocument();
+    expect(document.querySelector(".one-product-anatomy-copy h3")).toHaveTextContent("Front panel");
     fireEvent.click(screen.getByRole("button", { name: "Next component" }));
-    expect(screen.getByRole("heading", { level: 3 })).toHaveTextContent("Lens elements");
+    expect(document.querySelector(".one-product-anatomy-copy h3")).toHaveTextContent("Lens elements");
     expect(document.querySelectorAll(".one-product-anatomy-visual img")).toHaveLength(1);
   });
 
@@ -108,8 +112,10 @@ describe("marketing navigation and controls", () => {
 
     expect(document.querySelector('.one-product-anatomy-overview img[src="/product-assets/hub-internals-v3.png"]')).toBeInTheDocument();
     expect(document.querySelector('.one-product-anatomy-visual img[src="/product-assets/hub-anatomy/display.webp"]')).toBeInTheDocument();
+    expect(screen.getByText(/shared information point for the home/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Gather" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Next component" }));
-    expect(screen.getByRole("heading", { level: 3 })).toHaveTextContent("Inner chassis");
+    expect(document.querySelector(".one-product-anatomy-copy h3")).toHaveTextContent("Inner chassis");
   });
 
   it.each([
