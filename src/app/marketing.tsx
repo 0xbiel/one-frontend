@@ -17,7 +17,7 @@ const products = [
   { id: "hub" as const, name: "ONE Hub", description: "A display concept for a more connected view of home information.", image: "/product-assets/hub-product-v3.png" },
   { id: "camera" as const, name: "Standing Camera", description: "An indoor camera concept shown with its proposed components.", image: "/product-assets/camera-anatomy/standing-camera.webp" },
   { id: "exterior" as const, name: "Wall Camera", description: "A wall-mounted camera concept shown with its proposed components.", image: "/product-assets/camera-anatomy/wall-camera.webp" },
-  { id: "family" as const, name: "ONE Family", description: "Share the home information available to people with access.", image: "/product-assets/family.png" },
+  { id: "family" as const, name: "ONE Family", description: "Share the home information available to people with access.", image: "/one-app-icon-512.png" },
 ];
 
 const supportTopics = [
@@ -28,13 +28,12 @@ const supportTopics = [
   { id: "family", title: "Review shared family information", group: "Family", icon: Users, summary: "Open summaries and observations available to your account.", keywords: "family caregiver sharing summary access", destination: "/dashboard/family", action: "Open family", steps: ["Open Family from the ONE dashboard.", "Review the summaries and observations available to your role.", "Ask the household administrator to update access if something is missing."] },
 ] as const;
 
-const asset = (name: string) => `/product-assets/${name}.png`;
-
-function ProductLink({ id, children, className = "" }: { id: ProductId; children: React.ReactNode; className?: string }) {
-  return <Link className={className} to={`/products/${id}`}>{children}</Link>;
+function ProductLink({ id, children, className = "", ariaCurrent }: { id: ProductId; children: React.ReactNode; className?: string; ariaCurrent?: "page" }) {
+  return <Link className={className} to={`/products/${id}`} aria-current={ariaCurrent}>{children}</Link>;
 }
 
 export function SiteHeader({ section }: { section: string }) {
+  const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   useEffect(() => {
@@ -53,13 +52,28 @@ export function SiteHeader({ section }: { section: string }) {
     { label: "Support", to: "/support", active: section === "support" },
     { label: "ONE app", to: "/app", active: section === "app" },
   ];
+  const productLinks: { id: ProductId; label: string }[] = [
+    { id: "hub", label: "ONE Hub" },
+    { id: "camera", label: "Standing Camera" },
+    { id: "exterior", label: "Wall Camera" },
+    { id: "family", label: "ONE Family" },
+  ];
+  const productSection = section === "products" || section === "detail";
   return <header className={["one-site-header", isScrolled && "is-scrolled"].filter(Boolean).join(" ")}>
-    <Link to="/" className="one-site-logo" aria-label="ONE home"><img src="/one-logo.png" alt="" /><span>one</span></Link>
-    <nav className={menuOpen ? "one-site-nav open" : "one-site-nav"} aria-label="Main navigation">
-      {items.map(item => <Link key={item.label} className={item.active ? "active" : ""} to={item.to} onClick={() => setMenuOpen(false)}>{item.label}</Link>)}
-    </nav>
-    <div className="one-site-actions"><Link className="one-site-register" to="/create-account">Create account</Link><Link className="one-site-pill primary" to="/login">Sign in <ArrowRight size={16} /></Link></div>
-    <button className="one-site-menu" onClick={() => setMenuOpen(value => !value)} aria-label={menuOpen ? "Close menu" : "Open menu"}>{menuOpen ? <X /> : <Menu />}</button>
+    <div className="one-site-header-main">
+      <Link to="/" className="one-site-logo" aria-label="ONE home"><img src="/one-logo.png" alt="" /><span>one</span></Link>
+      <nav className={menuOpen ? "one-site-nav open" : "one-site-nav"} aria-label="Main navigation">
+        {items.map(item => <Link key={item.label} className={item.active ? "active" : ""} to={item.to} onClick={() => setMenuOpen(false)}>{item.label}</Link>)}
+      </nav>
+      <div className="one-site-actions"><Link className="one-site-register" to="/create-account">Create account</Link><Link className="one-site-pill primary" to="/login">Sign in <ArrowRight size={16} /></Link></div>
+      <button className="one-site-menu" onClick={() => setMenuOpen(value => !value)} aria-label={menuOpen ? "Close menu" : "Open menu"}>{menuOpen ? <X /> : <Menu />}</button>
+    </div>
+    {productSection && <nav className="one-site-product-subnav" aria-label="Product navigation">
+      {productLinks.map(item => {
+        const active = location.pathname === `/products/${item.id}`;
+        return <ProductLink key={item.id} id={item.id} className={active ? "active" : ""} ariaCurrent={active ? "page" : undefined}>{item.label}</ProductLink>;
+      })}
+    </nav>}
   </header>;
 }
 
@@ -80,6 +94,15 @@ function ProductCard({ id }: { id: ProductId }) {
   </article>;
 }
 
+type ProductNeighbor = { id: ProductId; label: string };
+
+function ProductNeighborNav({ previous, next }: { previous?: ProductNeighbor; next?: ProductNeighbor }) {
+  return <nav className="one-site-product-neighbors" aria-label="Explore nearby products">
+    {previous ? <ProductLink id={previous.id} className="one-site-product-neighbor previous"><ArrowLeft size={17} /><span><small>Previous</small>{previous.label}</span></ProductLink> : <span />}
+    {next ? <ProductLink id={next.id} className="one-site-product-neighbor next"><span><small>Next</small>{next.label}</span><ArrowRight size={17} /></ProductLink> : <span />}
+  </nav>;
+}
+
 function ProductsPage() {
   const ids: ProductId[] = ["hub", "camera", "exterior", "family"];
   return <>
@@ -96,38 +119,95 @@ type ProductPart = { name: string; image: string; description: string };
 
 function ProductAnatomySequence({ name, parts, overviewSrc, overviewAlt, overviewLayout = "portrait" }: { name: string; parts: readonly ProductPart[]; overviewSrc: string; overviewAlt: string; overviewLayout?: "portrait" | "landscape" }) {
   const [activeIndex, setActiveIndex] = useState(0);
-  const triggerRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLElement>(null);
+  const programmaticScrollRef = useRef(false);
+  const activeIndexRef = useRef(0);
+  const wheelLockedRef = useRef(false);
+  const wheelTimerRef = useRef<number | undefined>(undefined);
+  const goToPartRef = useRef<(index: number) => void>(() => undefined);
+  const updateActiveRef = useRef<() => void>(() => undefined);
+  const scrollTimerRef = useRef<number | undefined>(undefined);
   const partCount = parts.length;
   const activePart = parts[activeIndex];
 
   useEffect(() => {
-    const triggers = triggerRefs.current.filter((trigger): trigger is HTMLDivElement => trigger !== null);
-    if (typeof IntersectionObserver === "undefined" || !triggers.length) return;
-    const observer = new IntersectionObserver(entries => {
-      const current = entries.filter(entry => entry.isIntersecting)
-        .sort((left, right) => right.intersectionRatio - left.intersectionRatio)[0];
-      const index = Number((current?.target as HTMLElement | undefined)?.dataset.partIndex);
-      if (Number.isInteger(index) && index >= 0) setActiveIndex(index);
-    }, { threshold: [0, 0.25, 0.5], rootMargin: "-36% 0px -36% 0px" });
-    triggers.forEach(trigger => observer.observe(trigger));
-    return () => observer.disconnect();
+    const updateActivePart = () => {
+      if (programmaticScrollRef.current) return;
+      const track = trackRef.current;
+      const stage = stageRef.current;
+      if (!track || !stage || partCount < 1) return;
+      const trackTop = window.scrollY + track.getBoundingClientRect().top;
+      const scrollRange = Math.max(track.offsetHeight - stage.offsetHeight, 1);
+      const progress = Math.min(1, Math.max(0, (window.scrollY - trackTop) / scrollRange));
+      const nextIndex = Math.min(partCount - 1, Math.floor(progress * partCount));
+      activeIndexRef.current = nextIndex;
+      setActiveIndex(current => current === nextIndex ? current : nextIndex);
+    };
+    updateActiveRef.current = updateActivePart;
+    updateActivePart();
+    window.addEventListener("scroll", updateActivePart, { passive: true });
+    window.addEventListener("resize", updateActivePart);
+    return () => {
+      window.removeEventListener("scroll", updateActivePart);
+      window.removeEventListener("resize", updateActivePart);
+      if (scrollTimerRef.current !== undefined) window.clearTimeout(scrollTimerRef.current);
+      if (wheelTimerRef.current !== undefined) window.clearTimeout(wheelTimerRef.current);
+      updateActiveRef.current = () => undefined;
+    };
   }, [partCount]);
 
   const goToPart = (index: number) => {
     if (index < 0 || index >= parts.length) return;
+    activeIndexRef.current = index;
     setActiveIndex(index);
-    triggerRefs.current[index]?.scrollIntoView?.({
-      behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
-      block: "center",
-    });
+    const track = trackRef.current;
+    const stage = stageRef.current;
+    if (!track || !stage) return;
+    const trackTop = window.scrollY + track.getBoundingClientRect().top;
+    const scrollRange = Math.max(track.offsetHeight - stage.offsetHeight, 1);
+    const target = trackTop + ((index + 0.5) / parts.length) * scrollRange;
+    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    programmaticScrollRef.current = !reducedMotion;
+    if (scrollTimerRef.current !== undefined) window.clearTimeout(scrollTimerRef.current);
+    window.scrollTo({ top: target, behavior: reducedMotion ? "auto" : "smooth" });
+    if (!reducedMotion) {
+      const settleAfter = Math.min(1400, Math.max(650, Math.abs(target - window.scrollY) * 0.8));
+      scrollTimerRef.current = window.setTimeout(() => {
+        programmaticScrollRef.current = false;
+        updateActiveRef.current();
+      }, settleAfter);
+    }
   };
+  goToPartRef.current = goToPart;
+
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const handleWheel = (event: WheelEvent) => {
+      if (Math.abs(event.deltaY) < 8) return;
+      const headerBottom = document.querySelector<HTMLElement>(".one-site-header")?.getBoundingClientRect().bottom ?? 0;
+      const stageBounds = stage.getBoundingClientRect();
+      if (stageBounds.top > headerBottom + 32 || stageBounds.bottom < window.innerHeight * 0.52) return;
+      const nextIndex = activeIndexRef.current + Math.sign(event.deltaY);
+      if (nextIndex < 0 || nextIndex >= partCount) return;
+      event.preventDefault();
+      if (wheelLockedRef.current) return;
+      wheelLockedRef.current = true;
+      goToPartRef.current(nextIndex);
+      if (wheelTimerRef.current !== undefined) window.clearTimeout(wheelTimerRef.current);
+      wheelTimerRef.current = window.setTimeout(() => { wheelLockedRef.current = false; }, 820);
+    };
+    window.addEventListener("wheel", handleWheel, { passive: false });
+    return () => window.removeEventListener("wheel", handleWheel);
+  }, [partCount]);
 
   if (!activePart) return null;
   return <section className="one-product-anatomy" aria-label={`${name} concept breakdown`}>
-    <div className="one-product-anatomy-heading"><h2>Inside the concept</h2><p>Scroll to bring each part into view.</p></div>
+    <div className="one-product-anatomy-heading"><h2>Inside the concept</h2></div>
     <div className={`one-product-anatomy-overview is-${overviewLayout}`}><img src={overviewSrc} alt={overviewAlt} loading="lazy" /></div>
-    <div className="one-product-anatomy-track" style={{ height: `${parts.length * 34}vh` }}>
-      <article className="one-product-anatomy-stage" tabIndex={0} aria-live="polite" onKeyDown={event => {
+    <div className="one-product-anatomy-track" ref={trackRef} style={{ height: `${parts.length * 110}vh` }}>
+      <article className="one-product-anatomy-stage" ref={stageRef} tabIndex={0} aria-live="polite" onKeyDown={event => {
         if (event.key === "ArrowRight") goToPart(activeIndex + 1);
         if (event.key === "ArrowLeft") goToPart(activeIndex - 1);
       }}>
@@ -142,9 +222,6 @@ function ProductAnatomySequence({ name, parts, overviewSrc, overviewAlt, overvie
           </nav>
         </div>
       </article>
-      <div className="one-product-anatomy-triggers" aria-hidden="true">
-        {parts.map((part, index) => <div key={part.name} data-part-index={index} ref={element => { triggerRefs.current[index] = element; }} />)}
-      </div>
     </div>
   </section>;
 }
@@ -178,15 +255,15 @@ function DetailPage({ device }: { device: "hub" }) {
     </section>
     <ProductAnatomySequence name="ONE Hub" parts={details.parts} overviewSrc={details.exploded} overviewAlt="Exploded illustrative rendering of the ONE Hub concept and its proposed components" />
     <p className="one-camera-parts-note">All component images are illustrative concepts. Final assembly, materials, and specifications are not confirmed.</p>
-    <div className="one-site-next-device"><ProductLink id="camera" className="one-site-button light">Standing Camera <ArrowRight size={17} /></ProductLink></div>
+    <ProductNeighborNav next={{ id: "camera", label: "Standing Camera" }} />
   </>;
 }
 
 function AdditionalProductPage() {
   return <>
-    <section className="one-extra-product-hero"><div><h1>ONE Family</h1><p>Share the home information available to people with access.</p></div><img src={asset("family")} alt="ONE Family concept rendering" /></section>
+    <section className="one-extra-product-hero"><div><h1>ONE Family</h1><p>Share the home information available to people with access.</p></div><img src="/one-app-icon-512.png" alt="ONE Family app icon" /></section>
     <section className="one-extra-product-details"><h2>Shared access</h2><div>{[["Shared summaries", "Review home information available to your account."], ["Shared care", "People with access can see information relevant to their role."], ["Human review", "Use observations as context for a conversation or professional review."]].map(([heading, description], index) => <article key={heading}><b>0{index + 1}</b><h3>{heading}</h3><p>{description}</p></article>)}</div></section>
-    <div className="one-site-next-device"><Link to="/products" className="one-site-button light">All products <ArrowRight size={17} /></Link></div>
+    <ProductNeighborNav previous={{ id: "exterior", label: "Wall Camera" }} />
   </>;
 }
 
@@ -227,9 +304,8 @@ const cameraConcepts = {
 
 function CameraConceptPage({ model }: { model: "standing" | "wall" }) {
   const camera = cameraConcepts[model];
-  const otherModel = model === "standing" ? "wall" : "standing";
-  const otherProductId = model === "standing" ? "exterior" : "camera";
-  const otherProductName = cameraConcepts[otherModel].name;
+  const previous = model === "standing" ? { id: "hub" as const, label: "ONE Hub" } : { id: "camera" as const, label: "Standing Camera" };
+  const next = model === "standing" ? { id: "exterior" as const, label: "Wall Camera" } : { id: "family" as const, label: "ONE Family" };
 
   return <>
     <section className={`one-camera-hero one-camera-hero-${model}`}>
@@ -242,7 +318,7 @@ function CameraConceptPage({ model }: { model: "standing" | "wall" }) {
     </section>
     <ProductAnatomySequence name={camera.name} parts={camera.parts.map(part => ({ ...part, image: `/product-assets/camera-anatomy/${part.image}` }))} overviewSrc={camera.exploded} overviewAlt={`Exploded view of the ${camera.name} concept, showing its proposed components`} overviewLayout={model === "wall" ? "landscape" : "portrait"} />
     <p className="one-camera-parts-note">These renders are illustrative. Final assembly, materials, and specifications are not confirmed.</p>
-    <div className="one-site-next-device"><ProductLink id={otherProductId} className="one-site-button light">Explore {otherProductName} <ArrowRight size={17} /></ProductLink></div>
+    <ProductNeighborNav previous={previous} next={next} />
   </>;
 }
 
@@ -258,15 +334,15 @@ function TechnologyPage() {
     <section className="one-site-tech-hero"><div className="one-site-tech-copy"><h1>One view of care at home.</h1><p>Home maps, connected camera views, check-ins, and family access, based on each household’s setup and permissions.</p></div><div className="one-site-tech-visual"><img src="/product-assets/hub-product-v3.png" alt="Illustrative ONE Hub display concept" /><img src="/product-assets/camera-anatomy/standing-camera.webp" alt="Illustrative standing camera concept" /></div><p className="one-site-tech-note">Hardware images are concepts. Final specifications are not confirmed.</p></section>
     <section className="one-site-tech-layers"><div className="one-site-section-heading"><h2>Explore app features</h2></div><div className="one-site-layer-cards">{capabilities.map((item, index) => { const Icon = item.icon; return <button className={index === layer ? "active" : ""} key={item.name} onClick={() => setLayer(index)} aria-pressed={index === layer}><span><Icon size={30} /></span><strong>{item.name}</strong><p>{item.text}</p></button>; })}</div><div className="one-site-layer-explain"><h3>{capabilities[layer].name}</h3><p>{capabilities[layer].detail}</p><Link to={capabilities[layer].destination}>{capabilities[layer].action} <ArrowRight size={15} /></Link></div><p className="one-site-tech-limits">ONE organizes observations for people to review. It does not provide a medical diagnosis or contact emergency services.</p></section>
     <section className="one-tech-demos">
-      <div className="one-tech-demos-heading"><h2>Maps, in motion</h2><p>Interactive examples of how home and location maps could be explored. Both views use sample layouts and places.</p></div>
+      <div className="one-tech-demos-heading"><h2>Maps</h2><p>Illustrative layouts only; no live home or location data.</p></div>
       <div className="one-tech-demo-grid">
         <article className="one-tech-demo">
-          <header><h3>Explore a 3D home map</h3><span>Interactive sample</span></header>
+          <header><h3>Explore a 3D home map</h3></header>
           <SampleHomeMap3D />
           <p className="one-tech-demo-hint">Drag to rotate. Scroll to zoom. This illustrative map is not connected to a home.</p>
         </article>
         <article className="one-tech-demo">
-          <header><h3>Follow a sample route</h3><span>Animated example</span></header>
+          <header><h3>Follow a sample route</h3></header>
           <SampleRouteMap />
           <p className="one-tech-demo-hint">The route between Home and Shop is a fixed visual example, not live navigation.</p>
         </article>

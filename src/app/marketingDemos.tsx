@@ -45,27 +45,44 @@ function addRoom(group: THREE.Group, name: string, x: number, z: number, width: 
   floor.receiveShadow = true;
   group.add(floor);
 
-  const wallMaterial = new THREE.MeshStandardMaterial({ color: 0xe8efed, roughness: 0.86 });
-  const wallHeight = 0.62;
-  const wallThickness = 0.09;
-  const wall = (wallX: number, wallZ: number, wallWidth: number, wallDepth: number, height = wallHeight) => {
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(wallWidth, height, wallDepth), wallMaterial);
-    mesh.position.set(wallX, 0.13 + height / 2, wallZ);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    group.add(mesh);
-  };
-
-  wall(x, z - depth / 2, width, wallThickness);
-  wall(x - width / 2, z, wallThickness, depth);
-  wall(x + width / 2, z, wallThickness, depth);
-  wall(x, z + depth / 2, width * 0.37, wallThickness, wallHeight * 0.58);
-  wall(x + width * 0.34, z + depth / 2, width * 0.32, wallThickness, wallHeight * 0.58);
-
   const label = makeRoomLabel(name, "#49627a");
   if (label) {
     label.position.set(x, 0.2, z);
     group.add(label);
+  }
+}
+
+type DoorOpening = readonly [number, number] | undefined;
+
+function addWallSegment(
+  group: THREE.Group,
+  axis: "horizontal" | "vertical",
+  coordinate: number,
+  start: number,
+  end: number,
+  opening: DoorOpening,
+  material: THREE.Material,
+) {
+  const wallHeight = 0.62;
+  const wallThickness = 0.09;
+  const segments: [number, number][] = opening
+    ? [[start, opening[0]], [opening[1], end]]
+    : [[start, end]];
+  for (const [segmentStart, segmentEnd] of segments) {
+    if (segmentEnd - segmentStart < 0.04) continue;
+    const length = segmentEnd - segmentStart;
+    const geometry = axis === "horizontal"
+      ? new THREE.BoxGeometry(length, wallHeight, wallThickness)
+      : new THREE.BoxGeometry(wallThickness, wallHeight, length);
+    const wall = new THREE.Mesh(geometry, material);
+    wall.position.set(
+      axis === "horizontal" ? (segmentStart + segmentEnd) / 2 : coordinate,
+      0.13 + wallHeight / 2,
+      axis === "horizontal" ? coordinate : (segmentStart + segmentEnd) / 2,
+    );
+    wall.castShadow = true;
+    wall.receiveShadow = true;
+    group.add(wall);
   }
 }
 
@@ -131,32 +148,59 @@ export function SampleHomeMap3D() {
     fill.position.set(-4, 6, -4);
     world.add(fill);
 
+    const footprint = new THREE.Shape();
+    footprint.moveTo(-3, 3);
+    footprint.lineTo(1, 3);
+    footprint.lineTo(1, 0.65);
+    footprint.lineTo(2.55, 0.65);
+    footprint.lineTo(2.55, -1.7);
+    footprint.lineTo(-3, -1.7);
+    footprint.closePath();
     const base = new THREE.Mesh(
-      new THREE.BoxGeometry(6.1, 0.22, 5.1),
+      new THREE.ExtrudeGeometry(footprint, { depth: 0.16, bevelEnabled: true, bevelSegments: 2, bevelSize: 0.07, bevelThickness: 0.04 }),
       new THREE.MeshStandardMaterial({ color: 0xe0e8e6, roughness: 0.82 }),
     );
+    base.geometry.rotateX(-Math.PI / 2);
     base.position.y = -0.08;
     base.receiveShadow = true;
     model.add(base);
 
-    addRoom(model, "Living", -1.38, 0.48, 2.7, 2.15, 0xd8d2c6);
-    addRoom(model, "Kitchen", 1.18, 0.48, 2.36, 2.15, 0xc6ded4);
-    addRoom(model, "Bedroom", -1.38, -1.72, 2.7, 1.9, 0xd1d9e8);
-    addRoom(model, "Bath", 1.18, -1.72, 2.36, 1.9, 0xc3dce2);
+    addRoom(model, "Living", -1.425, 0.2, 3.15, 3, 0xd8d2c6);
+    addRoom(model, "Kitchen", 1.35, 0.525, 2.4, 2.35, 0xc6ded4);
+    addRoom(model, "Bedroom", -1.825, -2.15, 2.35, 1.7, 0xd1d9e8);
+    addRoom(model, "Bath", 0.175, -1.825, 1.65, 2.35, 0xc3dce2);
+
+    const walls = new THREE.MeshStandardMaterial({ color: 0xe8efed, roughness: 0.86 });
+    // The stepped outline follows the four rooms; every interior opening is left clear.
+    addWallSegment(model, "horizontal", -3, -3, 1, undefined, walls);
+    addWallSegment(model, "vertical", -3, -3, 1.7, undefined, walls);
+    addWallSegment(model, "vertical", 1, -3, -0.65, undefined, walls);
+    addWallSegment(model, "horizontal", -0.65, 1, 2.55, undefined, walls);
+    addWallSegment(model, "vertical", 2.55, -0.65, 1.7, [0.3, 0.98], walls);
+    addWallSegment(model, "horizontal", 1.7, -3, 2.55, undefined, walls);
+    addWallSegment(model, "horizontal", -1.3, -3, -0.65, [-2.25, -1.55], walls);
+    addWallSegment(model, "vertical", -0.65, -3, -1.3, [-2.4, -1.7], walls);
+    addWallSegment(model, "horizontal", -0.65, 0.15, 1, [0.32, 0.78], walls);
+    addWallSegment(model, "vertical", 0.15, -0.65, 1.7, [0.25, 0.95], walls);
 
     const routePoints = [
-      new THREE.Vector3(-2.15, 0.21, 0.84),
-      new THREE.Vector3(-0.55, 0.21, 0.84),
-      new THREE.Vector3(0.45, 0.21, 0.37),
-      new THREE.Vector3(1.55, 0.21, 0.66),
+      new THREE.Vector3(3.05, 0.21, 0.65),
+      new THREE.Vector3(2.55, 0.21, 0.65),
+      new THREE.Vector3(1.2, 0.21, 0.65),
+      new THREE.Vector3(0.15, 0.21, 0.65),
+      new THREE.Vector3(-0.15, 0.21, 0.65),
+      new THREE.Vector3(-1.82, 0.21, -1.22),
+      new THREE.Vector3(-1.82, 0.21, -1.3),
+      new THREE.Vector3(-1.82, 0.21, -1.92),
+      new THREE.Vector3(-2.15, 0.21, -2.2),
     ];
     const route = new THREE.Mesh(
-      new THREE.TubeGeometry(new THREE.CatmullRomCurve3(routePoints), 48, 0.025, 8, false),
+      new THREE.TubeGeometry(new THREE.CatmullRomCurve3(routePoints, false, "centripetal", 0), 64, 0.025, 8, false),
       new THREE.MeshStandardMaterial({ color: 0x10a4e8, emissive: 0x087eb0, emissiveIntensity: 0.18 }),
     );
     model.add(route);
-    addPin(model, -2.15, 0.84, 0x08a6e5);
-    addPin(model, 1.55, 0.66, 0x43c6a0);
+    addPin(model, 3.05, 0.65, 0x08a6e5);
+    addPin(model, -2.15, -2.2, 0x43c6a0);
     world.add(model);
 
     const width = host.clientWidth || 640;
@@ -215,19 +259,38 @@ export function SampleHomeMap3D() {
 }
 
 export function SampleRouteMap() {
+  const routePath = "M92 318H464V200H650V82";
   return <div className="one-tech-route-map">
     <svg viewBox="0 0 760 410" role="img" aria-label="Illustrative animated route from Home to Shop">
-      <rect width="760" height="410" rx="18" fill="#f4f4ef" />
-      <g fill="none" stroke="#fff" strokeLinecap="round">
-        <path d="M-30 115 225 -25M-30 320 460 -30M180 440 790 78M435 445 775 250M-25 225 785 185" strokeWidth="42" />
-        <path d="M-30 115 225 -25M-30 320 460 -30M180 440 790 78M435 445 775 250M-25 225 785 185" stroke="#e2e3dd" strokeWidth="2" />
+      <rect width="760" height="410" rx="18" fill="#edf3ee" />
+      <g fill="none" strokeLinecap="square">
+        <g stroke="#ffffff" strokeWidth="36">
+          <path d="M0 82H760M0 200H760M0 318H760" />
+          <path d="M92 0V410M278 0V410M464 0V410M650 0V410" />
+        </g>
+        <g stroke="#d8e0dc" strokeWidth="2">
+          <path d="M0 82H760M0 200H760M0 318H760" />
+          <path d="M92 0V410M278 0V410M464 0V410M650 0V410" />
+        </g>
+        <g stroke="#dfe5e1" strokeWidth="1" strokeDasharray="7 10">
+          <path d="M0 82H760M0 200H760M0 318H760" />
+          <path d="M92 0V410M278 0V410M464 0V410M650 0V410" />
+        </g>
       </g>
-      <g fill="#dcebe2"><path d="M64 30h95v53H64zM282 39h82v61h-82zM476 23h87v66h-87zM575 220h104v63H575zM98 290h91v73H98zM360 286h105v62H360z" /></g>
-      <g fill="#d7e5f2"><path d="M230 280h83v55h-83zM540 115h83v51h-83zM32 164h75v43H32z" /></g>
-      <path className="one-tech-route-path" pathLength="1" d="M132 321C182 293 197 239 260 229S367 246 415 196s87-62 148-60" />
-      <g className="one-tech-route-home"><circle cx="132" cy="321" r="16" /><circle cx="132" cy="321" r="6" /><rect x="93" y="342" width="79" height="30" rx="15" /><text x="132" y="362">Home</text></g>
-      <g className="one-tech-route-shop"><circle cx="563" cy="136" r="16" /><circle cx="563" cy="136" r="6" /><rect x="525" y="91" width="76" height="30" rx="15" /><text x="563" y="111">Shop</text></g>
+      <g className="one-tech-city-buildings">
+        <rect x="112" y="101" width="63" height="62" rx="5" fill="#d6e5d9" /><rect x="187" y="110" width="59" height="53" rx="5" fill="#dce9df" />
+        <rect x="302" y="105" width="58" height="66" rx="5" fill="#dce8ed" /><rect x="374" y="112" width="62" height="52" rx="5" fill="#d3e1e8" />
+        <rect x="489" y="102" width="54" height="61" rx="5" fill="#e3e5d7" /><rect x="557" y="107" width="65" height="56" rx="5" fill="#dce9df" />
+        <rect x="120" y="229" width="55" height="57" rx="5" fill="#e3e5d7" /><rect x="187" y="222" width="61" height="67" rx="5" fill="#dce9df" />
+        <rect x="304" y="226" width="60" height="59" rx="5" fill="#d6e5d9" /><rect x="379" y="224" width="56" height="64" rx="5" fill="#e3e5d7" />
+        <rect x="489" y="225" width="61" height="61" rx="5" fill="#dce8ed" /><rect x="565" y="224" width="55" height="64" rx="5" fill="#d6e5d9" />
+        <rect x="116" y="344" width="61" height="53" rx="5" fill="#dce8ed" /><rect x="190" y="342" width="55" height="55" rx="5" fill="#dce9df" />
+        <rect x="301" y="342" width="58" height="55" rx="5" fill="#e3e5d7" /><rect x="375" y="343" width="62" height="54" rx="5" fill="#dce8ed" />
+        <rect x="489" y="343" width="63" height="54" rx="5" fill="#dce9df" /><rect x="565" y="342" width="56" height="55" rx="5" fill="#e3e5d7" />
+      </g>
+      <path className="one-tech-route-path" pathLength="1" d={routePath} />
+      <g className="one-tech-route-home"><circle cx="92" cy="318" r="16" /><circle cx="92" cy="318" r="6" /><rect x="48" y="341" width="88" height="28" rx="14" /><text x="92" y="360">Home</text></g>
+      <g className="one-tech-route-shop"><circle cx="650" cy="82" r="16" /><circle cx="650" cy="82" r="6" /><rect x="611" y="38" width="78" height="28" rx="14" /><text x="650" y="57">Shop</text></g>
     </svg>
-    <span className="one-tech-route-marker" aria-hidden="true" />
   </div>;
 }

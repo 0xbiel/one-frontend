@@ -745,20 +745,6 @@
   text-anchor: middle;
 }
 
-.one-tech-route-marker {
-  position: absolute;
-  top: 34%;
-  left: 54%;
-  width: 14px;
-  height: 14px;
-  border: 3px solid #fff;
-  border-radius: 50%;
-  background: #168fe1;
-  box-shadow: 0 2px 10px #08436b45;
-  animation: one-route-marker 7s ease-in-out infinite;
-  pointer-events: none;
-}
-
 .one-tech-demo-hint {
   max-width: 54ch;
   margin: 10px 0 0;
@@ -772,14 +758,6 @@
   13% { opacity: 1; }
   48%, 68% { stroke-dashoffset: 0; opacity: 1; }
   86%, 100% { stroke-dashoffset: 0; opacity: 0; }
-}
-
-@keyframes one-route-marker {
-  0%, 6% { left: 17%; top: 78%; opacity: 0; }
-  14% { opacity: 1; }
-  48% { left: 74%; top: 34%; opacity: 1; }
-  68% { left: 74%; top: 34%; opacity: 1; }
-  86%, 100% { left: 74%; top: 34%; opacity: 0; }
 }
 
 /* The same plain visual language carries through the explainer and guide pages. */
@@ -1252,8 +1230,7 @@
   .one-product-anatomy-visual img,
   .one-product-anatomy-copy h3,
   .one-how-bars i,
-  .one-tech-route-path,
-  .one-tech-route-marker {
+  .one-tech-route-path {
     animation: none;
     transform: none;
     opacity: 1;
@@ -1261,5 +1238,287 @@
 
   .one-how-bars i {
     height: var(--bar-height, 60%) !important;
+  }
+}
+
+/* Stable public-site shell and product navigation. */
+:root,
+* {
+  scrollbar-color: #178be3 #fff;
+  scrollbar-width: thin;
+}
+
+::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: #fff;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 3px solid #fff;
+  border-radius: 999px;
+  background: #178be3;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #0873c9;
+}
+
+.one-site {
+  overflow-x: clip;
+  overflow-y: visible;
+  overscroll-behavior-y: none;
+  background: #fff;
+}
+
+.one-site-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: #fff;
+  box-shadow: 0 1px 0 #e5ebea;
+  backdrop-filter: none;
+  transition: box-shadow 180ms ease;
+}
+
+.one-site-header.is-scrolled {
+  height: auto;
+  margin: 0;
+  background: #fff;
+  box-shadow: 0 7px 22px #142b4012, 0 1px 0 #e5ebea;
+}
+
+.one-site-header-main {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: clamp(12px, 2vw, 30px);
+  min-height: 66px;
+  padding: 0 clamp(22px, 4vw, 64px);
+  background: #fff;
+}
+
+.one-site-header-main .one-site-nav {
+  align-self: stretch;
+}
+
+.one-site-product-subnav {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: clamp(16px, 3vw, 42px);
+  min-height: 43px;
+  padding: 0 clamp(22px, 4vw, 64px);
+  overflow-x: auto;
+  border-top: 1px solid #f0f2f1;
+  border-bottom: 1px solid #e5ebea;
+  background: #fff;
+  scrollbar-width: none;
+}
+
+.one-site-product-subnav::-webkit-scrollbar {
+  display: none;
+}
+
+.one-site-product-subnav a {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  min-height: 42px;
+  padding: 0 5px;
+  border-bottom: 2px solid transparent;
+  color: #5b6a73;
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.one-site-product-subnav a:hover,
+.one-site-product-subnav a.active {
+  border-bottom-color: #1189df;
+  color: #0879c8;
+}
+
+.one-product-anatomy-overview {
+  position: relative;
+  z-index: 0;
+  isolation: isolate;
+}
+
+.one-product-anatomy-overview img {
+  object-fit: contain;
+}
+
+.one-product-anatomy-stage {
+  top: 118px;
+  background: #f6f7f4;
+}
+
+.one-product-anatomy-visual img {
+  max-width: min(100%, 700px);
+  max-height: min(58vh, 530px);
+  object-fit: contain;
+}
+
+.one-site-product-neighbors {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 20px;
+  max-width: 1500px;
+  min-height: 92px;
+  margin: 0 auto;
+  padding: 16px clamp(22px, 6vw, 88px);
+  border-top: 1px solid #e2e9e7;
+  background: #fff;
+}
+
+.one-site-product-neighbor {
+  display: inline-flex;
+  align-items: center;
+  gap: 13px;
+  color: #163b58;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.one-site-product-neighbor.next {
+  margin-left: auto;
+  text-align: right;
+}
+
+.one-site-product-neighbor span {
+  display: grid;
+  gap: 3px;
+}
+
+.one-site-product-neighbor small {
+  color: #71808a;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.one-site-product-neighbor:hover {
+  color: #0879c8;
+}
+
+.one-tech-route-map {
+  position: relative;
+  overflow: hidden;
+  background: #edf3ee;
+}
+
+.one-tech-route-map svg {
+  overflow: hidden;
+}
+
+.one-tech-city-buildings rect {
+  stroke: #fff;
+  stroke-width: 2px;
+}
+
+.one-tech-route-path {
+  stroke-width: 7px;
+  filter: drop-shadow(0 1px 2px #fff);
+}
+
+@media (max-width: 800px) {
+  .one-site-header-main {
+    min-height: 60px;
+    padding: 0 16px 0 20px;
+  }
+
+  .one-site-header-main .one-site-nav {
+    position: absolute;
+    top: calc(100% + 5px);
+    right: 14px;
+    left: 14px;
+    z-index: 5;
+  }
+
+  .one-site-product-subnav {
+    justify-content: flex-start;
+    gap: 19px;
+    min-height: 43px;
+    padding: 0 17px;
+  }
+
+  .one-site-product-neighbors {
+    min-height: 78px;
+    padding-right: 22px;
+    padding-left: 22px;
+  }
+
+  .one-product-anatomy-stage {
+    top: 110px;
+  }
+}
+
+@media (max-width: 580px) {
+  .one-site-header-main {
+    min-height: 58px;
+    padding-right: 12px;
+    padding-left: 14px;
+  }
+
+  .one-site-header-main .one-site-logo {
+    gap: 5px;
+  }
+
+  .one-site-header-main .one-site-logo span {
+    font-size: 31px;
+  }
+
+  .one-site-header-main .one-site-logo img {
+    width: 27px;
+    height: 27px;
+  }
+
+  .one-site-header-main .one-site-actions {
+    gap: 0;
+  }
+
+  .one-site-header-main .one-site-menu {
+    margin-left: 7px;
+  }
+
+  .one-site-product-subnav {
+    gap: 15px;
+  }
+
+  .one-site-product-subnav a {
+    font-size: 11px;
+  }
+
+  .one-site-product-neighbors {
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
+  .one-product-anatomy-stage {
+    top: 108px;
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr) auto;
+    height: min(68vh, 570px);
+  }
+
+  .one-product-anatomy-visual img {
+    max-height: 39vh;
   }
 }

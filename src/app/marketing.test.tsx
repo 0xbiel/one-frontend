@@ -41,6 +41,18 @@ describe("marketing navigation and controls", () => {
     expect(screen.queryByRole("navigation", { name: "Choose a product" })).not.toBeInTheDocument();
   });
 
+  it("keeps product links in a secondary header row on product pages", () => {
+    vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+    const view = renderAt("/products");
+    const productNav = screen.getByRole("navigation", { name: "Product navigation" });
+    expect(productNav.querySelectorAll("a")).toHaveLength(4);
+    expect(productNav.querySelector('a[href="/products/hub"]')).toHaveTextContent("ONE Hub");
+    view.unmount();
+
+    renderAt("/products/exterior");
+    expect(screen.getByRole("link", { name: "Wall Camera" })).toHaveAttribute("aria-current", "page");
+  });
+
   it.each([
     ["/products/camera", "Standing Camera", "/product-assets/camera-anatomy/standing-exploded.webp", "standing-front-panel.webp"],
     ["/products/exterior", "Wall Camera", "/product-assets/camera-anatomy/wall-exploded.webp", "wall-front-panel.webp"],
@@ -70,6 +82,19 @@ describe("marketing navigation and controls", () => {
     expect(screen.getByRole("heading", { level: 3 })).toHaveTextContent("Inner chassis");
   });
 
+  it.each([
+    ["/products/hub", [], ["/products/camera"]],
+    ["/products/camera", ["/products/hub"], ["/products/exterior"]],
+    ["/products/exterior", ["/products/camera"], ["/products/family"]],
+    ["/products/family", ["/products/exterior"], []],
+  ])("shows contextual product links on %s", (path, previous, next) => {
+    vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+    renderAt(path);
+    const nav = screen.getByRole("navigation", { name: "Explore nearby products" });
+    const links = [...nav.querySelectorAll("a")].map(link => link.getAttribute("href"));
+    expect(links).toEqual([...previous, ...next]);
+  });
+
   it("shows sample map demonstrations on Technology", () => {
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
     renderAt("/technology");
@@ -77,6 +102,7 @@ describe("marketing navigation and controls", () => {
     expect(screen.getByRole("heading", { name: "Explore a 3D home map" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Follow a sample route" })).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Illustrative animated route from Home to Shop" })).toBeInTheDocument();
+    expect(document.querySelector(".one-tech-route-path")).toHaveAttribute("d", "M92 318H464V200H650V82");
   });
 
   it("opens the selected support guide from search", async () => {
