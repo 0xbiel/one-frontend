@@ -1990,11 +1990,8 @@
   }
 }
 
-/* Keep the product concept title in view while the component sequence advances. */
 .one-product-anatomy-heading {
-  position: sticky;
-  top: 68px;
-  z-index: 5;
+  position: static;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2095,7 +2092,7 @@
 }
 
 .one-product-anatomy-stage {
-  top: 132px;
+  top: 86px;
   height: min(calc(100svh - 150px), 700px);
 }
 
@@ -2106,12 +2103,11 @@
 
 @media (max-width: 800px) {
   .one-product-anatomy-heading {
-    top: 68px;
     min-height: 58px;
   }
 
   .one-product-anatomy-stage {
-    top: 126px;
+    top: 75px;
     height: min(calc(100svh - 142px), 620px);
   }
 
@@ -2149,7 +2145,7 @@
   }
 
   .one-product-anatomy-stage {
-    top: 122px;
+    top: 68px;
     height: min(calc(100svh - 136px), 560px);
   }
 
