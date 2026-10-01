@@ -10,6 +10,7 @@ import { SampleHomeMap3D, SampleRouteMap } from "./marketingDemos";
 import "./marketingExtra.css";
 import "./marketingPolish.css";
 import "./marketingExperience.css";
+import "./marketingHeader.css";
 
 type ProductId = "hub" | "camera" | "family" | "exterior";
 

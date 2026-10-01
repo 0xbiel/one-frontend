@@ -1,0 +1,8 @@
+.one-site-header.is-scrolled .one-site-header-main {
+  border-color: transparent;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  transition: min-height 180ms ease, border-color 180ms ease, border-radius 180ms ease, background-color 180ms ease, box-shadow 180ms ease;
+}
