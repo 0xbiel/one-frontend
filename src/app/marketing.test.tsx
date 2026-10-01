@@ -221,6 +221,7 @@ describe("marketing navigation and controls", () => {
     expect(screen.getByRole("navigation", { name: "Legal documents" })).toBeInTheDocument();
     const mainNavigation = view.container.querySelector(".one-site-header-main .one-site-nav");
     expect(mainNavigation?.querySelectorAll("a")).toHaveLength(10);
+    expect(mainNavigation?.querySelector("a.active")).toHaveTextContent("ONE app");
   });
 
   it("lets visitors explore a clearly labeled, interactive app sample", () => {
@@ -236,7 +237,7 @@ describe("marketing navigation and controls", () => {
     expect(screen.getByRole("button", { name: "Bedroom" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText("Illustrative room · no live location")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("tab", { name: "Assistant" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Check-in" }));
     fireEvent.click(screen.getByRole("button", { name: "Okay" }));
     fireEvent.click(screen.getByRole("button", { name: /Save sample answer/ }));
     expect(screen.getByRole("button", { name: /Sample answer saved/ })).toBeInTheDocument();

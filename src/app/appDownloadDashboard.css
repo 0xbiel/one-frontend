@@ -262,3 +262,24 @@
   outline: 2px solid #087dbb;
   outline-offset: 2px;
 }
+
+.one-app-page .one-site-nav a.active {
+  color: #087cff;
+}
+
+.one-app-page .one-site-nav a.active::after {
+  background: #087cff;
+}
+
+.one-app-phone .one-app-preview-tabs button > span {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  color: inherit;
+  font-size: 8px;
+  font-weight: 650;
+  letter-spacing: 0;
+  line-height: 1.1;
+  text-align: center;
+  white-space: nowrap;
+}

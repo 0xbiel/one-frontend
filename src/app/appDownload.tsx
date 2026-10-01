@@ -18,7 +18,7 @@ const previewTabs = [
   { id: "home", label: "Home", icon: House },
   { id: "map", label: "Map", icon: Map },
   { id: "family", label: "Family", icon: Users },
-  { id: "assistant", label: "Assistant", icon: MessageCircle },
+  { id: "assistant", label: "Check-in", icon: MessageCircle },
   { id: "account", label: "Account", icon: ShieldCheck },
 ] as const;
 
