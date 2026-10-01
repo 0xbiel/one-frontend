@@ -1,0 +1,103 @@
+.app-shell { min-height: 100vh; }
+.main-content { min-width: 0; }
+.page-wrap { min-width: 0; }
+.page-wrap > * { min-width: 0; }
+.dashboard-demo-badge { margin-left: 12px; padding: 5px 9px; border: 1px solid #c9e9ee; border-radius: 999px; color: #17687e; background: #effbfc; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.dashboard-page { width: min(100%, 1330px); margin-inline: auto; }
+.dashboard-page .page-heading-clean { margin-bottom: 18px; }
+.home-glance-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.home-glance-grid button { display: flex; align-items: center; gap: 12px; min-width: 0; min-height: 94px; padding: 17px; border: 1px solid #dfe9ee; border-radius: 15px; background: #fff; color: #173b55; text-align: left; cursor: pointer; }
+.home-glance-grid button:hover { border-color: #8bc1f4; }
+.home-glance-grid button > svg:first-child { flex: 0 0 auto; color: #0877e9; }
+.home-glance-grid button > svg:last-child { flex: 0 0 auto; margin-left: auto; color: #7c9ab0; }
+.home-glance-grid button span { display: grid; gap: 4px; min-width: 0; }
+.home-glance-grid strong { font-size: 14px; }
+.home-glance-grid small { color: #71879b; font-size: 11px; }
+.checkin-week-card { display: grid; grid-template-columns: minmax(180px, .8fr) minmax(280px, 1.5fr) minmax(150px, .6fr); align-items: center; gap: 16px; margin-top: 18px; padding: 22px; }
+.checkin-week-card h3 { margin: 4px 0; font-size: 19px; }
+.checkin-week-card p { margin: 0; color: #71859a; font-size: 12px; }
+.checkin-week-days { display: flex; justify-content: center; min-width: 0; }
+.checkin-week-days button { display: grid; justify-items: center; gap: 6px; flex: 1; min-width: 0; padding: 5px 1px; border: 0; background: transparent; color: #668098; font-size: 10px; cursor: pointer; }
+.checkin-week-days i { width: 17px; height: 17px; border: 2px solid #bfe9ee; border-radius: 50%; background: #e3f9fa; }
+.checkin-week-days i.recorded { border-color: #41cda6; background: #41cda6; }
+.checkin-week-days button.selected i { outline: 2px solid #126de1; outline-offset: 3px; }
+.checkin-week-status { display: grid; gap: 5px; padding: 13px; border-radius: 12px; background: #eff7fb; color: #173d5b; font-size: 12px; font-weight: 700; }
+.checkin-week-status small { color: #70899d; font-size: 11px; font-weight: 500; }
+
+.event-filters { display: flex; flex-wrap: wrap; gap: 8px; padding: 16px 18px; border-bottom: 1px solid #e4edf1; }
+.event-filters button { display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 0 12px; border: 1px solid #d9e7ef; border-radius: 9px; background: #fff; color: #53728b; font-size: 12px; font-weight: 650; cursor: pointer; }
+.event-filters button.active { border-color: #c9deff; background: #e9f2ff; color: #0867e8; }
+.event-filters button:focus-visible, .sample-room-list button:focus-visible, .sample-camera-grid button:focus-visible { outline: 3px solid #6fb4ff; outline-offset: 2px; }
+.event-group { padding-bottom: 12px; }
+.event-group .timeline-date { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+.event-group .timeline-date small { color: #65839a; font-weight: 500; }
+
+.sample-cameras-page { padding-bottom: 28px; }
+.sample-camera-summary { display: grid; grid-template-columns: 1.3fr .8fr 1.2fr; gap: 12px; margin-bottom: 14px; }
+.sample-camera-summary > div { display: flex; align-items: center; gap: 12px; min-width: 0; min-height: 82px; padding: 14px 16px; border: 1px solid #dce9ef; border-radius: 13px; background: #fff; color: #123555; }
+.sample-camera-summary svg { flex: 0 0 auto; color: #1475e9; }
+.sample-camera-summary span { display: grid; min-width: 0; }
+.sample-camera-summary strong { font-size: 13px; }
+.sample-camera-summary small { color: #6d8295; font-size: 11px; }
+.sample-camera-feature { position: relative; overflow: hidden; padding: 10px; }
+.sample-camera-title { display: flex; align-items: center; gap: 12px; padding: 3px 4px 10px; }
+.sample-camera-title h3 { margin: 0; font-size: 19px; }
+.sample-camera-title span { padding: 3px 9px; border-radius: 999px; background: #e7faf4; color: #12926b; font-size: 11px; font-weight: 700; }
+.sample-camera-feature > img { display: block; width: 100%; height: clamp(230px, 32vw, 420px); object-fit: cover; border-radius: 10px; }
+.sample-camera-overlay { position: absolute; right: 19px; bottom: 19px; display: flex; align-items: center; gap: 6px; padding: 7px 10px; border-radius: 8px; background: #112c3fcf; color: #fff; font-size: 11px; }
+.sample-camera-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
+.sample-camera-grid button { min-width: 0; padding: 8px; border: 1px solid #dde8ed; border-radius: 11px; background: #fff; text-align: left; cursor: pointer; }
+.sample-camera-grid button.active { border-color: #1680ef; box-shadow: 0 0 0 2px #1680ef1f; }
+.sample-camera-grid span { display: block; overflow: hidden; color: #102f48; font-size: 12px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.sample-camera-grid small { display: block; margin: 2px 0 7px; color: #15916d; font-size: 10px; }
+.sample-camera-grid img { width: 100%; aspect-ratio: 1.45; object-fit: cover; border-radius: 6px; }
+
+.sample-map-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(230px, 290px); gap: 14px; align-items: stretch; }
+.sample-map-stage { min-width: 0; overflow: hidden; padding: 0; background: #073a62; color: white; }
+.sample-map-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 13px 16px; }
+.sample-map-toolbar h3 { margin: 2px 0 0; color: #fff; font-size: 18px; }
+.sample-map-toolbar .eyebrow { color: #a9e6f5; }
+.sample-map-toolbar .view-toggle { margin: 0; }
+.sample-map-toolbar .view-toggle button { color: #d9f1f8; }
+.sample-map-toolbar .view-toggle button.active { color: #0a2f4e; }
+.sample-map-3d, .sample-map-2d { display: block; width: 100%; height: clamp(360px, 46vw, 600px); }
+.sample-map-3d canvas { display: block; }
+.sample-map-2d { padding: 17px; background: #083756; }
+.sample-map-2d g { cursor: pointer; }
+.sample-map-2d rect { stroke: #edf8fa; stroke-width: .035; }
+.sample-map-2d rect.selected { stroke: #1486ff; stroke-width: .1; }
+.sample-map-2d .sample-map-label rect { fill: #fff; stroke: #d8e5ec; stroke-width: 1; }
+.sample-map-2d text { font-size: 15px; font-weight: 700; fill: #18394d; text-anchor: middle; pointer-events: none; }
+.sample-map-wall { stroke: #fff; stroke-width: .12; stroke-linecap: square; pointer-events: none; }
+.sample-map-route { fill: none; stroke: #147bfa; stroke-width: .065; stroke-dasharray: .08 .07; pointer-events: none; }
+.sample-map-marker { fill: #0976fc; stroke: #dffcff; stroke-width: .04; cursor: pointer; }
+.sample-map-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 15px; padding: 10px 16px 13px; color: #cbeaf7; font-size: 11px; }
+.sample-map-legend span { display: flex; align-items: center; gap: 5px; }
+.sample-map-legend i { width: 17px; border-top: 3px dotted #1485ff; }
+.sample-map-aside { display: grid; gap: 12px; align-content: start; min-width: 0; }
+.sample-map-aside .panel { padding: 18px; }
+.sample-map-aside h3 { margin: 6px 0; font-size: 20px; }
+.sample-map-aside p { color: #648198; font-size: 12px; }
+.sample-room-list { display: grid; gap: 5px; margin-top: 13px; }
+.sample-room-list button { display: flex; justify-content: space-between; gap: 7px; width: 100%; padding: 9px 10px; border: 1px solid #dfebf0; border-radius: 8px; background: #fff; color: #21405c; text-align: left; cursor: pointer; }
+.sample-room-list button.active { border-color: #78b5fc; background: #eaf3ff; color: #0965df; }
+
+@media (max-width: 900px) {
+  .checkin-week-card { grid-template-columns: 1fr; }
+  .sample-map-layout { grid-template-columns: 1fr; }
+  .sample-map-aside { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sample-camera-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sample-camera-summary > div:last-child { grid-column: 1 / -1; }
+  .sample-camera-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 620px) {
+  .home-glance-grid { grid-template-columns: 1fr; }
+  .page-wrap { padding-inline: 16px; }
+  .dashboard-demo-badge { display: none; }
+  .sample-camera-summary, .sample-map-aside { grid-template-columns: 1fr; }
+  .sample-camera-summary > div:last-child { grid-column: auto; }
+  .sample-camera-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sample-camera-feature > img { height: 260px; }
+  .event-group .timeline-date { align-items: flex-start; flex-direction: column; }
+}
+@media (prefers-reduced-motion: reduce) { .sample-map-3d *, .sample-map-2d * { animation-duration: 0s !important; transition-duration: 0s !important; } }

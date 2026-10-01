@@ -22,11 +22,13 @@ export function OverviewPage({
   objects,
   onEvent,
   session,
+  recipientId,
 }: {
   events: HomeEvent[];
   objects: LastSeenObject[];
   onEvent: (event: HomeEvent) => void;
   session?: Session;
+  recipientId?: string;
 }) {
   const navigate = useNavigate();
   const query = useQueryClient();
@@ -103,11 +105,12 @@ export function OverviewPage({
           ? "The room draft could not be built. You can retry the walkthrough later without pairing the camera again."
           : "On the camera device, preview first and record a short room walkthrough when convenient. Mapping is optional for basic live and object vision.";
   const homeName = session?.home.name ?? "The García home";
-  const residentName = session?.home.residentName ?? "María";
-  const checkInEvent = events.find((event) => /check[- ]?in/i.test(`${event.title} ${event.detail}`) && new Date(event.occurredAt).toDateString() === new Date().toDateString());
-  const dailyQuestionsQuery = useQuery({ queryKey: ["check-in-questions"], queryFn: api.getCheckInQuestions, enabled: session?.actor.role !== "resident", retry: false });
-  const todayQuestion = dailyQuestionsQuery.data?.find((item) => new Date(item.askedAt).toDateString() === new Date().toDateString());
-  const hasCheckIn = Boolean(checkInEvent || todayQuestion);
+  const recipientsQuery = useQuery({ queryKey: ["care-recipients", session?.home.id], queryFn: api.getCareRecipients, enabled: demoMode || Boolean(session), retry: false });
+  const residentName = recipientsQuery.data?.find((person) => person.id === recipientId)?.display_name ?? session?.home.residentName ?? "Resident";
+  const checkInEvent = events.find((event) => event.careRecipientId === recipientId && (event.eventType === "daily_check_in" || /check[- ]?in/i.test(event.title)) && new Date(event.occurredAt).toDateString() === new Date().toDateString());
+  const summariesQuery = useQuery({ queryKey: ["caregiver-summaries", session?.home.id, recipientId], queryFn: () => api.getCaregiverSummaries(recipientId || null), enabled: demoMode || Boolean(session), retry: false });
+  const todaySummary = summariesQuery.data?.find((item) => item.careRecipientId === recipientId && new Date(item.createdAt).toDateString() === new Date().toDateString());
+  const hasCheckIn = Boolean(checkInEvent || todaySummary);
 
   useEffect(() => {
     if (!pairingOpen) return;
@@ -214,8 +217,8 @@ export function OverviewPage({
             <h3>{savedCamera ? savedCamera.label : "Room camera"}</h3>
             <p>{savedCamera ? "Review the camera name, placement, or room map." : "Connect a camera to begin receiving home observations."}</p>
           </div>
-          <button className="home-camera-action" onClick={() => void openPairing()}>
-            {savedCamera ? "Camera setup" : "Pair camera"} <ChevronRight size={16} />
+          <button className="home-camera-action" onClick={() => demoMode ? navigate("/dashboard/cameras") : void openPairing()}>
+            {demoMode ? "View sample cameras" : savedCamera ? "Camera setup" : "Pair camera"} <ChevronRight size={16} />
           </button>
         </div>
       </section>
@@ -481,7 +484,7 @@ export function OverviewPage({
         <div>
           <span className="eyebrow">TODAY’S CHECK-IN</span>
           <h3>{hasCheckIn ? "A check-in is recorded." : "Waiting for today’s check-in."}</h3>
-          <p>{checkInEvent ? checkInEvent.detail : todayQuestion ? "Today's questions are available for review in Questions & Signals." : `${residentName} has no recorded check-in yet today. ONE will keep the result in context with the personal baseline when it arrives.`}</p>
+          <p>{checkInEvent ? checkInEvent.detail : todaySummary ? todaySummary.explanation : `${residentName} has no recorded check-in yet today. ONE will keep the result in context with the personal baseline when it arrives.`}</p>
         </div>
         <div className="plan-status">
           <strong>{hasCheckIn ? "Done" : "—"}</strong>
@@ -493,6 +496,15 @@ export function OverviewPage({
         <button className="secondary-button" onClick={() => navigate("/dashboard/live")}>
           Open check-in <ChevronRight size={16} />
         </button>
+      </section>
+
+      <section className="home-section home-glance-section">
+        <div className="section-heading"><div><span className="eyebrow">HOME AT A GLANCE</span><h3>Home at a glance</h3></div></div>
+        <div className="home-glance-grid">
+          <button onClick={() => navigate("/dashboard/cameras")}><Camera size={19} /><span><strong>{camerasQuery.data?.filter((camera) => camera.status === "online").length ?? 0} camera{camerasQuery.data?.filter((camera) => camera.status === "online").length === 1 ? "" : "s"} online</strong><small>Review camera status</small></span><ChevronRight size={16} /></button>
+          <button onClick={() => navigate("/dashboard/events")}><Video size={19} /><span><strong>{events.length} recent observations</strong><small>{demoMode ? "Sample household activity" : "Household activity for review"}</small></span><ChevronRight size={16} /></button>
+          <button onClick={() => navigate("/dashboard/live")}><Check size={19} /><span><strong>{hasCheckIn ? "Check-in recorded" : "No check-in yet"}</strong><small>Today’s status for {residentName}</small></span><ChevronRight size={16} /></button>
+        </div>
       </section>
 
       <section className="home-section memory-section">
