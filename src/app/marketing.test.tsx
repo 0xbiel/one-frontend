@@ -155,6 +155,25 @@ describe("marketing navigation and controls", () => {
     expect(screen.getByRole("link", { name: "Open privacy settings" })).toHaveAttribute("href", "/dashboard/privacy");
   });
 
+  it("provides account and household guides with working destinations", () => {
+    vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+    renderAt("/support");
+    expect(document.querySelector(".one-site-support-topic-grid")?.children).toHaveLength(9);
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Search support guides" }), { target: { value: "password" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search support guides" }));
+    expect(screen.getByRole("heading", { name: "Sign in with an email code" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open sign in" })).toHaveAttribute("href", "/login");
+
+    fireEvent.click(screen.getByRole("button", { name: "Close guide" }));
+    fireEvent.click(screen.getByRole("button", { name: /Create a care space/ }));
+    expect(screen.getByRole("link", { name: "Create a care space" })).toHaveAttribute("href", "/create-account");
+
+    fireEvent.click(screen.getByRole("button", { name: "Close guide" }));
+    fireEvent.click(screen.getByRole("button", { name: /Join a household invitation/ }));
+    expect(screen.getByRole("link", { name: "Join a household" })).toHaveAttribute("href", "/join-household");
+  });
+
   it("changes the how-it-works explanation when a step is selected", () => {
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
     renderAt("/how-it-works");
