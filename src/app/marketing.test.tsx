@@ -127,7 +127,7 @@ describe("marketing navigation and controls", () => {
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
     renderAt("/technology");
 
-    expect(screen.getByRole("heading", { name: "Explore a 3D home map" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Explore a sample home map" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Follow a sample route" })).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Illustrative animated route from Home to Shop" })).toBeInTheDocument();
     expect(document.querySelector(".one-tech-route-path")).toHaveAttribute("d", "M92 318H464V200H650V82");

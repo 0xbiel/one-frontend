@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import "./marketing.css";
 import { HowItWorksPage, SiteHome } from "./siteHome";
-import { SampleHomeMap3D, SampleRouteMap } from "./marketingDemos";
+import { SampleCheckinChat, SampleHomeMap3D, SampleRouteMap } from "./marketingDemos";
 import "./marketingExtra.css";
 import "./marketingPolish.css";
 import "./marketingExperience.css";
@@ -341,18 +341,20 @@ function TechnologyPage() {
   return <>
     <section className="one-site-tech-hero"><div className="one-site-tech-copy"><h1>One view of care at home.</h1><p>Home maps, connected camera views, check-ins, and family access, based on each household’s setup and permissions.</p></div><div className="one-site-tech-visual"><img src="/product-assets/hub-product-v3.png" alt="Illustrative ONE Hub display concept" /><img src="/product-assets/camera-anatomy/standing-camera.webp" alt="Illustrative standing camera concept" /></div><p className="one-site-tech-note">Hardware images are concepts. Final specifications are not confirmed.</p></section>
     <section className="one-site-tech-layers"><div className="one-site-section-heading"><h2>Explore app features</h2></div><div className="one-site-layer-cards">{capabilities.map((item, index) => { const Icon = item.icon; return <button className={index === layer ? "active" : ""} key={item.name} onClick={() => setLayer(index)} aria-pressed={index === layer}><span><Icon size={30} /></span><strong>{item.name}</strong><p>{item.text}</p></button>; })}</div><div className="one-site-layer-explain"><h3>{capabilities[layer].name}</h3><p>{capabilities[layer].detail}</p><Link to={capabilities[layer].destination}>{capabilities[layer].action} <ArrowRight size={15} /></Link></div><p className="one-site-tech-limits">ONE organizes observations for people to review. It does not provide a medical diagnosis or contact emergency services.</p></section>
+    <section className="one-tech-checkins">
+      <div><h2>A simple check-in</h2><p>Choose a common question to see how a calm, clear response could look.</p></div>
+      <SampleCheckinChat />
+    </section>
     <section className="one-tech-demos">
       <div className="one-tech-demos-heading"><h2>Maps</h2><p>Illustrative layouts only; no live home or location data.</p></div>
       <div className="one-tech-demo-grid">
         <article className="one-tech-demo">
-          <header><h3>Explore a 3D home map</h3></header>
+          <header><h3>Explore a sample home map</h3></header>
           <SampleHomeMap3D />
-          <p className="one-tech-demo-hint">Drag to rotate. Scroll to zoom. This illustrative map is not connected to a home.</p>
         </article>
         <article className="one-tech-demo">
           <header><h3>Follow a sample route</h3></header>
           <SampleRouteMap />
-          <p className="one-tech-demo-hint">The route between Home and Shop is a fixed visual example, not live navigation.</p>
         </article>
       </div>
     </section>

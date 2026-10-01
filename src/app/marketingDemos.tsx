@@ -41,7 +41,7 @@ function makeRoomLabel(text: string, color: string) {
 function addRoom(group: THREE.Group, name: string, x: number, z: number, width: number, depth: number, color: number) {
   const floorMaterial = new THREE.MeshStandardMaterial({ color, roughness: 0.94 });
   const floor = new THREE.Mesh(new THREE.BoxGeometry(width, 0.1, depth), floorMaterial);
-  floor.position.set(x, 0.08, z);
+  floor.position.set(x, 0.06, z);
   floor.receiveShadow = true;
   group.add(floor);
 
@@ -77,7 +77,7 @@ function addWallSegment(
     const wall = new THREE.Mesh(geometry, material);
     wall.position.set(
       axis === "horizontal" ? (segmentStart + segmentEnd) / 2 : coordinate,
-      0.13 + wallHeight / 2,
+      0.11 + wallHeight / 2,
       axis === "horizontal" ? coordinate : (segmentStart + segmentEnd) / 2,
     );
     wall.castShadow = true;
@@ -106,8 +106,10 @@ function addPin(group: THREE.Group, x: number, z: number, color: number) {
 export function SampleHomeMap3D() {
   const mount = useRef<HTMLDivElement>(null);
   const [unavailable, setUnavailable] = useState(false);
+  const [view, setView] = useState<"2d" | "3d">("3d");
 
   useEffect(() => {
+    if (view === "2d") return;
     const host = mount.current;
     if (!host) return;
     if (typeof WebGLRenderingContext === "undefined" && typeof WebGL2RenderingContext === "undefined") {
@@ -148,68 +150,62 @@ export function SampleHomeMap3D() {
     fill.position.set(-4, 6, -4);
     world.add(fill);
 
-    const footprint = new THREE.Shape();
-    footprint.moveTo(-3, 3);
-    footprint.lineTo(1, 3);
-    footprint.lineTo(1, 0.65);
-    footprint.lineTo(2.55, 0.65);
-    footprint.lineTo(2.55, -1.7);
-    footprint.lineTo(-3, -1.7);
-    footprint.closePath();
     const base = new THREE.Mesh(
-      new THREE.ExtrudeGeometry(footprint, { depth: 0.16, bevelEnabled: true, bevelSegments: 2, bevelSize: 0.07, bevelThickness: 0.04 }),
+      new THREE.BoxGeometry(6.28, 0.18, 4.28),
       new THREE.MeshStandardMaterial({ color: 0xe0e8e6, roughness: 0.82 }),
     );
-    base.geometry.rotateX(-Math.PI / 2);
     base.position.y = -0.08;
     base.receiveShadow = true;
     model.add(base);
 
-    addRoom(model, "Living", -1.425, 0.2, 3.15, 3, 0xd8d2c6);
-    addRoom(model, "Kitchen", 1.35, 0.525, 2.4, 2.35, 0xc6ded4);
-    addRoom(model, "Bedroom", -1.825, -2.15, 2.35, 1.7, 0xd1d9e8);
-    addRoom(model, "Bath", 0.175, -1.825, 1.65, 2.35, 0xc3dce2);
+    // Four exact adjoining floor panels keep every room on one continuous footprint.
+    addRoom(model, "Bedroom", -1.5, -1, 3, 2, 0xd1d9e8);
+    addRoom(model, "Bath", 1.5, -1, 3, 2, 0xc3dce2);
+    addRoom(model, "Living", -1.5, 1, 3, 2, 0xd8d2c6);
+    addRoom(model, "Kitchen", 1.5, 1, 3, 2, 0xc6ded4);
 
     const walls = new THREE.MeshStandardMaterial({ color: 0xe8efed, roughness: 0.86 });
-    // The stepped outline follows the four rooms; every interior opening is left clear.
-    addWallSegment(model, "horizontal", -3, -3, 1, undefined, walls);
-    addWallSegment(model, "vertical", -3, -3, 1.7, undefined, walls);
-    addWallSegment(model, "vertical", 1, -3, -0.65, undefined, walls);
-    addWallSegment(model, "horizontal", -0.65, 1, 2.55, undefined, walls);
-    addWallSegment(model, "vertical", 2.55, -0.65, 1.7, [0.3, 0.98], walls);
-    addWallSegment(model, "horizontal", 1.7, -3, 2.55, undefined, walls);
-    addWallSegment(model, "horizontal", -1.3, -3, -0.65, [-2.25, -1.55], walls);
-    addWallSegment(model, "vertical", -0.65, -3, -1.3, [-2.4, -1.7], walls);
-    addWallSegment(model, "horizontal", -0.65, 0.15, 1, [0.32, 0.78], walls);
-    addWallSegment(model, "vertical", 0.15, -0.65, 1.7, [0.25, 0.95], walls);
+    const bounds = { minX: -3, maxX: 3, minZ: -2, maxZ: 2 };
+    addWallSegment(model, "horizontal", bounds.minZ, bounds.minX, bounds.maxX, undefined, walls);
+    addWallSegment(model, "horizontal", bounds.maxZ, bounds.minX, bounds.maxX, undefined, walls);
+    addWallSegment(model, "vertical", bounds.minX, bounds.minZ, bounds.maxZ, undefined, walls);
+    addWallSegment(model, "vertical", bounds.maxX, bounds.minZ, 0.68, undefined, walls);
+    addWallSegment(model, "vertical", bounds.maxX, 1.32, bounds.maxZ, undefined, walls);
+    // Doors line up with the route through the kitchen, living room, and bedroom.
+    addWallSegment(model, "vertical", 0, bounds.minZ, -1.35, undefined, walls);
+    addWallSegment(model, "vertical", 0, -0.65, 0, undefined, walls);
+    addWallSegment(model, "vertical", 0, 0, 0.65, undefined, walls);
+    addWallSegment(model, "vertical", 0, 1.35, bounds.maxZ, undefined, walls);
+    addWallSegment(model, "horizontal", 0, bounds.minX, -0.85, undefined, walls);
+    addWallSegment(model, "horizontal", 0, -0.15, bounds.maxX, undefined, walls);
 
     const routePoints = [
-      new THREE.Vector3(3.05, 0.21, 0.65),
-      new THREE.Vector3(2.55, 0.21, 0.65),
-      new THREE.Vector3(1.2, 0.21, 0.65),
-      new THREE.Vector3(0.15, 0.21, 0.65),
-      new THREE.Vector3(-0.15, 0.21, 0.65),
-      new THREE.Vector3(-1.82, 0.21, -1.22),
-      new THREE.Vector3(-1.82, 0.21, -1.3),
-      new THREE.Vector3(-1.82, 0.21, -1.92),
-      new THREE.Vector3(-2.15, 0.21, -2.2),
+      new THREE.Vector3(3.05, 0.15, 1),
+      new THREE.Vector3(2.7, 0.15, 1),
+      new THREE.Vector3(0.25, 0.15, 1),
+      new THREE.Vector3(-0.25, 0.15, 1),
+      new THREE.Vector3(-0.5, 0.15, 0.75),
+      new THREE.Vector3(-0.5, 0.15, 0.25),
+      new THREE.Vector3(-0.5, 0.15, -0.25),
+      new THREE.Vector3(-0.5, 0.15, -0.6),
+      new THREE.Vector3(-1.5, 0.15, -1),
     ];
     const route = new THREE.Mesh(
       new THREE.TubeGeometry(new THREE.CatmullRomCurve3(routePoints, false, "centripetal", 0), 64, 0.025, 8, false),
       new THREE.MeshStandardMaterial({ color: 0x10a4e8, emissive: 0x087eb0, emissiveIntensity: 0.18 }),
     );
     model.add(route);
-    addPin(model, 3.05, 0.65, 0x08a6e5);
-    addPin(model, -2.15, -2.2, 0x43c6a0);
+    addPin(model, 3.05, 1, 0x08a6e5);
+    addPin(model, -1.5, -1, 0x43c6a0);
     world.add(model);
 
     const width = host.clientWidth || 640;
     const height = host.clientHeight || 420;
     const camera = new THREE.PerspectiveCamera(35, width / height, 0.1, 100);
-    camera.position.set(6.9, 6.8, 7.8);
-    camera.lookAt(0, 0.15, -0.45);
+    camera.position.set(7.4, 7.1, 8.6);
+    camera.lookAt(0, 0.15, 0);
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.target.set(0, 0.1, -0.45);
+    controls.target.set(0, 0.1, 0);
     controls.enableDamping = true;
     controls.dampingFactor = 0.07;
     controls.enablePan = false;
@@ -249,13 +245,60 @@ export function SampleHomeMap3D() {
       renderer?.dispose();
       host.replaceChildren();
     };
-  }, []);
+  }, [view]);
 
   return <div className={`one-tech-map-3d ${unavailable ? "is-static" : ""}`}>
-    <div ref={mount} className="one-tech-map-3d-canvas" role="img" aria-label="Interactive illustrative 3D home map. Drag to rotate and scroll to zoom." />
-    {unavailable && <img className="one-tech-map-3d-fallback" src="/product-assets/home-map-3d-reference.webp" alt="Illustrative 3D home map concept" />}
+    {view === "3d" && !unavailable && <div ref={mount} className="one-tech-map-3d-canvas" role="img" aria-label="Interactive illustrative 3D home map. Drag to rotate and scroll to zoom." />}
+    {(view === "2d" || unavailable) && <SampleHomeMap2D />}
     <span className="one-tech-map-3d-label">SAMPLE HOME</span>
+    <div className="one-tech-map-view-toggle" role="group" aria-label="Home map view">
+      <button type="button" onClick={() => setView("3d")} aria-pressed={view === "3d"}>3D</button>
+      <button type="button" onClick={() => setView("2d")} aria-pressed={view === "2d"}>2D</button>
+    </div>
   </div>;
+}
+
+export function SampleHomeMap2D() {
+  return <svg className="one-tech-map-2d" viewBox="0 0 600 400" role="img" aria-label="Illustrative floor plan with separate bedroom, bathroom, living room, and kitchen">
+    <rect x="0" y="0" width="600" height="400" fill="#edf2ef" />
+    <g className="one-tech-map-floors">
+      <rect x="60" y="60" width="240" height="140" fill="#d1d9e8" />
+      <rect x="300" y="60" width="240" height="140" fill="#c3dce2" />
+      <rect x="60" y="200" width="240" height="140" fill="#d8d2c6" />
+      <rect x="300" y="200" width="240" height="140" fill="#c6ded4" />
+    </g>
+    <g className="one-tech-map-walls" fill="none" stroke="#fff" strokeWidth="14" strokeLinecap="square">
+      <path d="M60 60H540M60 340H540M60 60V340M540 60V260M540 320V340" />
+      <path d="M300 60V120M300 168V200M300 200V252M300 300V340" />
+      <path d="M60 200H198M248 200H300M300 200H362M412 200H540" />
+    </g>
+    <g className="one-tech-map-labels" fill="#435a6d" fontFamily="Inter, Arial, sans-serif" fontSize="12" fontWeight="700" textAnchor="middle">
+      <text x="180" y="132">BEDROOM</text><text x="420" y="132">BATH</text>
+      <text x="180" y="273">LIVING</text><text x="420" y="273">KITCHEN</text>
+    </g>
+    <path className="one-tech-home-route" d="M540 290H460H355H300H220V200V150H150" />
+    <g className="one-tech-home-pins"><circle cx="540" cy="290" r="9" /><circle cx="150" cy="150" r="9" /></g>
+  </svg>;
+}
+
+const checkinAnswers = [
+  { question: "What happens next?", answer: "This example shows the next item shared for this home. Someone you trust can help you review it." },
+  { question: "Who can see this?", answer: "People with access to this home can review information shared with their role." },
+  { question: "I feel worried", answer: "You can speak with someone you trust nearby. This sample cannot contact anyone or assess an emergency." },
+];
+
+export function SampleCheckinChat({ compact = false }: { compact?: boolean }) {
+  const [selected, setSelected] = useState<number | null>(null);
+  return <section className={`one-sample-checkin-chat${compact ? " is-compact" : ""}`} aria-label="Interactive sample check-in">
+    <div className="one-sample-checkin-messages" aria-live="polite">
+      <p className="one-sample-checkin-message from-one">Hello. This is an example check-in. Choose a question to see a sample reply.</p>
+      {selected !== null && <><p className="one-sample-checkin-message from-person">{checkinAnswers[selected].question}</p><p className="one-sample-checkin-message from-one">{checkinAnswers[selected].answer}</p></>}
+    </div>
+    <div className="one-sample-checkin-questions" aria-label="Frequently asked questions">
+      {checkinAnswers.map((item, index) => <button type="button" key={item.question} aria-pressed={selected === index} onClick={() => setSelected(index)}>{item.question}</button>)}
+    </div>
+    <small>Sample only · not a live chat or medical service</small>
+  </section>;
 }
 
 export function SampleRouteMap() {

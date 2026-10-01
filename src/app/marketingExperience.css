@@ -540,24 +540,30 @@
   grid-template-columns: 25px 1fr;
   align-content: start;
   gap: 8px 12px;
-  min-height: 0;
-  padding: 17px 0;
-  border: 0;
+  min-height: 136px;
+  padding: 17px 16px;
+  border: 1px solid transparent;
   border-bottom: 1px solid #d8e0dd;
-  border-radius: 0;
+  border-radius: 12px;
   background: transparent;
   box-shadow: none;
   text-align: left;
+  transition: border-color 160ms ease, background-color 160ms ease;
 }
 
 .one-site-layer-cards button.active {
-  border-color: #0a89c1;
-  background: transparent;
+  border-color: #c7dce3;
+  background: #f6faf9;
 }
 
 .one-site-layer-cards button > span {
   grid-row: span 2;
-  padding: 0;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin-top: 1px;
+  border-radius: 10px;
   background: transparent;
   color: #607578;
 }
@@ -609,6 +615,104 @@
   margin: 16px 0 0;
   color: #647477;
   font-size: 12px;
+}
+
+.one-tech-checkins {
+  display: grid;
+  grid-template-columns: minmax(220px, .65fr) minmax(0, 1.35fr);
+  align-items: start;
+  gap: clamp(28px, 7vw, 100px);
+  padding: 58px clamp(24px, 6vw, 90px);
+  background: #fff;
+}
+
+.one-tech-checkins > div:first-child {
+  max-width: 380px;
+}
+
+.one-tech-checkins h2 {
+  margin: 0 0 10px;
+  color: #142e40;
+  font-size: clamp(30px, 3.5vw, 46px);
+  letter-spacing: -.05em;
+}
+
+.one-tech-checkins > div:first-child p {
+  max-width: 38ch;
+  margin: 0;
+  color: #5e7073;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.one-sample-checkin-chat {
+  display: grid;
+  gap: 16px;
+  width: min(100%, 720px);
+  padding: 22px;
+  border: 1px solid #dde7e6;
+  background: #f8faf8;
+}
+
+.one-sample-checkin-messages {
+  display: grid;
+  gap: 10px;
+  min-height: 116px;
+  align-content: start;
+}
+
+.one-sample-checkin-message {
+  max-width: min(88%, 480px);
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  color: #344b56;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.one-sample-checkin-message.from-one {
+  justify-self: start;
+  border: 1px solid #e1e9e7;
+  background: #fff;
+}
+
+.one-sample-checkin-message.from-person {
+  justify-self: end;
+  background: #e6f4f5;
+}
+
+.one-sample-checkin-questions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.one-sample-checkin-questions button {
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid #cfdedc;
+  border-radius: 999px;
+  background: #fff;
+  color: #34535e;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.one-sample-checkin-questions button[aria-pressed="true"] {
+  border-color: #84b9bf;
+  background: #eaf5f5;
+}
+
+.one-sample-checkin-questions button:focus-visible,
+.one-tech-map-view-toggle button:focus-visible {
+  outline: 2px solid #087bb9;
+  outline-offset: 2px;
+}
+
+.one-sample-checkin-chat > small {
+  color: #6b7c80;
+  font-size: 11px;
 }
 
 .one-tech-demos {
@@ -678,6 +782,69 @@
 .one-tech-map-3d-canvas {
   position: absolute;
   inset: 0;
+}
+
+.one-tech-map-2d {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: #edf2ef;
+}
+
+.one-tech-map-walls path {
+  filter: drop-shadow(0 2px 1px #4f646522);
+}
+
+.one-tech-home-route {
+  fill: none;
+  stroke: #159bce;
+  stroke-width: 5px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.one-tech-home-pins circle:first-child {
+  fill: #128bc2;
+  stroke: #fff;
+  stroke-width: 4px;
+}
+
+.one-tech-home-pins circle:last-child {
+  fill: #43b995;
+  stroke: #fff;
+  stroke-width: 4px;
+}
+
+.one-tech-map-view-toggle {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 3;
+  display: flex;
+  gap: 3px;
+  padding: 4px;
+  border: 1px solid #dce6e4;
+  border-radius: 10px;
+  background: #ffffffed;
+  box-shadow: 0 3px 12px #253e4017;
+}
+
+.one-tech-map-view-toggle button {
+  min-width: 36px;
+  min-height: 32px;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #53676b;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.one-tech-map-view-toggle button[aria-pressed="true"] {
+  background: #e6f2f3;
+  color: #08799a;
 }
 
 .one-tech-map-3d-canvas canvas {
