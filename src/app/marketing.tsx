@@ -169,19 +169,11 @@ function ProductAnatomySequence({ name, parts, overviewSrc, overviewAlt, overvie
   const [activeIndex, setActiveIndex] = useState(0);
   const trackRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLElement>(null);
-  const programmaticScrollRef = useRef(false);
-  const activeIndexRef = useRef(0);
-  const wheelLockedRef = useRef(false);
-  const wheelTimerRef = useRef<number | undefined>(undefined);
-  const goToPartRef = useRef<(index: number) => void>(() => undefined);
-  const updateActiveRef = useRef<() => void>(() => undefined);
-  const scrollTimerRef = useRef<number | undefined>(undefined);
   const partCount = parts.length;
   const activePart = parts[activeIndex];
 
   useEffect(() => {
     const updateActivePart = () => {
-      if (programmaticScrollRef.current) return;
       const track = trackRef.current;
       const stage = stageRef.current;
       if (!track || !stage || partCount < 1) return;
@@ -189,25 +181,19 @@ function ProductAnatomySequence({ name, parts, overviewSrc, overviewAlt, overvie
       const scrollRange = Math.max(track.offsetHeight - stage.offsetHeight, 1);
       const progress = Math.min(1, Math.max(0, (window.scrollY - trackTop) / scrollRange));
       const nextIndex = Math.min(partCount - 1, Math.floor(progress * partCount));
-      activeIndexRef.current = nextIndex;
       setActiveIndex(current => current === nextIndex ? current : nextIndex);
     };
-    updateActiveRef.current = updateActivePart;
     updateActivePart();
     window.addEventListener("scroll", updateActivePart, { passive: true });
     window.addEventListener("resize", updateActivePart);
     return () => {
       window.removeEventListener("scroll", updateActivePart);
       window.removeEventListener("resize", updateActivePart);
-      if (scrollTimerRef.current !== undefined) window.clearTimeout(scrollTimerRef.current);
-      if (wheelTimerRef.current !== undefined) window.clearTimeout(wheelTimerRef.current);
-      updateActiveRef.current = () => undefined;
     };
   }, [partCount]);
 
   const goToPart = (index: number) => {
     if (index < 0 || index >= parts.length) return;
-    activeIndexRef.current = index;
     setActiveIndex(index);
     const track = trackRef.current;
     const stage = stageRef.current;
@@ -216,45 +202,13 @@ function ProductAnatomySequence({ name, parts, overviewSrc, overviewAlt, overvie
     const scrollRange = Math.max(track.offsetHeight - stage.offsetHeight, 1);
     const target = trackTop + ((index + 0.5) / parts.length) * scrollRange;
     const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    programmaticScrollRef.current = !reducedMotion;
-    if (scrollTimerRef.current !== undefined) window.clearTimeout(scrollTimerRef.current);
     window.scrollTo({ top: target, behavior: reducedMotion ? "auto" : "smooth" });
-    if (!reducedMotion) {
-      const settleAfter = Math.min(1400, Math.max(650, Math.abs(target - window.scrollY) * 0.8));
-      scrollTimerRef.current = window.setTimeout(() => {
-        programmaticScrollRef.current = false;
-        updateActiveRef.current();
-      }, settleAfter);
-    }
   };
-  goToPartRef.current = goToPart;
-
-  useEffect(() => {
-    const stage = stageRef.current;
-    if (!stage) return;
-    const handleWheel = (event: WheelEvent) => {
-      if (Math.abs(event.deltaY) < 8) return;
-      const headerBottom = document.querySelector<HTMLElement>(".one-site-header")?.getBoundingClientRect().bottom ?? 0;
-      const stageBounds = stage.getBoundingClientRect();
-      if (stageBounds.top > headerBottom + 32 || stageBounds.bottom < window.innerHeight * 0.52) return;
-      const nextIndex = activeIndexRef.current + Math.sign(event.deltaY);
-      if (nextIndex < 0 || nextIndex >= partCount) return;
-      event.preventDefault();
-      if (wheelLockedRef.current) return;
-      wheelLockedRef.current = true;
-      goToPartRef.current(nextIndex);
-      if (wheelTimerRef.current !== undefined) window.clearTimeout(wheelTimerRef.current);
-      wheelTimerRef.current = window.setTimeout(() => { wheelLockedRef.current = false; }, 820);
-    };
-    window.addEventListener("wheel", handleWheel, { passive: false });
-    return () => window.removeEventListener("wheel", handleWheel);
-  }, [partCount]);
 
   if (!activePart) return null;
   return <section className="one-product-anatomy" aria-label={`${name} concept breakdown`}>
     <div className="one-product-anatomy-heading"><h2>Inside the concept</h2></div>
-    <div className={`one-product-anatomy-overview is-${overviewLayout}`}><img src={overviewSrc} alt={overviewAlt} loading="lazy" /></div>
-    <div className="one-product-anatomy-track" ref={trackRef} style={{ height: `${parts.length * 110}vh` }}>
+    <div className="one-product-anatomy-track" ref={trackRef} style={{ height: `${parts.length * 100}svh` }}>
       <article className="one-product-anatomy-stage" ref={stageRef} tabIndex={0} aria-live="polite" onKeyDown={event => {
         if (event.key === "ArrowRight") goToPart(activeIndex + 1);
         if (event.key === "ArrowLeft") goToPart(activeIndex - 1);
@@ -271,6 +225,7 @@ function ProductAnatomySequence({ name, parts, overviewSrc, overviewAlt, overvie
         </div>
       </article>
     </div>
+    <div className={`one-product-anatomy-overview is-${overviewLayout}`}><img src={overviewSrc} alt={overviewAlt} loading="lazy" /></div>
   </section>;
 }
 
