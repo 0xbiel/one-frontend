@@ -70,7 +70,7 @@ function calibratedFrustumHalfExtents(registration: CameraRegistration): { width
 
 export function roomPlanCameraOverlayPoints(registration: CameraRegistration): { origin: THREE.Vector3; corners: THREE.Vector3[]; fovDegrees: number | null } | null {
   const matrix = registration.cameraToWorld;
-  if (registration.status !== "positioned" || !matrix || matrix.length !== 4 || matrix.some((row) => row.length !== 4)) return null;
+  if (!matrix || matrix.length !== 4 || matrix.some((row) => row.length !== 4)) return null;
 
   const transform = cameraTransform(matrix);
   const halfExtents = calibratedFrustumHalfExtents(registration);
@@ -95,20 +95,50 @@ export function roomPlanCameraOverlayPoints(registration: CameraRegistration): {
   return { origin, corners, fovDegrees: halfExtents.fovDegrees };
 }
 
-function addCamera(group: THREE.Group, registration: CameraRegistration, topDown: boolean): void {
+type CameraOrbState = "identified" | "current" | "recent" | "online" | "offline";
+
+function cameraOrbState(registration: CameraRegistration, objects: LastSeenObject[]): CameraOrbState {
+  if (registration.status !== "positioned") return "offline";
+  const people = objects.filter((object) => isPerson(object.label) && object.cameraId === registration.cameraId && personPresenceState(object) !== "stale");
+  if (people.some((object) => object.identity?.status === "matched")) return "identified";
+  if (people.some((object) => personPresenceState(object) === "current")) return "current";
+  if (people.some((object) => personPresenceState(object) === "recent")) return "recent";
+  return "online";
+}
+
+function orbColor(state: CameraOrbState): number {
+  switch (state) {
+    case "identified": return 0x35c98a;
+    case "current": return 0xff7a00;
+    case "recent": return 0xffa14a;
+    case "offline": return 0xef4d4d;
+    default: return 0x348bff;
+  }
+}
+
+function orbOpacity(state: CameraOrbState): number {
+  return state === "recent" ? 0.38 : state === "offline" ? 0.92 : 0.96;
+}
+
+function addCamera(group: THREE.Group, registration: CameraRegistration, topDown: boolean, objects: LastSeenObject[]): void {
   const matrix = registration.cameraToWorld;
   const overlay = roomPlanCameraOverlayPoints(registration);
   if (!overlay || !matrix) return;
-  const color = registration.source === "placement-preview" ? 0xffb45f : 0x6fe0de;
+  const state = cameraOrbState(registration, objects);
+  const color = orbColor(state);
+  const opacity = orbOpacity(state);
 
   const cameraGroup = new THREE.Group();
   cameraGroup.name = `ONE camera ${registration.cameraId ?? "registered"}`;
-  if (registration.cameraId) cameraGroup.userData.oneCameraId = registration.cameraId;
+  if (registration.cameraId) {
+    cameraGroup.userData.oneCameraId = registration.cameraId;
+    cameraGroup.userData.oneCameraState = state;
+  }
   cameraGroup.applyMatrix4(cameraTransform(matrix));
 
   const body = new THREE.Mesh(
-    new THREE.BoxGeometry(0.18, 0.12, 0.10),
-    new THREE.MeshStandardMaterial({ color, roughness: 0.4, metalness: 0.08, depthTest: !topDown }),
+    new THREE.SphereGeometry(topDown ? 0.14 : 0.12, 20, 14),
+    new THREE.MeshBasicMaterial({ color, transparent: opacity < 1, opacity, depthTest: !topDown }),
   );
   body.renderOrder = topDown ? 91 : 0;
   cameraGroup.add(body);
@@ -266,10 +296,13 @@ function addObservedLocation(group: THREE.Group, object: LastSeenObject, mapId: 
     marker.userData.oneExpiresAt = Number.isFinite(observedAt)
       ? observedAt + (state === 'current' ? PERSON_VISIBLE_MS : PERSON_RECENT_MS)
       : Date.now() + (state === 'current' ? PERSON_VISIBLE_MS : PERSON_RECENT_MS);
+    const identified = object.identity?.status === "matched";
+    const color = identified ? 0x35c98a : state === "current" ? 0xff7a00 : 0xffa14a;
+    const opacity = identified ? (state === "recent" ? 0.46 : 0.96) : state === "current" ? 0.96 : 0.36;
     if (topDown) {
       const disc = new THREE.Mesh(
-        new THREE.CircleGeometry(state === 'current' ? 0.16 : 0.11, 28),
-        new THREE.MeshBasicMaterial({ color: 0xffb45f, transparent: true, opacity: state === 'current' ? 0.95 : 0.35, depthTest: false }),
+        new THREE.CircleGeometry(state === 'current' ? 0.22 : 0.16, 32),
+        new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthTest: false }),
       );
       disc.rotation.x = -Math.PI / 2;
       disc.position.y = 0.035;
@@ -277,10 +310,10 @@ function addObservedLocation(group: THREE.Group, object: LastSeenObject, mapId: 
       marker.add(disc);
     } else {
       const dot = new THREE.Mesh(
-        new THREE.SphereGeometry(state === 'current' ? 0.13 : 0.09, 18, 14),
-        new THREE.MeshStandardMaterial({ color: 0xffb45f, transparent: true, opacity: state === 'current' ? 0.95 : 0.38, roughness: 0.6 }),
+        new THREE.SphereGeometry(state === 'current' ? 0.17 : 0.12, 20, 16),
+        new THREE.MeshStandardMaterial({ color, transparent: true, opacity, roughness: 0.6 }),
       );
-      dot.position.y = state === 'current' ? 0.22 : 0.12;
+      dot.position.y = state === 'current' ? 0.27 : 0.16;
       marker.add(dot);
     }
   } else {
@@ -304,7 +337,7 @@ export function populateRoomPlanOverlays(
   clearRoomPlanOverlays(group);
   registrations
     .filter((registration) => registration.mapId === mapId)
-    .forEach((registration) => addCamera(group, registration, topDown));
+    .forEach((registration) => addCamera(group, registration, topDown, objects));
   const newestByObject = new Map<string, LastSeenObject>();
   for (const object of objects) {
     const previous = newestByObject.get(object.id);

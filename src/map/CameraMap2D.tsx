@@ -19,6 +19,18 @@ function bounded(value: number): number {
   return Math.min(100, Math.max(0, value));
 }
 
+function personState(object: LastSeenObject): "identified" | "current" | "recent" | "stale" {
+  const baseState = object.presenceState === "current" || object.presenceState === "recent" || object.presenceState === "stale"
+    ? object.presenceState
+    : !object.lastSeenAt
+      ? "stale"
+      : (() => {
+        const age = Math.max(0, Date.now() - Date.parse(object.lastSeenAt));
+        return age <= 12_000 ? "current" : age <= 120_000 ? "recent" : "stale";
+      })();
+  return baseState === "stale" ? "stale" : object.identity?.status === "matched" ? "identified" : baseState;
+}
+
 function measuredDimension(item: { size: Point2D }, scene: Scene): string | null {
   const metersPerNormalizedUnit = scene.scale?.metersPerNormalizedUnit;
   if (!metersPerNormalizedUnit) return null;
@@ -190,22 +202,32 @@ export function CameraMap2D({ scene, objects, selectedId, onSelect, measurement 
             { x: 45, y: 42 },
           ];
           const point = positions[index % positions.length];
-          const online = registration.status === "positioned";
+          const cameraPeople = objects.filter((object) => object.cameraId === registration.cameraId && /^(person|people|human)$/i.test(object.label) && personState(object) !== "stale");
+          const state = registration.status !== "positioned"
+            ? "offline"
+            : cameraPeople.some((object) => personState(object) === "identified")
+              ? "identified"
+              : cameraPeople.some((object) => personState(object) === "current")
+                ? "current"
+                : cameraPeople.some((object) => personState(object) === "recent")
+                  ? "recent"
+                  : "online";
+          const online = state !== "offline";
           return (
-            <g key={registration.cameraId ?? index} className={`camera-map-camera-registration ${online ? "online" : "offline"}`} transform={`translate(${point.x} ${point.y})`}>
-              <circle r="3.8" />
-              <text x="0" y="1.1" textAnchor="middle">{online ? "✓" : "×"}</text>
-              <title>{`${registration.cameraName ?? "Camera"} · ${online ? "online registered camera" : "expected camera offline"}`}</title>
+            <g key={registration.cameraId ?? index} className={`camera-map-camera-registration ${state}`} transform={`translate(${point.x} ${point.y})`}>
+              <circle r="5.2" />
+              <text x="0" y="1.1" textAnchor="middle">{state === "identified" ? "✓" : state === "offline" ? "×" : "•"}</text>
+              <title>{`${registration.cameraName ?? "Camera"} · ${state === "identified" ? "recognized person in room" : state === "current" ? "unknown person in room" : state === "recent" ? "unknown person recently in room" : online ? "online camera" : "configured camera offline"}`}</title>
             </g>
           );
         })}
-        {objects.filter((object) => object.point).map((object) => {
+        {objects.filter((object) => object.point && (!/^(person|people|human)$/i.test(object.label) || personState(object) !== "stale")).map((object) => {
           const point = object.point!;
           const selected = selectedId === object.id;
           return (
             <g
               key={object.id}
-              className={`camera-map-marker ${selected ? "selected" : ""}`}
+              className={`camera-map-marker ${selected ? "selected" : ""} ${/^(person|people|human)$/i.test(object.label) ? `presence-${personState(object)}` : ""}`}
               transform={`translate(${bounded(point.x)} ${bounded(point.y)})`}
               role="button"
               tabIndex={0}
@@ -221,7 +243,7 @@ export function CameraMap2D({ scene, objects, selectedId, onSelect, measurement 
               <circle className="camera-map-marker-ring" r={selected ? 5.8 : 5.1} />
               <circle className="camera-map-marker-dot" r={selected ? 3.5 : 3.1} />
               <text className="camera-map-marker-icon" x="0" y="1.2" textAnchor="middle">{object.icon}</text>
-              <title>{`${object.label} · ${object.zone?.name ?? "location unknown"}`}</title>
+              <title>{`${object.label} · ${object.identity?.status === "matched" ? "recognized person" : personState(object) === "current" ? "unknown person now" : personState(object) === "recent" ? "unknown person recently" : object.zone?.name ?? "location unknown"}`}</title>
             </g>
           );
         })}

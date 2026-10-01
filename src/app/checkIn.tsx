@@ -71,68 +71,79 @@ export function CheckInPage({ events, analytics, session, onEvent, onSaved }: { 
         <p>A calm human signal, compared with {residentName}’s own recent rhythm. Start only when the person you’re supporting is ready.</p>
       </header>
 
-      <section className={`checkin-hero ${completed ? "complete" : "pending"}`}>
-        <div className="checkin-hero-top">
-          <span className="checkin-symbol"><HeartHandshake size={20} /></span>
-          <span className="checkin-state"><i /> {completed ? "Recorded today" : "Waiting today"}</span>
+      <section className={`panel checkin-main-card ${completed ? "is-complete" : "is-pending"} ${started ? "is-running" : ""}`}>
+        <div className="checkin-card-head">
+          <div className="checkin-card-identity">
+            <span className="checkin-symbol"><HeartHandshake size={20} /></span>
+            <div>
+              <span className="eyebrow">DAILY CHECK-IN</span>
+              <strong>{residentName}</strong>
+            </div>
+          </div>
+          <span className="checkin-state"><i /> {completed ? "Recorded today" : started ? `Prompt ${progress}` : "Ready when they are"}</span>
         </div>
-        <div className="checkin-hero-copy">
-          <span className="eyebrow">DAILY CHECK-IN</span>
-          <h3>{completed ? "A familiar check-in is recorded." : "No check-in has been recorded yet."}</h3>
-          <p>{recordedCopy}</p>
+
+        <div className="checkin-card-copy">
+          <h3>{started ? currentPrompt.title : completed ? "A familiar check-in is recorded." : "A small moment to understand today."}</h3>
+          <p>{started ? currentPrompt.detail : completed ? recordedCopy : `Three short prompts for ${residentName}, then ONE keeps the answer in context with their own recent rhythm.`}</p>
         </div>
-        <div className="checkin-hero-meta">
-          <span><Clock3 size={15} /> {checkInEvent ? `Recorded ${formatTime(checkInEvent.occurredAt)}` : result ? "Just recorded" : "Not recorded yet"}</span>
-          <span><ShieldCheck size={15} /> Observation, not diagnosis</span>
-        </div>
+
+        {started ? (
+          <div className="checkin-session">
+            <div className="checkin-progress-row" aria-label={`Check-in progress: ${progress}`}>
+              <span>Question {progress}</span>
+              <div className="checkin-progress-track" aria-hidden="true"><span style={{ width: `${((step + 1) / prompts.length) * 100}%` }} /></div>
+            </div>
+            <div className="checkin-answer-list" role="radiogroup" aria-label={currentPrompt.title}>
+              {currentPrompt.options.map((option) => (
+                <button key={option} type="button" className={currentAnswer === option ? "selected" : ""} role="radio" aria-checked={currentAnswer === option} onClick={() => setAnswers((value) => ({ ...value, [currentPrompt.id]: option }))}>
+                  <span>{option}</span>
+                  <span className="checkin-answer-mark" aria-hidden="true">{currentAnswer === option && <CheckCircle2 size={19} />}</span>
+                </button>
+              ))}
+            </div>
+            {error && <div className="error-note" role="alert">{error}</div>}
+            <div className="checkin-runner-actions">
+              <button className="secondary-button" type="button" onClick={() => step === 0 ? setStarted(false) : setStep((value) => value - 1)}><ArrowLeft size={15} /> Back</button>
+              <button className="primary-button" type="button" disabled={!currentAnswer || busy} onClick={() => void continueFlow()}>{busy ? "Recording…" : step === prompts.length - 1 ? "Record check-in" : "Continue"} {step < prompts.length - 1 && <ArrowRight size={15} />}</button>
+            </div>
+            <p className="checkin-privacy-note"><ShieldCheck size={14} /> Only the bounded answer summary is kept for caregiver context; no raw audio is stored by this flow.</p>
+          </div>
+        ) : (
+          <>
+            <div className="checkin-flow checkin-flow-preview">
+              <div className={completed ? "done" : "current"}><span>{completed ? <CheckCircle2 size={16} /> : "1"}</span><div><strong>Ask</strong><small>Three familiar, low-pressure prompts.</small></div></div>
+              <i />
+              <div className={completed ? "done" : "upcoming"}><span>{completed ? <CheckCircle2 size={16} /> : "2"}</span><div><strong>Record</strong><small>Keep the person’s answer as a human signal.</small></div></div>
+              <i />
+              <div className={completed ? "done" : "upcoming"}><span>{completed ? <CheckCircle2 size={16} /> : "3"}</span><div><strong>Review</strong><small>Compare with their own recent pattern.</small></div></div>
+            </div>
+
+            {result && <div className="checkin-result" role="status"><span className="eyebrow">RECORDED RESULT · {result.status.toUpperCase()}</span><strong>{result.trend === "unknown" ? "Keep the context human." : `Trend: ${result.trend}`}</strong><p>{result.explanation}</p><small>{result.limitations}</small></div>}
+
+            <div className="checkin-card-footer">
+              <div className="checkin-card-meta">
+                <span><Clock3 size={15} /> {checkInEvent ? `Recorded ${formatTime(checkInEvent.occurredAt)}` : result ? "Just recorded" : "About two minutes"}</span>
+                <span><ShieldCheck size={15} /> Observation, not diagnosis</span>
+              </div>
+              <div className="checkin-card-actions">
+                <button className="secondary-button" onClick={() => navigate("/dashboard/assistant")}><Sparkles size={16} /> Ask ONE</button>
+                <button className="primary-button" onClick={start}><HeartHandshake size={16} /> {completed ? "Check in again" : "Start check-in"} <ArrowRight size={15} /></button>
+              </div>
+            </div>
+          </>
+        )}
       </section>
 
-      <div className="checkin-grid">
-        <section className="panel checkin-flow-card">
-          <div className="checkin-section-heading">
-            <div><span className="eyebrow">{started ? `PROMPT ${progress}` : "HOW IT READS"}</span><h3>{started ? currentPrompt.title : "One signal, with context."}</h3></div>
-            {completed && !started && <CheckCircle2 size={22} className="checkin-complete-icon" />}
-          </div>
-          {started ? (
-            <div className="checkin-runner">
-              <p className="checkin-prompt-detail">{currentPrompt.detail}</p>
-              <div className="checkin-answer-list" role="radiogroup" aria-label={currentPrompt.title}>
-                {currentPrompt.options.map((option) => <button key={option} type="button" className={currentAnswer === option ? "selected" : ""} role="radio" aria-checked={currentAnswer === option} onClick={() => setAnswers((value) => ({ ...value, [currentPrompt.id]: option }))}>{option}</button>)}
-              </div>
-              {error && <div className="error-note" role="alert">{error}</div>}
-              <div className="checkin-runner-actions">
-                <button className="secondary-button" type="button" onClick={() => step === 0 ? setStarted(false) : setStep((value) => value - 1)}><ArrowLeft size={15} /> Back</button>
-                <button className="primary-button" type="button" disabled={!currentAnswer || busy} onClick={() => void continueFlow()}>{busy ? "Recording…" : step === prompts.length - 1 ? "Record check-in" : "Continue"} {step < prompts.length - 1 && <ArrowRight size={15} />}</button>
-              </div>
-              <p className="checkin-privacy-note"><ShieldCheck size={14} /> Only the bounded answer summary is kept for caregiver context; no raw audio is stored by this flow.</p>
-            </div>
-          ) : (
-            <>
-              <div className="checkin-flow">
-                <div className={completed ? "done" : "current"}><span>1</span><div><strong>Familiar prompt</strong><small>A short daily check-in keeps the interaction predictable.</small></div></div>
-                <i />
-                <div className={completed ? "done" : "upcoming"}><span>2</span><div><strong>Human response</strong><small>The response is recorded as a signal, without turning it into a diagnosis.</small></div></div>
-                <i />
-                <div className={completed ? "done" : "upcoming"}><span>3</span><div><strong>Personal baseline</strong><small>Caregivers review changes against the resident’s own recent pattern.</small></div></div>
-              </div>
-              <div className="checkin-start-row"><button className="primary-button" onClick={start}><HeartHandshake size={16} /> {completed ? "Run check-in again" : "Start check-in"} <ArrowRight size={15} /></button><span>Three short prompts · you can go back</span></div>
-              {result && <div className="checkin-result" role="status"><span className="eyebrow">RECORDED RESULT · {result.status.toUpperCase()}</span><strong>{result.trend === "unknown" ? "Keep the context human." : `Trend: ${result.trend}`}</strong><p>{result.explanation}</p><small>{result.limitations}</small></div>}
-            </>
-          )}
-          <button className="primary-button checkin-assistant-button" onClick={() => navigate("/dashboard/assistant")}><Sparkles size={16} /> Explore with ONE <ArrowRight size={15} /></button>
-        </section>
-
-        <aside className="checkin-context-column">
-          <section className="panel checkin-context-card">
-            <span className="eyebrow">TODAY’S CONTEXT</span>
-            <h3>Recent household signals</h3>
-            <p className="muted">These observations stay separate from the check-in. They are here only to help a caregiver review the day in context.</p>
-            <div className="checkin-events">
-              {recentContext.length ? recentContext.map((event) => <EventRow key={event.id} event={event} onClick={() => onEvent(event)} />) : <div className="checkin-empty-context">No other household observations yet.</div>}
-            </div>
-          </section>
-        </aside>
-      </div>
+      <section className="panel checkin-context-card checkin-context-wide">
+        <div className="checkin-context-heading">
+          <div><span className="eyebrow">TODAY’S CONTEXT</span><h3>Recent household signals</h3></div>
+          <p className="muted">Kept separate from the check-in so caregivers can review the day without blending observations into the person’s answer.</p>
+        </div>
+        <div className="checkin-events">
+          {recentContext.length ? recentContext.map((event) => <EventRow key={event.id} event={event} onClick={() => onEvent(event)} />) : <div className="checkin-empty-context">No other household observations yet.</div>}
+        </div>
+      </section>
     </div>
   );
 }

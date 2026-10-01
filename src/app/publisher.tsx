@@ -228,7 +228,7 @@ export function CameraManagerPage() {
   };
 
   const removeCamera = async () => {
-    if (!selectedCamera || !window.confirm(`Remove ${selectedCamera.label}? Its permanent reconnect link and live access will stop.`)) return;
+    if (!selectedCamera || !window.confirm(`Remove ${selectedCamera.label}? Its private device connection and live access will stop. A ONE Camera will return to setup mode.`)) return;
     setRemoving(true);
     setRemoveError(null);
     try {
@@ -256,7 +256,7 @@ export function CameraManagerPage() {
         <div>
           <span className="eyebrow">CAMERAS</span>
           <h2>Camera Manager</h2>
-          <p>See every paired camera, check its connection, rename it, watch the live view, or revoke it from this household.</p>
+          <p>See every paired camera, check its connection, rename it, watch the live view, or remove it from this care space.</p>
         </div>
         <button className="primary-button" onClick={() => void startPairing()} disabled={pairingBusy}>
           <Plus size={16} /> {pairingBusy ? "Creating code…" : "Pair camera"}
@@ -269,8 +269,8 @@ export function CameraManagerPage() {
             <span className="manager-icon"><Camera size={18} /></span>
             <div>
               <span className="eyebrow">PAIR A NEW CAMERA</span>
-              <h3>{pairingStatus === "connected" ? "Camera joined this household" : "Open the camera link on the device"}</h3>
-              <p>{pairingStatus === "connected" ? "The device is saved. Its own screen now provides a permanent reconnect URL." : "The code is one use only. Camera and microphone stay off until consent is chosen on that device."}</p>
+              <h3>{pairingStatus === "connected" ? "Camera joined this care space" : "Set up a ONE Camera or browser camera"}</h3>
+              <p>{pairingStatus === "connected" ? "The device is saved with a private reconnect credential." : "For a ONE Camera, finish nearby setup in the iPhone app over Bluetooth. For a phone or laptop, use this one-time browser code."}</p>
             </div>
           </div>
           <div className="manager-pairing-code">
@@ -278,7 +278,7 @@ export function CameraManagerPage() {
             <span className={`camera-status ${pairingStatus === "connected" ? "online" : ""}`}><i /> {pairingStatus === "connected" ? "Connected" : pairingStatus === "expired" ? "Expired" : "Waiting"}</span>
           </div>
           <button className="secondary-button" onClick={() => void copyPairingLink()} disabled={pairingStatus === "expired"}>
-            {pairingCopied ? <><Check size={15} /> Camera link copied</> : <><Copy size={15} /> Copy camera link</>}
+            {pairingCopied ? <><Check size={15} /> Browser link copied</> : <><Copy size={15} /> Copy browser link</>}
           </button>
         </section>
       )}
@@ -308,7 +308,7 @@ export function CameraManagerPage() {
               <div className="camera-manager-empty">
                 <Camera size={28} />
                 <strong>No cameras paired</strong>
-                <span>Pair a phone, tablet, or laptop to add a room view.</span>
+                <span>Add a ONE Camera from the iPhone app, or pair a phone, tablet, or laptop here.</span>
               </div>
             )}
           </div>
@@ -386,8 +386,9 @@ export function CameraManagerPage() {
                     <option value="">Unassigned</option>
                     {rooms.map((room) => <option key={room.id} value={room.id}>{room.name}</option>)}
                   </select>
+                  <small className="muted">ONE detects the room from the saved RoomPlan position. Change it here if the result needs correction.</small>
                 </label>
-                <div className="camera-reconnect-note"><LockKeyhole size={15} /><span><strong>Permanent camera reconnect</strong><small>The camera device keeps a private reconnect link after pairing. Reloads and normal session expiry return to this same camera; removing it revokes that link.</small></span></div>
+                <div className="camera-reconnect-note"><LockKeyhole size={15} /><span><strong>Private device connection</strong><small>The camera keeps a device-only reconnect credential after pairing. Removing it revokes that credential; a ONE Camera then returns to setup mode automatically.</small></span></div>
                 {nameError && <div className="error-note" role="alert">{nameError}</div>}
                 <button className="secondary-button danger-button" onClick={() => void removeCamera()} disabled={removing}>
                   <Trash2 size={15} /> {removing ? "Removing camera…" : "Remove camera"}

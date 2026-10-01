@@ -101,6 +101,11 @@ function App() {
     void streamHomeEvents(currentHome, () => { void query.invalidateQueries({ queryKey: ["events"] }); void query.invalidateQueries({ queryKey: ["objects"] }); void query.invalidateQueries({ queryKey: ["scene"] }); void query.invalidateQueries({ queryKey: ["analytics"] }); }, controller.signal).catch(() => undefined);
     return () => controller.abort();
   }, [query, session]);
+  useEffect(() => {
+    const handleRecipientChange = () => { void query.invalidateQueries({ queryKey: ["analytics"] }); };
+    window.addEventListener("one:care-recipient-change", handleRecipientChange);
+    return () => window.removeEventListener("one:care-recipient-change", handleRecipientChange);
+  }, [query]);
   const togglePause = async () => {
     if (!paused) stopActivePublisher();
     setPaused((value) => !value);

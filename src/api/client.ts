@@ -78,7 +78,7 @@ export interface CareSpaceCreateInput { name: string; careSetting: 'home' | 'res
 interface CareSpaceSession extends PairCompleteResponse { role: 'admin' | 'resident' | 'caregiver'; }
 interface InviteAcceptResponse extends PairCompleteResponse { role?: string; }
 interface LiveKitResponse { url: string; token: string; expires_in: number; mode?: 'auto' | 'publish' | 'subscribe'; }
-interface BackendEvent { id: string; event_type: string; status?: string; explanation?: string; confidence?: number; evidence_ids?: string; evidence_json?: string; first_seen_at?: string; last_seen_at?: string; care_recipient_id?: string | null; snapshot_path?: string | null; snapshot_content_type?: string | null; }
+interface BackendEvent { id: string; event_type: string; status?: string; explanation?: string; confidence?: number; evidence_ids?: string; evidence_json?: string; first_seen_at?: string; last_seen_at?: string; observation_count?: number; occurrence_count?: number; care_recipient_id?: string | null; snapshot_path?: string | null; snapshot_content_type?: string | null; }
 interface MeResponse { actor: Session['actor']; home: Session['home']; device: Device | null; paused: boolean; }
 interface SceneResponse {
   sceneId: string | null;
@@ -279,11 +279,22 @@ export interface VisionFrameResponse {
     label: string;
     confidence: number;
     bbox: number[];
+    pose_keypoints?: number[][] | null;
+    pose_confidence?: number | null;
+    pose_model_version?: string | null;
     projection: { world_xyz?: number[] | null; uncertainty_m: number; zone: string; quality: string; room_zone?: { id?: string; label?: string } | null };
   }>;
   detector_version: string;
   observations: Array<{ observation_id: string; event_id: string; object_id: string; zone?: string | null }>;
   frames_persisted: false;
+  safety_events?: Array<{
+    event_id: string;
+    type: 'fall_suspected' | string;
+    status: 'needs_review' | string;
+    confidence: number;
+    snapshot_path?: string | null;
+  }>;
+  event_snapshots_persisted?: number;
 }
 export interface StartMapGenerationInput { room_id?: string | null; room_label?: string | null; orientation?: string; resolution_width: number; resolution_height: number; }
 export interface MapGenerationStartResponse { job_id: string; status: MapGenerationStatus; }
@@ -764,12 +775,16 @@ export function mapBackendEvent(event: BackendEvent): HomeEvent {
   const isObject = event.event_type === 'object_observed';
   const isFall = event.event_type === 'fall_suspected';
   const isCheckIn = event.event_type === 'daily_check_in' || event.event_type === 'check_in' || event.event_type === 'checkin';
+  const occurrenceCount = Math.max(1, Math.round(event.observation_count ?? event.occurrence_count ?? 1));
+  const detail = event.explanation || (isFall ? 'A possible fall pattern is ready for human review.' : isCheckIn ? 'A daily check-in is available for caregiver review.' : 'An observation is available for review.');
   return {
     id: event.id,
     type: isFall ? 'fall.suspected' : isObject ? 'object.last_seen' : isCheckIn ? 'daily.check_in' : 'presence.changed',
-    title: isFall ? 'Possible fall pattern' : isObject ? 'Object observed' : isCheckIn ? 'Daily check-in recorded' : 'Meaningful moment',
-    detail: event.explanation || (isFall ? 'A possible fall pattern is ready for human review.' : isCheckIn ? 'A daily check-in is available for caregiver review.' : 'An observation is available for review.'),
+    title: isFall ? 'Possible fall pattern' : isObject ? (occurrenceCount > 1 ? 'Movement observed' : 'Observation recorded') : isCheckIn ? 'Daily check-in recorded' : 'Meaningful moment',
+    detail: isObject && occurrenceCount > 1 ? `${detail} · ${occurrenceCount} observations grouped` : detail,
     occurredAt: event.last_seen_at ?? event.first_seen_at ?? new Date().toISOString(),
+    firstSeenAt: event.first_seen_at,
+    occurrenceCount,
     status: event.status,
     confidence: event.confidence,
     careRecipientId: event.care_recipient_id,
@@ -861,7 +876,9 @@ export const api = {
         limitations: ['ONE reports household observations and review prompts, not diagnoses.'],
       };
     }
-    return (await request<{ data: CareAnalytics }>(`/homes/${homeId()}/analytics?window_days=30`)).data;
+    const recipient = sessionStorage.getItem('one_care_recipient_id');
+    const scope = recipient ? `&care_recipient_id=${encodeURIComponent(recipient)}` : '';
+    return (await request<{ data: CareAnalytics }>(`/homes/${homeId()}/analytics?window_days=30${scope}`)).data;
   },
   submitDailyCheckIn: async (transcript: string): Promise<DailyCheckInResult> => {
     if (demoMode) return { id: `demo-check-in-${Date.now()}`, status: 'stable', trend: 'stable', explanation: 'A familiar morning check-in was recorded.', limitations: 'Demo response' };
@@ -1169,7 +1186,7 @@ export const api = {
     if (demoMode) return;
     await request(`/homes/${homeId()}/medication-plans/${encodeURIComponent(planId)}/check-ins`, { method: 'POST', body: JSON.stringify({ scheduled_for: scheduledFor, status, note }) });
   },
-  askFamilyAssistant: async (message: string, subjectUserId?: string, careRecipientId?: string): Promise<FamilyAssistantResponse> => demoMode ? { degraded: true, data: { summary: 'Demo mode keeps the organizer local.', next_action: 'Connect a backend family consent to review live reminders.', evidence_ids: [], limitations: 'Administrative summary only; not medical advice.' } } : request<FamilyAssistantResponse>(`/homes/${homeId()}/family-assistant`, { method: 'POST', body: JSON.stringify({ message, subject_user_id: careRecipientId ? null : subjectUserId ?? null, care_recipient_id: careRecipientId ?? null }) }),
+  askFamilyAssistant: async (message: string, subjectUserId?: string, careRecipientId?: string): Promise<FamilyAssistantResponse> => demoMode ? { degraded: true, data: { summary: 'Demo mode keeps the organizer local.', next_action: 'Connect a backend family consent to review live reminders.', evidence_ids: [], limitations: 'Administrative summary only; not medical advice.' } } : request<FamilyAssistantResponse>(`/homes/${homeId()}/family-assistant`, { method: 'POST', body: JSON.stringify({ message, ...(careRecipientId ? { care_recipient_id: careRecipientId } : subjectUserId ? { subject_user_id: subjectUserId } : {}) }) }),
 };
 
 export type ApiClient = typeof api;

@@ -19,6 +19,7 @@ export function EventRow({ event, onClick }: { event: HomeEvent; onClick?: () =>
       </span>
       <span className="event-copy"><strong>{event.title}</strong><span>{event.detail}</span></span>
       {event.status === "needs_review" && <span className="event-review-pill">Review</span>}
+      {event.occurrenceCount && event.occurrenceCount > 1 && <span className="event-count-pill" aria-label={`${event.occurrenceCount} observations grouped`}>{event.occurrenceCount}×</span>}
       {event.snapshotPath && <span className="event-snapshot-pill" aria-label="Event snapshot available">Photo</span>}
       <time>{formatTime(event.occurredAt)}</time>
       <ChevronRight size={16} />

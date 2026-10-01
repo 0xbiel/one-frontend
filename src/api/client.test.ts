@@ -19,6 +19,13 @@ describe('FastAPI contract mapping', () => {
     expect(event.occurredAt).toBe('2026-09-12T10:00:00Z');
   });
 
+  it('uses the persisted observation count when grouping movement events', () => {
+    const event = mapBackendEvent({ id: 'evt-grouped', event_type: 'object_observed', status: 'new', explanation: 'Approximate household observation; not a diagnosis.', observation_count: 4, first_seen_at: '2026-09-12T09:58:00Z', last_seen_at: '2026-09-12T10:00:00Z' });
+    expect(event.title).toBe('Movement observed');
+    expect(event.occurrenceCount).toBe(4);
+    expect(event.detail).toContain('4 observations grouped');
+  });
+
   it('maps possible fall patterns to a reviewable amber event', () => {
     const event = mapBackendEvent({ id: 'evt-fall', event_type: 'fall_suspected', status: 'needs_review', explanation: 'A possible fall pattern was observed. This is a safety signal for human review, not a diagnosis.', confidence: 0.78, last_seen_at: '2026-09-12T10:02:00Z', snapshot_path: '/api/v1/homes/home-1/events/evt-fall/snapshot', snapshot_content_type: 'image/jpeg' });
     expect(event.type).toBe('fall.suspected');

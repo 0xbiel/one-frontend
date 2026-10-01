@@ -354,7 +354,11 @@ export function MapPage({ objects, scene }: { objects: LastSeenObject[]; scene: 
                 {displayScene.source === "roomplan-lidar-3d" ? <span><i className="legend-dot fixture" /> Furniture</span> : null}
                 {displayScene.source === "roomplan-lidar-3d" ? <span><i className="legend-dot opening" /> Door & window openings</span> : null}
                 {displayScene.source === "roomplan-lidar-3d" ? <span><i className="legend-dot zone" /> Registered camera</span> : null}
-                <span>Person dots show current presence; a faded dot keeps only the newest last-known place for up to 2 minutes</span>
+                <span><i className="legend-dot presence-identified" /> Face-recognized person</span>
+                <span><i className="legend-dot presence-unknown" /> Unknown person now</span>
+                <span><i className="legend-dot presence-recent" /> Unknown person recently</span>
+                <span><i className="legend-dot camera-online" /> Camera online · no recent person</span>
+                <span><i className="legend-dot camera-offline" /> Camera configured but offline</span>
                 <span>Click a camera, person dot, or room area to open the live camera views covering that point</span>
               </>
             ) : (

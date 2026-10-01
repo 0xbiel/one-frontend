@@ -104,9 +104,10 @@ export interface LastSeenObject {
   point: { x: number; y: number } | null; confidenceRadiusM: number; confidence: number;
   worldPoint?: Point3D | null; mapId?: string | null; cameraId?: string | null; roomId?: string | null;
   presenceState?: 'current' | 'recent' | 'stale' | null;
+  identity?: { status?: 'matched' | 'unknown' | 'anonymous' | string; displayName?: string | null; careRecipientId?: string | null; confidence?: number | null } | null;
   zone: Zone | null; sourceEventId: string | null;
 }
-export interface HomeEvent { id: string; type: EventType; title: string; detail: string; occurredAt: string; objectId?: string; clipId?: string; status?: string; confidence?: number; careRecipientId?: string | null; snapshotPath?: string | null; snapshotContentType?: string | null; tone: 'blue' | 'green' | 'amber'; }
+export interface HomeEvent { id: string; type: EventType; title: string; detail: string; occurredAt: string; firstSeenAt?: string; occurrenceCount?: number; objectId?: string; clipId?: string; status?: string; confidence?: number; careRecipientId?: string | null; snapshotPath?: string | null; snapshotContentType?: string | null; tone: 'blue' | 'green' | 'amber'; }
 export type CheckInStatus = 'stable' | 'attention' | 'unknown';
 export type CheckInTrend = 'stable' | 'improving' | 'changing' | 'unknown';
 export interface DailyCheckInResult {

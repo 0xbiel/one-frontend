@@ -35,7 +35,6 @@ export function OverviewPage({
   const [pairingError, setPairingError] = useState("");
   const [pairingCopied, setPairingCopied] = useState(false);
   const [cameraLabel, setCameraLabel] = useState("Hallway camera");
-  const [cameraRoom, setCameraRoom] = useState("Hallway");
   const [cameraSetupBusy, setCameraSetupBusy] = useState(false);
   const [cameraSetupSaved, setCameraSetupSaved] = useState(false);
   const [resumeCameraId, setResumeCameraId] = useState<string | null>(null);
@@ -98,8 +97,6 @@ export function OverviewPage({
       setResumeCameraId(savedCamera.id);
       setCameraSetupSaved(true);
       setCameraLabel(savedCamera.label);
-      const room = savedCamera.metadata?.room;
-      setCameraRoom(typeof room === "string" && room ? room : "Hallway");
       return;
     }
     setResumeCameraId(null);
@@ -107,7 +104,6 @@ export function OverviewPage({
     setPairingCopied(false);
     setCameraSetupSaved(false);
     setCameraLabel("Hallway camera");
-    setCameraRoom("Hallway");
     setPairingBusy(true);
     try {
       setPairing(await api.createPairing("Hallway phone"));
@@ -137,9 +133,11 @@ export function OverviewPage({
     setCameraSetupBusy(true);
     setPairingError("");
     try {
+      const metadata = { ...(activeCamera?.metadata ?? {}) };
+      delete metadata.room;
       await api.updateCamera(cameraId, {
         name: cameraLabel.trim(),
-        metadata: { ...(activeCamera?.metadata ?? {}), room: cameraRoom, setup_state: "configured" },
+        metadata: { ...metadata, setup_state: "configured" },
       });
       setCameraSetupSaved(true);
       void query.invalidateQueries({ queryKey: ["camera"] });
@@ -308,8 +306,7 @@ export function OverviewPage({
                     <span className="eyebrow">SAVED CAMERA</span>
                     <h3>Make this camera easy to recognize.</h3>
                     <p>
-                      Name and placement are independent from room mapping, so
-                      this camera stays on the account even if mapping is unfinished.
+                      ONE assigns this camera to the scanned room containing its saved RoomPlan position. You can correct the room later in Camera details.
                     </p>
                   </div>
                 </div>
@@ -324,24 +321,9 @@ export function OverviewPage({
                     autoFocus
                   />
                 </label>
-                <label>
-                  Placement
-                  <select
-                    value={cameraRoom}
-                    onChange={(event) => {
-                      setCameraRoom(event.target.value);
-                      setCameraSetupSaved(false);
-                    }}
-                  >
-                    <option>Hallway</option>
-                    <option>Living room</option>
-                    <option>Entryway</option>
-                    <option>Bedroom</option>
-                  </select>
-                </label>
                 {cameraSetupSaved && (
                   <div className="success-note" role="status">
-                    <Check size={15} /> Camera setup saved for {cameraRoom}.
+                    <Check size={15} /> Camera setup saved. Room assignment follows the saved RoomPlan position.
                   </div>
                 )}
                 <button
@@ -362,7 +344,7 @@ export function OverviewPage({
                       <div>
                         <span className="eyebrow">CAMERA READY</span>
                         <h3>Pairing is finished.</h3>
-                        <p>Live view works now. Calibration, manual placement, and room mapping are optional and only run when you choose them from this camera&apos;s Position &amp; map menu.</p>
+                        <p>Live view works now. When you choose to save a RoomPlan camera position, ONE assigns its room from the scanned floor boundaries. You can correct the room in Camera details.</p>
                       </div>
                     </div>
                     <button className="secondary-button full-width" onClick={() => { setPairingOpen(false); navigate("/dashboard/cameras"); }}>
