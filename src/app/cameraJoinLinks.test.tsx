@@ -8,6 +8,8 @@ import { CameraManagerPage } from './publisher';
 import { JoinPage } from './pages/CameraPairingPage';
 import { rememberDashboardSession } from './cameraReturnSession';
 
+vi.mock('../api/client', async (importOriginal) => ({ ...(await importOriginal<typeof import('../api/client')>()), demoMode: false }));
+
 afterEach(() => { vi.restoreAllMocks(); sessionStorage.clear(); localStorage.clear(); });
 
 function renderPage(page: React.ReactNode) {

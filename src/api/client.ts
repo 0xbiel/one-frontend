@@ -66,6 +66,7 @@ export interface CareSpaceSummary {
 export interface CareSpaceCreateInput { name: string; careSetting: 'home' | 'residence'; supportFocus: 'general' | 'mci'; }
 export interface CaregiverSummary {
   id: string;
+  careRecipientId?: string | null;
   status: 'stable' | 'attention' | 'unknown';
   trend: string;
   explanation: string;
@@ -76,6 +77,7 @@ export interface CaregiverSummary {
 export interface CheckInQuestion {
   id: string;
   summaryId: string;
+  careRecipientId?: string | null;
   question: string;
   answer: string;
   responseTimeMs: number | null;
@@ -94,13 +96,13 @@ interface BackendCheckInQuestion {
   pulse_bpm: number | null; asked_at: string;
 }
 interface BackendCaregiverSummary {
-  id: string; status: string; trend: string; explanation: string;
+  id: string; care_recipient_id?: string | null; status: string; trend: string; explanation: string;
   limitations: string; evidence_json: string; created_at: string;
 }
 interface CareSpaceSession extends PairCompleteResponse { role: 'admin' | 'resident' | 'caregiver'; }
 interface InviteAcceptResponse extends PairCompleteResponse { role?: string; }
 interface LiveKitResponse { url: string; token: string; expires_in: number; mode?: 'auto' | 'publish' | 'subscribe'; }
-interface BackendEvent { id: string; event_type: string; status?: string; explanation?: string; confidence?: number; evidence_ids?: string; evidence_json?: string; first_seen_at?: string; last_seen_at?: string; source?: { camera_id?: string | null; camera_name?: string | null; room_name?: string | null; object_id?: string | null } | null; }
+interface BackendEvent { id: string; event_type: string; care_recipient_id?: string | null; status?: string; explanation?: string; confidence?: number; evidence_ids?: string; evidence_json?: string; first_seen_at?: string; last_seen_at?: string; source?: { camera_id?: string | null; camera_name?: string | null; room_name?: string | null; object_id?: string | null } | null; }
 interface MeResponse { actor: Session['actor']; home: Session['home']; device: Device | null; paused: boolean; }
 interface SceneResponse {
   sceneId: string | null;
@@ -750,7 +752,7 @@ async function requestBinary(path: string, init?: RequestOptions): Promise<Array
 
 export function mapBackendEvent(event: BackendEvent): HomeEvent {
   const isObject = event.event_type === 'object_observed';
-  return { id: event.id, type: isObject ? 'object.last_seen' : 'presence.changed', title: isObject ? 'Object observed' : 'Meaningful moment', detail: event.explanation || 'An observation is available for review.', occurredAt: event.last_seen_at ?? event.first_seen_at ?? new Date().toISOString(), cameraId: event.source?.camera_id, cameraName: event.source?.camera_name, roomName: event.source?.room_name, objectId: event.source?.object_id ?? undefined, confidence: event.confidence, tone: isObject ? 'blue' : 'green' };
+  return { id: event.id, type: isObject ? 'object.last_seen' : 'presence.changed', eventType: event.event_type, careRecipientId: event.care_recipient_id ?? null, title: isObject ? 'Object observed' : event.event_type === 'daily_check_in' ? 'Daily check-in' : 'Meaningful moment', detail: event.explanation || 'An observation is available for review.', occurredAt: event.last_seen_at ?? event.first_seen_at ?? new Date().toISOString(), cameraId: event.source?.camera_id, cameraName: event.source?.camera_name, roomName: event.source?.room_name, objectId: event.source?.object_id ?? undefined, confidence: event.confidence, tone: isObject ? 'blue' : 'green' };
 }
 
 export const api = {
@@ -822,40 +824,49 @@ export const api = {
     if (demoMode) throw new Error('API_404');
     return requestBinary(`/homes/${homeId()}/cameras/${encodeURIComponent(cameraId)}/roomplan-placement-preview/usdz`);
   },
-  getObjects: async (): Promise<LastSeenObject[]> => demoMode ? demoObjects : (await request<ObjectResponse>(`/homes/${homeId()}/objects/last-seen`)).data,
-  getEvents: async (): Promise<HomeEvent[]> => demoMode ? demoEvents : request<{ data: BackendEvent[] }>(`/homes/${homeId()}/events?limit=50`).then((r) => r.data.map(mapBackendEvent)),
-  getCaregiverSummaries: async (): Promise<CaregiverSummary[]> => {
-    if (demoMode) return [
-      { id: 'demo-summary-1', status: 'stable', trend: 'stable', explanation: 'The latest check-in is within the recent household pattern.', limitations: 'Demo observation; not a diagnosis.', evidenceIds: ['evt-checkin'], createdAt: new Date().toISOString() },
-      { id: 'demo-summary-2', status: 'unknown', trend: 'unknown', explanation: 'There was not enough information to establish a trend.', limitations: 'Demo observation; not a diagnosis.', evidenceIds: [], createdAt: new Date(Date.now() - 86_400_000 * 2).toISOString() },
-    ];
+  getObjects: async (careRecipientId?: string | null): Promise<LastSeenObject[]> => {
+    const rows = demoMode ? demoObjects : (await request<ObjectResponse>(`/homes/${homeId()}/objects/last-seen`)).data;
+    return careRecipientId ? rows.filter((item) => !item.careRecipientId || item.careRecipientId === careRecipientId) : rows;
+  },
+  getEvents: async (careRecipientId?: string | null): Promise<HomeEvent[]> => demoMode
+    ? demoEvents.filter((event) => !careRecipientId || event.careRecipientId === careRecipientId || !event.careRecipientId)
+    : request<{ data: BackendEvent[] }>(`/homes/${homeId()}/events?limit=100${careRecipientId ? `&care_recipient_id=${encodeURIComponent(careRecipientId)}&include_household=true` : ''}`).then((r) => r.data.map(mapBackendEvent)),
+  getCaregiverSummaries: async (careRecipientId?: string | null): Promise<CaregiverSummary[]> => {
+    if (demoMode) {
+      const summaries: CaregiverSummary[] = [
+      { id: 'demo-summary-1', careRecipientId: 'recipient-maria', status: 'stable', trend: 'stable', explanation: 'The latest check-in is within the recent household pattern.', limitations: 'Demo observation; not a diagnosis.', evidenceIds: ['evt-checkin'], createdAt: new Date().toISOString() },
+      { id: 'demo-summary-2', careRecipientId: 'recipient-manuel', status: 'unknown', trend: 'unknown', explanation: 'There was not enough information to establish a trend.', limitations: 'Demo observation; not a diagnosis.', evidenceIds: [], createdAt: new Date(Date.now() - 86_400_000 * 2).toISOString() },
+      ];
+      return summaries.filter((item) => !careRecipientId || item.careRecipientId === careRecipientId);
+    }
     const response = await request<{ data: BackendCaregiverSummary[] }>(`/homes/${homeId()}/caregiver-summary`);
-    return response.data.map((item) => {
+    const summaries = response.data.map((item): CaregiverSummary => {
       let evidenceIds: string[] = [];
       try {
         const parsed: unknown = JSON.parse(item.evidence_json || '[]');
         if (Array.isArray(parsed)) evidenceIds = parsed.filter((id): id is string => typeof id === 'string');
       } catch { /* Malformed evidence is omitted, while the summary remains readable. */ }
-      return { id: item.id, status: item.status === 'stable' || item.status === 'attention' ? item.status : 'unknown', trend: item.trend, explanation: item.explanation, limitations: item.limitations, evidenceIds, createdAt: item.created_at };
+      return { id: item.id, careRecipientId: item.care_recipient_id ?? null, status: item.status === 'stable' || item.status === 'attention' ? item.status : 'unknown', trend: item.trend, explanation: item.explanation, limitations: item.limitations, evidenceIds, createdAt: item.created_at };
     });
+    return summaries.filter((item) => !careRecipientId || item.careRecipientId === careRecipientId);
   },
-  getCheckInQuestions: async (): Promise<CheckInQuestion[]> => {
+  getCheckInQuestions: async (careRecipientId?: string | null): Promise<CheckInQuestion[]> => {
     if (demoMode) {
       const today = new Date();
       const current = [
-        { id: 'demo-q-1', summaryId: 'demo-summary-1', question: 'How are you feeling today?', answer: 'Answered', responseTimeMs: 12_000, baselineMs: 9_000, pulseBpm: 74, askedAt: new Date(today.setHours(8, 23, 0, 0)).toISOString() },
-        { id: 'demo-q-2', summaryId: 'demo-summary-1', question: 'Did you have breakfast?', answer: 'Answered', responseTimeMs: 6_000, baselineMs: 9_000, pulseBpm: 74, askedAt: new Date(today.setHours(8, 24, 0, 0)).toISOString() },
-        { id: 'demo-q-3', summaryId: 'demo-summary-1', question: 'Where are your glasses?', answer: 'Answered', responseTimeMs: 12_000, baselineMs: 9_000, pulseBpm: 74, askedAt: new Date(today.setHours(8, 25, 0, 0)).toISOString() },
-        { id: 'demo-q-4', summaryId: 'demo-summary-1', question: 'Would you like some water?', answer: 'Answered', responseTimeMs: 12_000, baselineMs: 9_000, pulseBpm: 74, askedAt: new Date(today.setHours(8, 26, 0, 0)).toISOString() },
+        { id: 'demo-q-1', summaryId: 'demo-summary-1', careRecipientId: 'recipient-maria', question: 'How are you feeling today?', answer: 'Answered', responseTimeMs: 12_000, baselineMs: 9_000, pulseBpm: 74, askedAt: new Date(today.setHours(8, 23, 0, 0)).toISOString() },
+        { id: 'demo-q-2', summaryId: 'demo-summary-1', careRecipientId: 'recipient-maria', question: 'Did you have breakfast?', answer: 'Answered', responseTimeMs: 6_000, baselineMs: 9_000, pulseBpm: 74, askedAt: new Date(today.setHours(8, 24, 0, 0)).toISOString() },
+        { id: 'demo-q-3', summaryId: 'demo-summary-1', careRecipientId: 'recipient-maria', question: 'Where are your glasses?', answer: 'Answered', responseTimeMs: 12_000, baselineMs: 9_000, pulseBpm: 74, askedAt: new Date(today.setHours(8, 25, 0, 0)).toISOString() },
+        { id: 'demo-q-4', summaryId: 'demo-summary-1', careRecipientId: 'recipient-maria', question: 'Would you like some water?', answer: 'Answered', responseTimeMs: 12_000, baselineMs: 9_000, pulseBpm: 74, askedAt: new Date(today.setHours(8, 26, 0, 0)).toISOString() },
       ];
       const history = [11_000, 9_000, 14_000, 10_000, 12_000, 9_000].map((responseTimeMs, index) => {
         const askedAt = new Date(); askedAt.setDate(askedAt.getDate() - (6 - index)); askedAt.setHours(8, 23, 0, 0);
-        return { id: `demo-q-history-${index}`, summaryId: 'demo-summary-2', question: 'How are you feeling today?', answer: 'Answered', responseTimeMs, baselineMs: 9_000, pulseBpm: 74, askedAt: askedAt.toISOString() };
+        return { id: `demo-q-history-${index}`, summaryId: 'demo-summary-2', careRecipientId: 'recipient-manuel', question: 'How are you feeling today?', answer: 'Answered', responseTimeMs, baselineMs: 9_000, pulseBpm: 74, askedAt: askedAt.toISOString() };
       });
-      return [...demoDailyQuestions, ...current, ...history];
+      return [...demoDailyQuestions, ...current, ...history].filter((item) => !careRecipientId || item.careRecipientId === careRecipientId);
     }
-    const response = await request<{ data: BackendCheckInQuestion[] }>(`/homes/${homeId()}/check-ins/questions?limit=500`);
-    return response.data.map((item) => ({ id: item.id, summaryId: item.summary_id, question: item.question, answer: item.answer, responseTimeMs: item.response_time_ms, baselineMs: item.baseline_ms, pulseBpm: item.pulse_bpm, askedAt: item.asked_at }));
+    // The backend currently stores check-in summaries, not individual answers or timing.
+    return [];
   },
   submitDailyCheckIn: async (input: DailyCheckInInput): Promise<{ id: string; degraded: boolean }> => {
     if (demoMode) {

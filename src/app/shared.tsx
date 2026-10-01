@@ -54,7 +54,7 @@ export function Shell({ children, paused, onTogglePause, onLogout, session }: { 
   const recipientMenuRef = useRef<HTMLDivElement>(null);
   const [isLargeScreen, setIsLargeScreen] = useState(() => typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(min-width: 1100px)").matches);
   const hasBackendSession = !demoMode && Boolean(sessionStorage.getItem("one_access_token") && sessionStorage.getItem("one_home_id"));
-  const careRecipientsQuery = useQuery({ queryKey: ["care-recipients"], queryFn: api.getCareRecipients, enabled: demoMode || hasBackendSession, retry: false });
+  const careRecipientsQuery = useQuery({ queryKey: ["care-recipients", session?.home.id], queryFn: api.getCareRecipients, enabled: demoMode || hasBackendSession, retry: false });
   const careSpacesQuery = useQuery({ queryKey: ["care-spaces"], queryFn: api.getCareSpaces, enabled: demoMode || hasBackendSession, retry: false });
   const careRecipients = careRecipientsQuery.data ?? [];
   const selectedResident = careRecipients.find((person) => person.id === recipient) ?? careRecipients[0];
@@ -69,7 +69,7 @@ export function Shell({ children, paused, onTogglePause, onLogout, session }: { 
     { to: "/dashboard/live", label: "Today’s check-in", icon: HeartHandshake },
     { to: "/dashboard/questions", label: "Questions & signals", icon: Activity },
     { to: "/dashboard/map", label: "Home map", icon: Map },
-    { to: "/dashboard/cameras", label: "Camera Manager", icon: Camera },
+    { to: "/dashboard/cameras", label: "Cameras", icon: Camera },
     { to: "/dashboard/events", label: "Events", icon: Activity },
   ];
   const careItems = [
@@ -87,9 +87,15 @@ export function Shell({ children, paused, onTogglePause, onLogout, session }: { 
     sessionStorage.setItem("one_care_recipient_id", value);
     window.dispatchEvent(new CustomEvent("one:care-recipient-change", { detail: value }));
   };
+  useEffect(() => {
+    if (!careRecipientsQuery.isSuccess) return;
+    const next = careRecipients.some((person) => person.id === recipient) ? recipient : careRecipients[0]?.id ?? "";
+    if (next !== recipient) careRecipientChanged(next);
+  }, [careRecipientsQuery.isSuccess, careRecipients, recipient]);
   const finishCareSpaceChange = async () => {
     setRecipient("");
     sessionStorage.removeItem("one_care_recipient_id");
+    window.dispatchEvent(new CustomEvent("one:care-recipient-change", { detail: "" }));
     sessionStorage.removeItem("one_subject_user_id");
     setRecipientMenuOpen(false);
     setCareSpaceMenuOpen(false);
@@ -217,7 +223,7 @@ export function Shell({ children, paused, onTogglePause, onLogout, session }: { 
     : location.pathname.includes("questions")
       ? ["SIGNALS", "Questions & signals"]
     : location.pathname.includes("cameras")
-      ? ["CAMERAS", "Camera Manager"]
+      ? ["CAMERAS", "Cameras"]
     : location.pathname.includes("events")
       ? ["EVENTS", "Events"]
       : location.pathname.includes("assistant")
@@ -235,6 +241,7 @@ export function Shell({ children, paused, onTogglePause, onLogout, session }: { 
             <button className="brand" onClick={() => nav("/dashboard")} aria-label="ONE home"><img className="one-logo" src="/one-logo.png" alt="" aria-hidden="true" /><span className="wordmark">ONE</span></button>
             <span className="topbar-divider" aria-hidden="true" />
             <div className="topbar-context"><span className="eyebrow">{context[0]}</span><h1>{context[1]}</h1></div>
+            {demoMode && <span className="dashboard-demo-badge">Demo · sample data</span>}
           </div>
           <div className="top-actions">
           <button

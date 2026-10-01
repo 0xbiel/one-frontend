@@ -16,7 +16,6 @@ import { CameraManagerPage } from "./publisher";
 import { CheckInPage } from "./checkIn";
 import { QuestionsPage } from "./questions";
 import { MarketingSite } from "./marketing";
-import { DemoDashboard } from "./demoDashboard";
 import { AppDownloadPage } from "./appDownload";
 import { OnboardingPage, onboardingKey } from "./auth";
 import { LoginPage } from "./login";
@@ -45,11 +44,17 @@ function App() {
   const isCameraReconnect = location.pathname.startsWith("/camera/");
   const sessionQuery = useQuery({ queryKey: ["session"], queryFn: api.getSession, enabled: (demoMode || hasToken) && !isCameraReconnect, retry: false });
   const session = sessionQuery.data;
-  const { data: fetchedEvents } = useQuery({ queryKey: ["events"], queryFn: api.getEvents, enabled: demoMode || Boolean(session) });
-  const { data: fetchedObjects } = useQuery({ queryKey: ["objects"], queryFn: api.getObjects, enabled: demoMode || Boolean(session) });
+  const [recipientId, setRecipientId] = useState(() => sessionStorage.getItem("one_care_recipient_id") || "");
+  useEffect(() => {
+    const update = (event: Event) => setRecipientId((event as CustomEvent<string>).detail || "");
+    window.addEventListener("one:care-recipient-change", update);
+    return () => window.removeEventListener("one:care-recipient-change", update);
+  }, []);
+  const { data: fetchedEvents } = useQuery({ queryKey: ["events", session?.home.id, recipientId], queryFn: () => api.getEvents(recipientId || null), enabled: demoMode || Boolean(session) });
+  const { data: fetchedObjects } = useQuery({ queryKey: ["objects", session?.home.id, recipientId], queryFn: () => api.getObjects(recipientId || null), enabled: demoMode || Boolean(session) });
   const { data: fetchedScene } = useQuery({ queryKey: ["scene"], queryFn: api.getScene, enabled: demoMode || Boolean(session) });
-  const events = fetchedEvents ?? (demoMode ? demoEvents : []);
-  const objects = fetchedObjects ?? (demoMode ? demoObjects : []);
+  const events = fetchedEvents ?? (demoMode ? demoEvents.filter((event) => !recipientId || !event.careRecipientId || event.careRecipientId === recipientId) : []);
+  const objects = fetchedObjects ?? (demoMode ? demoObjects.filter((item) => !recipientId || !item.careRecipientId || item.careRecipientId === recipientId) : []);
   const scene = fetchedScene ?? (demoMode ? demoScene : emptyLiveScene);
   const [paused, setPaused] = useState(false);
   const [consents, setConsents] = useState(consentDefaults);
@@ -90,7 +95,6 @@ function App() {
   if (location.pathname === "/designs") return <Navigate to="/products" replace />;
   if (location.pathname === "/app") return <AppDownloadPage />;
   if (["/", "/how-it-works", "/products", "/products/hub", "/products/camera", "/products/family", "/products/exterior", "/technology", "/support"].includes(location.pathname)) return <MarketingSite />;
-  if (demoMode && ["/dashboard", "/dashboard/live", "/dashboard/map", "/dashboard/cameras", "/dashboard/questions", "/dashboard/events", "/dashboard/family"].includes(location.pathname)) return <DemoDashboard />;
   if (!demoMode && !hasToken && !["/create-account", "/join-household"].includes(location.pathname) && location.pathname !== "/join" && !location.pathname.startsWith("/join/") && !location.pathname.startsWith("/camera/")) return <LoginPage />;
   if (!demoMode && hasToken && sessionQuery.isPending && !isCameraReconnect) return <div className="join-page"><div className="join-card panel"><img className="one-logo large" src="/one-logo.png" alt="" aria-hidden="true" /><p className="muted">Checking your secure session…</p></div></div>;
   if (!demoMode && hasToken && sessionQuery.isError && !isCameraReconnect) return <LoginPage />;
@@ -110,19 +114,19 @@ function App() {
       <Route path="/publisher/live" element={<PublisherPage paused={paused} onTogglePause={togglePause} />} />
       <Route path="*" element={<Shell paused={paused} onTogglePause={togglePause} onLogout={logout} session={session}><Routes>
         <Route index element={<Navigate to={demoMode ? "/designs" : "/dashboard"} replace />} />
-        <Route path="dashboard" element={<OverviewPage events={events} objects={objects} onEvent={setSelectedEvent} session={session} />} />
-        <Route path="dashboard/live" element={<CheckInPage events={events} session={session} onEvent={setSelectedEvent} />} />
-        <Route path="dashboard/questions" element={<QuestionsPage />} />
-        <Route path="dashboard/map" element={<MapPage objects={objects} scene={scene} />} />
+        <Route path="dashboard" element={<OverviewPage events={events} objects={objects} onEvent={setSelectedEvent} session={session} recipientId={recipientId} />} />
+        <Route path="dashboard/live" element={<CheckInPage events={events} session={session} onEvent={setSelectedEvent} recipientId={recipientId} />} />
+        <Route path="dashboard/questions" element={<QuestionsPage recipientId={recipientId} />} />
+        <Route path="dashboard/map" element={<MapPage objects={objects} scene={scene} recipientId={recipientId} />} />
         <Route path="dashboard/cameras" element={<CameraManagerPage paused={paused} />} />
-        <Route path="dashboard/events" element={<EventsPage events={events} onEvent={setSelectedEvent} />} />
+        <Route path="dashboard/events" element={<EventsPage events={events} onEvent={setSelectedEvent} recipientId={recipientId} />} />
         <Route path="dashboard/assistant" element={<AssistantPage session={session} />} />
         <Route path="dashboard/family" element={<FamilyPage session={session} />} />
         <Route path="dashboard/account" element={<AccountSettingsPage onLogout={logout} />} />
         <Route path="dashboard/privacy" element={<PrivacyPage paused={paused} onTogglePause={togglePause} consents={consents} setConsents={setConsents} />} />
       </Routes></Shell>} />
     </Routes>
-    {selectedEvent && <div className="modal-backdrop" role="presentation" onClick={() => setSelectedEvent(null)}><section className="event-modal panel" role="dialog" aria-modal="true" aria-labelledby="event-modal-title" onClick={(event) => event.stopPropagation()}><button className="modal-close icon-button" onClick={() => setSelectedEvent(null)} aria-label="Close event"><X size={18} /></button><span className="eyebrow">OBSERVED MOMENT · {formatTime(selectedEvent.occurredAt)}</span><h2 id="event-modal-title">{selectedEvent.title}</h2><p>{selectedEvent.detail}</p>{selectedEvent.cameraName && <p>Camera: {selectedEvent.cameraName}{selectedEvent.roomName ? ` · ${selectedEvent.roomName}` : ""}</p>}{selectedEvent.cameraId && <button className="primary-button" onClick={() => { navigate(`/dashboard/cameras?camera=${encodeURIComponent(selectedEvent.cameraId!)}`); setSelectedEvent(null); }}>View source camera</button>}<div className="evidence-note"><ShieldCheck size={16} /> Source linked · ONE reports observations, not a diagnosis.</div></section></div>}
+    {selectedEvent && <div className="modal-backdrop" role="presentation" onClick={() => setSelectedEvent(null)}><section className="event-modal panel" role="dialog" aria-modal="true" aria-labelledby="event-modal-title" onClick={(event) => event.stopPropagation()}><button className="modal-close icon-button" onClick={() => setSelectedEvent(null)} aria-label="Close event"><X size={18} /></button><span className="eyebrow">OBSERVED MOMENT · {formatTime(selectedEvent.occurredAt)}</span><h2 id="event-modal-title">{selectedEvent.title}</h2><p>{selectedEvent.detail}</p>{selectedEvent.cameraName && <p>Camera: {selectedEvent.cameraName}{selectedEvent.roomName ? ` · ${selectedEvent.roomName}` : ""}</p>}{selectedEvent.cameraId && <button className="primary-button" onClick={() => { navigate(`/dashboard/cameras?camera=${encodeURIComponent(selectedEvent.cameraId!)}`); setSelectedEvent(null); }}>View source camera</button>}<div className="evidence-note"><ShieldCheck size={16} /> {selectedEvent.cameraId ? "Camera source linked" : "Household observation"} · not a diagnosis.</div></section></div>}
   </>;
 }
 

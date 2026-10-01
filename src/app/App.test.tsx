@@ -15,7 +15,7 @@ describe('ONE web routes', () => {
     expect(await screen.findByRole('heading', { name: 'Your Home, in view' })).toBeInTheDocument();
     expect(screen.getByText('Recent observations')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /pause care/i }));
-    expect(screen.getByText('Care is paused in this demo.')).toBeInTheDocument();
+    expect(screen.getByText('Care is paused')).toBeInTheDocument();
   });
 
   it('shows the current login and registration entry', async () => {
@@ -26,20 +26,17 @@ describe('ONE web routes', () => {
 
   it('shows cameras in their dedicated dashboard page', async () => {
     renderAt('/dashboard/cameras');
-    expect(await screen.findByRole('heading', { name: 'Cameras' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /connect camera/i })).toBeInTheDocument();
-    expect(screen.getByText('Your camera preview will appear here')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Cameras', level: 2 })).toBeInTheDocument();
+    expect(screen.getByText('These are static images, not live feeds.', { exact: false })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Kitchen camera/i }));
+    expect(screen.getByRole('heading', { name: 'Kitchen camera' })).toBeInTheDocument();
   });
 
-  it('keeps family members visible and lets the demo add a person', async () => {
+  it('keeps the care recipient list visible in the shared dashboard', async () => {
     renderAt('/dashboard/family');
-    expect(await screen.findByRole('heading', { name: 'Family & care team' })).toBeInTheDocument();
-    expect(screen.getByText('3 people in ONE Home')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /add person/i }));
-    fireEvent.change(screen.getByPlaceholderText('Full name'), { target: { value: 'Alex Example' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add to demo' }));
-    expect(screen.getByText('Alex Example')).toBeInTheDocument();
-    expect(screen.getByText('4 people in ONE Home')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'People you care for' })).toBeInTheDocument();
+    expect(await screen.findByText('María García')).toBeInTheDocument();
+    expect(screen.getByText('Manuel García')).toBeInTheDocument();
   });
 
   it('prefills a six-digit pairing code from the join path', async () => {

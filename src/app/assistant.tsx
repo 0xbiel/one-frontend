@@ -7,9 +7,10 @@ import type { Session } from "../models/domain";
 export function AssistantPage({ session }: { session?: Session }) {
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<Array<{ from: "one" | "you"; text: string }>>([{ from: "one", text: "Hello. I can help you review information ONE has received from your home." }]);
-  const events = useQuery({ queryKey: ["events"], queryFn: api.getEvents, retry: false });
-  const objects = useQuery({ queryKey: ["objects"], queryFn: api.getObjects, retry: false });
-  const checkins = useQuery({ queryKey: ["check-in-questions"], queryFn: api.getCheckInQuestions, retry: false });
+  const events = useQuery({ queryKey: ["events", "assistant"], queryFn: () => api.getEvents(sessionStorage.getItem("one_care_recipient_id")), retry: false });
+  const recipientId = sessionStorage.getItem("one_care_recipient_id") || "";
+  const objects = useQuery({ queryKey: ["objects", session?.home.id, recipientId], queryFn: () => api.getObjects(recipientId || null), retry: false });
+  const checkins = useQuery({ queryKey: ["check-in-questions", recipientId], queryFn: () => api.getCheckInQuestions(recipientId || null), retry: false });
   const residentName = session?.home.residentName ?? "the care recipient";
 
   const ask = () => {

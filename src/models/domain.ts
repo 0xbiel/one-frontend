@@ -2,7 +2,7 @@ export type Role = 'caregiver' | 'publisher';
 export type DeviceStatus = 'online' | 'offline' | 'paused';
 export type EventType = 'object.last_seen' | 'presence.changed' | 'clip.created' | 'device.status' | 'privacy.changed';
 export type MapDimension = '2d' | '3d';
-export type MapSource = 'camera-cv-2d' | 'roomplan-lidar-3d' | 'arkit-video-3d' | 'legacy-2d';
+export type MapSource = 'camera-cv-2d' | 'roomplan-lidar-3d' | 'arkit-video-3d' | 'legacy-2d' | 'illustrative-demo';
 export type GeometryStatus = 'collecting' | 'processing' | 'ready' | 'needs_rescan' | 'unavailable' | 'failed' | 'legacy' | string;
 
 export interface Home {
@@ -95,10 +95,10 @@ export interface Zone { id: string; name: string; x: number; y: number; width: n
 export interface LastSeenObject {
   id: string; label: string; icon: string; status: 'seen' | 'unknown'; lastSeenAt: string | null;
   point: { x: number; y: number } | null; confidenceRadiusM: number; confidence: number;
-  worldPoint?: Point3D | null; mapId?: string | null; cameraId?: string | null;
+  worldPoint?: Point3D | null; mapId?: string | null; cameraId?: string | null; careRecipientId?: string | null;
   zone: Zone | null; sourceEventId: string | null;
 }
-export interface HomeEvent { id: string; type: EventType; title: string; detail: string; occurredAt: string; objectId?: string; clipId?: string; cameraId?: string | null; cameraName?: string | null; roomName?: string | null; confidence?: number | null; tone: 'blue' | 'green' | 'amber'; }
+export interface HomeEvent { id: string; type: EventType; title: string; detail: string; occurredAt: string; careRecipientId?: string | null; eventType?: string; objectId?: string; clipId?: string; cameraId?: string | null; cameraName?: string | null; roomName?: string | null; confidence?: number | null; tone: 'blue' | 'green' | 'amber'; }
 export interface Scene {
   sceneId: string;
   version: number;
