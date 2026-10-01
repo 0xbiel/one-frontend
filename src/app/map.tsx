@@ -7,6 +7,7 @@ import { CameraMap2D } from "../map/CameraMap2D";
 import { hasRenderableSpatial3D } from "../map/lidarGeometry";
 import { LocalizationTemporalTrace } from "../map/LocalizationTemporalTrace";
 import { formatTime } from "./shared";
+import { DemoHomeMap } from "./DemoHomeMap";
 
 const LiDARRoomScene3D = lazy(() => import("../map/LiDARRoomScene3D").then((module) => ({ default: module.LiDARRoomScene3D })));
 const RoomPlanFloorPlan2D = lazy(() => import("../map/RoomPlanFloorPlan2D").then((module) => ({ default: module.RoomPlanFloorPlan2D })));
@@ -41,7 +42,7 @@ function objectLocationCopy(object: LastSeenObject, scene: Scene): string {
     : "Approximate camera-space position; add a measured reference to establish scale.";
 }
 
-export function MapPage({ objects, scene }: { objects: LastSeenObject[]; scene: Scene }) {
+export function MapPage({ objects, scene, recipientId }: { objects: LastSeenObject[]; scene: Scene; recipientId: string }) {
   const hasSession = demoMode || Boolean(sessionStorage.getItem("one_access_token"));
   const queryClient = useQueryClient();
   const sceneQuery = useQuery({
@@ -53,8 +54,8 @@ export function MapPage({ objects, scene }: { objects: LastSeenObject[]; scene: 
     refetchIntervalInBackground: false,
   });
   const objectsQuery = useQuery({
-    queryKey: ["objects"],
-    queryFn: api.getObjects,
+    queryKey: ["objects", sessionStorage.getItem("one_home_id"), recipientId],
+    queryFn: () => api.getObjects(recipientId || null),
     enabled: hasSession,
     retry: false,
     refetchInterval: !demoMode && hasSession ? 2_000 : false,
@@ -80,6 +81,9 @@ export function MapPage({ objects, scene }: { objects: LastSeenObject[]; scene: 
   const [savingLocalizationReference, setSavingLocalizationReference] = useState(false);
   const liveScene = sceneQuery.data ?? scene;
   const liveObjects = objectsQuery.data ?? objects;
+  useEffect(() => {
+    setSelected((current) => liveObjects.some((object) => object.id === current) ? current : liveObjects[0]?.id);
+  }, [liveObjects]);
   const displayScene = mapQuery.data ? sceneFromMapResponse(mapQuery.data, liveScene) : liveScene;
   const hasReal3D = hasRenderableSpatial3D(displayScene);
   const positionedCameraCount = (displayScene.cameraRegistrations?.length
@@ -173,6 +177,8 @@ export function MapPage({ objects, scene }: { objects: LastSeenObject[]; scene: 
       setSavingLocalizationReference(false);
     }
   };
+
+  if (demoMode) return <DemoHomeMap />;
 
   return (
     <div className="map-page">
