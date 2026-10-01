@@ -96,7 +96,7 @@ function App() {
 
   if (location.pathname === "/designs") return <Navigate to="/products" replace />;
   if (location.pathname === "/app") return <AppDownloadPage />;
-  if (["/", "/how-it-works", "/products", "/products/hub", "/products/camera", "/products/family", "/products/exterior", "/technology", "/support"].includes(location.pathname)) return <MarketingSite />;
+  if (["/", "/how-it-works", "/products", "/products/hub", "/products/camera", "/products/family", "/products/exterior", "/products/band", "/products/home-speaker", "/products/wall-speaker", "/technology", "/support"].includes(location.pathname)) return <MarketingSite />;
   if (demoMode && !hasDemoAccess && location.pathname !== "/login" && !location.pathname.startsWith("/join") && !location.pathname.startsWith("/camera/")) return <LoginPage />;
   if (demoMode && hasDemoAccess && location.pathname === "/login") return <Navigate to="/dashboard" replace />;
   if (!demoMode && !hasToken && !["/create-account", "/join-household"].includes(location.pathname) && location.pathname !== "/join" && !location.pathname.startsWith("/join/") && !location.pathname.startsWith("/camera/")) return <LoginPage />;

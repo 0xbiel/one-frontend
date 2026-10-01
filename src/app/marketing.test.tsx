@@ -27,14 +27,17 @@ describe("marketing navigation and controls", () => {
     expect(screen.queryByRole("navigation", { name: /design variants/i })).not.toBeInTheDocument();
   });
 
-  it("shows all four products without carousel controls", () => {
+  it("shows all seven products without carousel controls", () => {
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
     renderAt("/products");
     const grid = document.querySelector(".one-site-card-grid");
-    expect(grid?.children).toHaveLength(4);
+    expect(grid?.children).toHaveLength(7);
     expect(grid?.querySelector(".one-site-card-hub")).toBeInTheDocument();
     expect(grid?.querySelector(".one-site-card-camera")).toBeInTheDocument();
     expect(grid?.querySelector(".one-site-card-exterior")).toBeInTheDocument();
+    expect(grid?.querySelector(".one-site-card-band")).toBeInTheDocument();
+    expect(grid?.querySelector(".one-site-card-home-speaker")).toBeInTheDocument();
+    expect(grid?.querySelector(".one-site-card-wall-speaker")).toBeInTheDocument();
     expect(grid?.querySelector(".one-site-card-family")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Previous product" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Next product" })).not.toBeInTheDocument();
@@ -51,7 +54,7 @@ describe("marketing navigation and controls", () => {
 
     fireEvent.pointerEnter(productMenu!, { pointerType: "mouse" });
     const productPages = screen.getByRole("group", { name: "Product pages" });
-    expect(productPages.querySelectorAll("a")).toHaveLength(4);
+    expect(productPages.querySelectorAll("a")).toHaveLength(7);
     expect(productPages.querySelector('a[href="/products/hub"]')).toHaveTextContent("ONE Hub");
     expect(screen.getByRole("link", { name: "Wall Camera" })).toHaveAttribute("aria-current", "page");
 
@@ -119,10 +122,31 @@ describe("marketing navigation and controls", () => {
   });
 
   it.each([
+    ["/products/band", "ONE Band", "/product-assets/companion-devices/one-band.png", "/product-assets/companion-devices/one-band-exploded.png", "/product-assets/companion-devices/one-band-strap.png"],
+    ["/products/home-speaker", "ONE Home Speaker", "/product-assets/companion-devices/one-home-speaker.png", "/product-assets/companion-devices/one-home-speaker-exploded.png", "/product-assets/companion-devices/one-home-speaker-shell.png"],
+    ["/products/wall-speaker", "ONE Wall Speaker", "/product-assets/companion-devices/one-wall-speaker.png", "/product-assets/companion-devices/one-wall-speaker-exploded.png", "/product-assets/companion-devices/one-wall-speaker-mount.png"],
+  ])("shows the complete render and interactive component breakdown for %s", (path, name, completeImage, explodedImage, firstPartImage) => {
+    vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+    renderAt(path);
+
+    expect(screen.getByRole("heading", { name })).toBeInTheDocument();
+    expect(document.querySelector(".one-camera-hero-image img[src='" + completeImage + "']")).toBeInTheDocument();
+    expect(document.querySelector(".one-product-anatomy-overview img[src='" + explodedImage + "']")).toBeInTheDocument();
+    expect(document.querySelector(".one-product-anatomy-visual img[src='" + firstPartImage + "']")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Inside the concept" })).toBeInTheDocument();
+    expect(document.querySelectorAll(".one-product-anatomy-overview-list li")).toHaveLength(3);
+    fireEvent.click(screen.getByRole("button", { name: "Next component" }));
+    expect(document.querySelectorAll(".one-product-anatomy-visual img")).toHaveLength(1);
+  });
+
+  it.each([
     ["/products/hub", [], ["/products/camera"]],
     ["/products/camera", ["/products/hub"], ["/products/exterior"]],
-    ["/products/exterior", ["/products/camera"], ["/products/family"]],
-    ["/products/family", ["/products/exterior"], []],
+    ["/products/exterior", ["/products/camera"], ["/products/band"]],
+    ["/products/band", ["/products/exterior"], ["/products/home-speaker"]],
+    ["/products/home-speaker", ["/products/band"], ["/products/wall-speaker"]],
+    ["/products/wall-speaker", ["/products/home-speaker"], ["/products/family"]],
+    ["/products/family", ["/products/wall-speaker"], []],
   ])("shows contextual product links on %s", (path, previous, next) => {
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
     renderAt(path);
@@ -222,7 +246,7 @@ describe("marketing navigation and controls", () => {
     expect(document.querySelector(".one-how-chart")).toHaveClass("is-visible");
   });
 
-  it.each(["/", "/products/hub", "/products/camera", "/products/exterior", "/how-it-works", "/technology", "/support"])("shows legal links on %s", path => {
+  it.each(["/", "/products/hub", "/products/camera", "/products/exterior", "/products/band", "/products/home-speaker", "/products/wall-speaker", "/how-it-works", "/technology", "/support"])("shows legal links on %s", path => {
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
     renderAt(path);
     expect(screen.getByRole("navigation", { name: "Legal documents" })).toBeInTheDocument();
@@ -232,7 +256,7 @@ describe("marketing navigation and controls", () => {
     const view = render(<MemoryRouter initialEntries={["/app"]}><AppDownloadPage /></MemoryRouter>);
     expect(screen.getByRole("navigation", { name: "Legal documents" })).toBeInTheDocument();
     const mainNavigation = view.container.querySelector(".one-site-header-main .one-site-nav");
-    expect(mainNavigation?.querySelectorAll("a")).toHaveLength(10);
+    expect(mainNavigation?.querySelectorAll("a")).toHaveLength(13);
     expect(mainNavigation?.querySelector("a.active")).toHaveTextContent("ONE app");
   });
 

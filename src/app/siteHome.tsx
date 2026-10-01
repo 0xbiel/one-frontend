@@ -9,6 +9,9 @@ const homeProducts = [
   { name: "ONE Hub", to: "/products/hub", image: "/product-assets/hub-product-v3.png", description: "A display concept for home information." },
   { name: "Standing Camera", to: "/products/camera", image: "/product-assets/camera-anatomy/standing-camera.webp", description: "An indoor camera for the home." },
   { name: "Wall Camera", to: "/products/exterior", image: "/product-assets/camera-anatomy/wall-camera.webp", description: "A wall-mounted camera for the home." },
+  { name: "ONE Band", to: "/products/band", image: "/product-assets/companion-devices/one-band.png", description: "A woven wearable concept with a compact sensor." },
+  { name: "ONE Home Speaker", to: "/products/home-speaker", image: "/product-assets/companion-devices/one-home-speaker.png", description: "A fabric speaker concept with simple controls." },
+  { name: "ONE Wall Speaker", to: "/products/wall-speaker", image: "/product-assets/companion-devices/one-wall-speaker.png", description: "A compact wall-mounted audio concept." },
   { name: "ONE Family", to: "/products/family", image: "/one-app-icon-512.png", description: "Shared information for people with access." },
 ];
 

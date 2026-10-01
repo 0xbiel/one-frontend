@@ -12,12 +12,15 @@ import "./marketingPolish.css";
 import "./marketingExperience.css";
 import "./marketingHeader.css";
 
-type ProductId = "hub" | "camera" | "family" | "exterior";
+type ProductId = "hub" | "camera" | "family" | "exterior" | "band" | "home-speaker" | "wall-speaker";
 
 const products = [
   { id: "hub" as const, name: "ONE Hub", description: "A display concept for a more connected view of home information.", image: "/product-assets/hub-product-v3.png" },
   { id: "camera" as const, name: "Standing Camera", description: "An indoor camera concept shown with its proposed components.", image: "/product-assets/camera-anatomy/standing-camera.webp" },
   { id: "exterior" as const, name: "Wall Camera", description: "A wall-mounted camera concept shown with its proposed components.", image: "/product-assets/camera-anatomy/wall-camera.webp" },
+  { id: "band" as const, name: "ONE Band", description: "A woven wearable concept with a compact sensor module.", image: "/product-assets/companion-devices/one-band.png" },
+  { id: "home-speaker" as const, name: "ONE Home Speaker", description: "A soft fabric speaker concept for shared home audio.", image: "/product-assets/companion-devices/one-home-speaker.png" },
+  { id: "wall-speaker" as const, name: "ONE Wall Speaker", description: "A compact wall-mounted audio concept for the home.", image: "/product-assets/companion-devices/one-wall-speaker.png" },
   { id: "family" as const, name: "ONE Family", description: "Share the home information available to people with access.", image: "/one-app-icon-512.png" },
 ];
 
@@ -62,6 +65,9 @@ export function SiteHeader({ section }: { section: string }) {
     { id: "hub", label: "ONE Hub" },
     { id: "camera", label: "Standing Camera" },
     { id: "exterior", label: "Wall Camera" },
+    { id: "band", label: "ONE Band" },
+    { id: "home-speaker", label: "ONE Home Speaker" },
+    { id: "wall-speaker", label: "ONE Wall Speaker" },
     { id: "family", label: "ONE Family" },
   ];
   const closeMenus = () => {
@@ -157,7 +163,7 @@ function ProductNeighborNav({ previous, next }: { previous?: ProductNeighbor; ne
 }
 
 function ProductsPage() {
-  const ids: ProductId[] = ["hub", "camera", "exterior", "family"];
+  const ids: ProductId[] = ["hub", "camera", "exterior", "band", "home-speaker", "wall-speaker", "family"];
   return <>
     <section className="one-site-products-hero">
       <div className="one-site-products-intro"><h1>Products</h1></div>
@@ -296,11 +302,91 @@ function DetailPage({ device }: { device: "hub" }) {
   </>;
 }
 
+const companionProductConcepts = {
+  band: {
+    name: "ONE Band",
+    description: "A lightweight wearable concept pairing a woven strap with a compact sensor module.",
+    intro: "ONE Band explores a simple wearable form: a soft textile loop, a compact sensor housing, and a practical closure. The individual parts are shown separately to explain how they might fit together. Any sensors or tracking features would depend on the final design and confirmed capabilities.",
+    steps: [
+      { title: "Wearable form", description: "A woven loop is designed to sit comfortably around the wrist." },
+      { title: "Sensor housing", description: "A small removable capsule represents the proposed electronics enclosure." },
+      { title: "Secure fit", description: "The clasp concept joins the strap and includes contact points for charging." },
+    ],
+    complete: "/product-assets/companion-devices/one-band.png",
+    exploded: "/product-assets/companion-devices/one-band-exploded.png",
+    parts: [
+      { name: "Woven strap", image: "/product-assets/companion-devices/one-band-strap.png", description: "The textile loop forms a flexible, adjustable band around the wrist." },
+      { name: "Sensor module", image: "/product-assets/companion-devices/one-band-sensor.png", description: "The compact metal capsule represents a proposed enclosure for wearable electronics." },
+      { name: "Clasp and contacts", image: "/product-assets/companion-devices/one-band-clasp.png", description: "The closure joins the strap ends; small contacts illustrate a possible charging connection." },
+    ],
+  },
+  "home-speaker": {
+    name: "ONE Home Speaker",
+    description: "A compact home audio concept with a soft woven shell and simple top controls.",
+    intro: "The ONE Home Speaker is shown as a fabric-covered audio concept. Its outer shell surrounds a speaker driver, while a light ring and simple controls sit on top. Any prompts or responses would depend on the final hardware, software, connectivity, and household permissions.",
+    steps: [
+      { title: "Acoustic shell", description: "A woven exterior gives the compact speaker its soft home-friendly form." },
+      { title: "Audio core", description: "A driver and electronics assembly sit inside the textile enclosure." },
+      { title: "Top controls", description: "A light ring and touch surface show how basic device status could be communicated." },
+    ],
+    complete: "/product-assets/companion-devices/one-home-speaker.png",
+    exploded: "/product-assets/companion-devices/one-home-speaker-exploded.png",
+    parts: [
+      { name: "Woven acoustic shell", image: "/product-assets/companion-devices/one-home-speaker-shell.png", description: "The fabric-covered shell forms the speaker body and lets sound pass through its woven surface." },
+      { name: "Driver and electronics", image: "/product-assets/companion-devices/one-home-speaker-driver.png", description: "The driver and circuit board represent the internal components needed for audio playback." },
+      { name: "Control cap and light ring", image: "/product-assets/companion-devices/one-home-speaker-cap.png", description: "The touch cap groups the basic controls; its illuminated ring shows a proposed status indicator." },
+    ],
+  },
+  "wall-speaker": {
+    name: "ONE Wall Speaker",
+    description: "A small wall-mounted audio concept designed to sit neatly in a room.",
+    intro: "The ONE Wall Speaker concept places a compact audio unit against a wall to keep surfaces clear. Its exploded view separates the mounting plate, enclosure, and acoustic grille. Final sound features, installation requirements, and compatibility have not been confirmed.",
+    steps: [
+      { title: "Mount in place", description: "A circular plate and connector hold the unit against a suitable wall." },
+      { title: "Protect the audio core", description: "The smooth enclosure surrounds the proposed speaker components." },
+      { title: "Let sound through", description: "A perforated grille covers the front while allowing audio to pass." },
+    ],
+    complete: "/product-assets/companion-devices/one-wall-speaker.png",
+    exploded: "/product-assets/companion-devices/one-wall-speaker-exploded.png",
+    parts: [
+      { name: "Wall mount", image: "/product-assets/companion-devices/one-wall-speaker-mount.png", description: "The plate and connector provide a compact mounting point for the wall speaker concept." },
+      { name: "Speaker enclosure", image: "/product-assets/companion-devices/one-wall-speaker-enclosure.png", description: "The matte enclosure houses the proposed audio components and attaches to the mount." },
+      { name: "Acoustic grille", image: "/product-assets/companion-devices/one-wall-speaker-grille.png", description: "The perforated front panel protects the speaker face while allowing sound to pass." },
+    ],
+  },
+} as const;
+
+type CompanionProductId = keyof typeof companionProductConcepts;
+
+function CompanionProductPage({ productId }: { productId: CompanionProductId }) {
+  const product = companionProductConcepts[productId];
+  const chain: readonly ProductId[] = ["hub", "camera", "exterior", "band", "home-speaker", "wall-speaker", "family"];
+  const index = chain.indexOf(productId);
+  const previousId = chain[index - 1];
+  const nextId = chain[index + 1];
+  const neighbors = products.filter(item => item.id === previousId || item.id === nextId);
+  const previous = previousId ? neighbors.find(item => item.id === previousId) : undefined;
+  const next = nextId ? neighbors.find(item => item.id === nextId) : undefined;
+
+  return <>
+    <section className="one-camera-hero one-camera-hero-companion">
+      <div className="one-camera-hero-copy">
+        <h1>{product.name}</h1>
+        <p>{product.description}</p>
+        <p className="one-camera-concept-note">Hardware concept. Final design, specifications, and availability are not confirmed.</p>
+      </div>
+      <div className="one-camera-hero-image"><img src={product.complete} alt={product.name + " complete hardware concept"} /></div>
+    </section>
+    <ProductAnatomySequence name={product.name} intro={product.intro} steps={product.steps} parts={product.parts} overviewSrc={product.exploded} overviewAlt={"Exploded view of " + product.name + ", showing its proposed components"} overviewLayout="landscape" />
+    <ProductNeighborNav previous={previous && { id: previous.id, label: previous.name }} next={next && { id: next.id, label: next.name }} />
+  </>;
+}
+
 function AdditionalProductPage() {
   return <>
     <section className="one-extra-product-hero"><div><h1>ONE Family</h1><p>Share the home information available to people with access.</p></div><img src="/one-app-icon-512.png" alt="ONE Family app icon" /></section>
     <section className="one-extra-product-details"><h2>Shared access</h2><div>{[["Shared summaries", "Review home information available to your account."], ["Shared care", "People with access can see information relevant to their role."], ["Human review", "Use observations as context for a conversation or professional review."]].map(([heading, description], index) => <article key={heading}><b>0{index + 1}</b><h3>{heading}</h3><p>{description}</p></article>)}</div></section>
-    <ProductNeighborNav previous={{ id: "exterior", label: "Wall Camera" }} />
+    <ProductNeighborNav previous={{ id: "wall-speaker", label: "ONE Wall Speaker" }} />
   </>;
 }
 
@@ -354,7 +440,7 @@ const cameraConcepts = {
 function CameraConceptPage({ model }: { model: "standing" | "wall" }) {
   const camera = cameraConcepts[model];
   const previous = model === "standing" ? { id: "hub" as const, label: "ONE Hub" } : { id: "camera" as const, label: "Standing Camera" };
-  const next = model === "standing" ? { id: "exterior" as const, label: "Wall Camera" } : { id: "family" as const, label: "ONE Family" };
+  const next = model === "standing" ? { id: "exterior" as const, label: "Wall Camera" } : { id: "band" as const, label: "ONE Band" };
 
   return <>
     <section className={`one-camera-hero one-camera-hero-${model}`}>
@@ -441,11 +527,11 @@ function SupportPage() {
 export function MarketingSite() {
   const location = useLocation();
   useEffect(() => { window.scrollTo({ top: 0, behavior: "instant" }); }, [location.pathname, location.search]);
-  const isDetail = ["/products/hub", "/products/camera", "/products/family", "/products/exterior"].includes(location.pathname);
+  const isDetail = ["/products/hub", "/products/camera", "/products/family", "/products/exterior", "/products/band", "/products/home-speaker", "/products/wall-speaker"].includes(location.pathname);
   const section = location.pathname === "/" ? "home" : location.pathname === "/how-it-works" ? "how" : location.pathname === "/technology" ? "technology" : location.pathname === "/support" ? "support" : isDetail ? "detail" : "products";
   return <main className={`one-site one-site-${section}`}>
     <SiteHeader section={section} />
-    {section === "home" ? <SiteHome /> : section === "how" ? <HowItWorksPage /> : section === "products" ? <ProductsPage /> : section === "detail" ? location.pathname === "/products/camera" ? <CameraConceptPage model="standing" /> : location.pathname === "/products/exterior" ? <CameraConceptPage model="wall" /> : location.pathname.endsWith("/family") ? <AdditionalProductPage /> : <DetailPage device="hub" /> : section === "technology" ? <TechnologyPage /> : <SupportPage key={location.pathname} />}
+    {section === "home" ? <SiteHome /> : section === "how" ? <HowItWorksPage /> : section === "products" ? <ProductsPage /> : section === "detail" ? location.pathname === "/products/camera" ? <CameraConceptPage model="standing" /> : location.pathname === "/products/exterior" ? <CameraConceptPage model="wall" /> : location.pathname === "/products/band" ? <CompanionProductPage productId="band" /> : location.pathname === "/products/home-speaker" ? <CompanionProductPage productId="home-speaker" /> : location.pathname === "/products/wall-speaker" ? <CompanionProductPage productId="wall-speaker" /> : location.pathname.endsWith("/family") ? <AdditionalProductPage /> : <DetailPage device="hub" /> : section === "technology" ? <TechnologyPage /> : <SupportPage key={location.pathname} />}
     <div id="site-footer"><SiteFooter /></div>
     <button className="one-site-back-top" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label="Back to top"><ArrowDown size={19} /></button>
   </main>;
