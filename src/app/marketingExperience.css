@@ -1291,14 +1291,14 @@
   background: transparent;
   box-shadow: none;
   backdrop-filter: none;
-  transition: background-color 180ms ease;
+  transition: background-color 180ms ease, box-shadow 180ms ease;
 }
 
 .one-site-header.is-scrolled {
   height: auto;
   margin: 0;
-  background: transparent;
-  box-shadow: none;
+  background: #fff;
+  box-shadow: 0 7px 20px #17314d12;
 }
 
 .one-site-header-main {

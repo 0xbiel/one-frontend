@@ -39,7 +39,7 @@ export function SiteHeader({ section }: { section: string }) {
   const [isScrolled, setIsScrolled] = useState(false);
   useEffect(() => {
     const updateScrollState = () => {
-      setIsScrolled(window.scrollY > 24);
+      setIsScrolled(window.scrollY > 2);
     };
     updateScrollState();
     window.addEventListener("scroll", updateScrollState, { passive: true });
