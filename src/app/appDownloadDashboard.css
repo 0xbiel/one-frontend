@@ -1,0 +1,264 @@
+.one-app-preview-home {
+  gap: 9px;
+  padding: 1px 3px 6px;
+}
+
+.one-app-preview-home h2 {
+  margin-top: -2px;
+  font-size: 23px;
+}
+
+.one-app-preview-care-space {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 17px;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 62px;
+  padding: 8px 10px;
+  border: 1px solid #e6edf1;
+  border-radius: 15px;
+  background: #fff;
+  color: #203a55;
+  text-align: left;
+  cursor: pointer;
+}
+
+.one-app-preview-care-space-icon {
+  display: grid;
+  place-items: center;
+  width: 39px;
+  height: 39px;
+  border-radius: 11px;
+  background: #eaf2ff;
+  color: #1767df;
+}
+
+.one-app-preview-care-space > span:nth-child(2) {
+  display: grid;
+  gap: 2px;
+}
+
+.one-app-preview-care-space small {
+  color: #738294;
+  font-size: 8px;
+  line-height: 1.25;
+}
+
+.one-app-preview-care-space small:first-child {
+  color: #2384a2;
+  font-weight: 800;
+  letter-spacing: .05em;
+}
+
+.one-app-preview-care-space strong {
+  color: #203a55;
+  font-size: 11px;
+}
+
+.one-app-preview-space-menu {
+  display: flex;
+  gap: 7px;
+}
+
+.one-app-preview-space-menu button {
+  flex: 1;
+  min-height: 30px;
+  border: 1px solid #dce7ef;
+  border-radius: 9px;
+  background: #fff;
+  color: #52677d;
+  font-size: 9px;
+}
+
+.one-app-preview-space-menu button[aria-pressed="true"] {
+  border-color: #78afd0;
+  background: #eef8fc;
+  color: #116c9d;
+}
+
+.one-app-preview-overview {
+  display: grid;
+  gap: 7px;
+  padding: 12px;
+  border: 1px solid #e5edf1;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.one-app-preview-overview h3,
+.one-app-preview-glance h3,
+.one-app-preview-events h3 {
+  margin: 0;
+  color: #203a55;
+  font-size: 14px;
+  letter-spacing: -.02em;
+}
+
+.one-app-preview-overview > strong {
+  color: #526477;
+  font-size: 10px;
+}
+
+.one-app-preview-overview > small {
+  color: #718294;
+  font-size: 9px;
+}
+
+.one-app-preview-start,
+.one-app-preview-plan {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.one-app-preview-start {
+  margin-top: 2px;
+  background: #1769e7;
+  color: #fff;
+}
+
+.one-app-preview-plan {
+  background: #d2f2f0;
+  color: #173e4c;
+}
+
+.one-app-preview-glance {
+  display: grid;
+  gap: 7px;
+}
+
+.one-app-preview-glance > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.one-app-preview-glance > div > button {
+  display: grid;
+  grid-template-columns: 19px minmax(0, 1fr) 14px;
+  align-items: center;
+  gap: 5px 7px;
+  padding: 10px;
+  border: 0;
+  border-radius: 14px;
+  background: #eef3ff;
+  color: #1767df;
+  text-align: left;
+  cursor: pointer;
+}
+
+.one-app-preview-glance > div > button strong,
+.one-app-preview-glance > div > button small {
+  grid-column: 2;
+}
+
+.one-app-preview-glance > div > button > svg:first-child {
+  grid-row: span 2;
+}
+
+.one-app-preview-glance > div > button > svg:last-child {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+}
+
+.one-app-preview-glance strong {
+  color: #203a55;
+  font-size: 10px;
+}
+
+.one-app-preview-glance small {
+  color: #718294;
+  font-size: 8px;
+}
+
+.one-app-preview-events {
+  display: grid;
+  gap: 5px;
+}
+
+.one-app-preview-events > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+
+.one-app-preview-events > div > span {
+  color: #718294;
+  font-size: 8px;
+}
+
+.one-app-preview-events > button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 7px 9px;
+  border: 1px solid #e7edf1;
+  border-radius: 12px;
+  background: #fff;
+  color: #4085c7;
+  text-align: left;
+  cursor: pointer;
+}
+
+.one-app-preview-events > button > span {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+}
+
+.one-app-preview-events > button strong {
+  color: #314a62;
+  font-size: 9px;
+}
+
+.one-app-preview-events > button small {
+  color: #718294;
+  font-size: 8px;
+}
+
+.one-app-preview-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  padding: 5px 0;
+  border: 0;
+  background: transparent;
+  color: #1769aa;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.one-app-preview-legal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 0;
+  border-bottom: 1px solid #e5edf1;
+  color: #1769aa;
+  font-size: 10px;
+  text-decoration: none;
+}
+
+.one-app-preview-care-space:focus-visible,
+.one-app-preview-space-menu button:focus-visible,
+.one-app-preview-overview button:focus-visible,
+.one-app-preview-glance button:focus-visible,
+.one-app-preview-events button:focus-visible,
+.one-app-preview-back:focus-visible,
+.one-app-preview-legal:focus-visible {
+  outline: 2px solid #087dbb;
+  outline-offset: 2px;
+}
