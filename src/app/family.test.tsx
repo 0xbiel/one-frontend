@@ -52,4 +52,27 @@ describe("Family access management", () => {
     fireEvent.click(screen.getByRole("button", { name: /confirm remove access/i }));
     await waitFor(() => expect(screen.queryByLabelText(/Jordi García, Viewer/)).not.toBeInTheDocument());
   });
+
+  it("loads a separate medication schedule for each care recipient", async () => {
+    sessionStorage.setItem("one_care_recipient_id", "recipient-manuel");
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={client}><MemoryRouter><FamilyPage /></MemoryRouter></QueryClientProvider>);
+
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Medication schedule for Manuel García" })).toBeInTheDocument());
+    expect(screen.getByText("Daily @ 07:45")).toBeInTheDocument();
+    expect(screen.getByText("Daily @ 13:15")).toBeInTheDocument();
+    expect(screen.queryByText("Daily @ 20:00")).not.toBeInTheDocument();
+    expect(document.querySelector(".dose-list")?.children).toHaveLength(3);
+    expect(screen.getByText("Daily @ 13:15")).toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByRole("button", { name: /María García/ })[0]);
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Medication schedule for María García" })).toBeInTheDocument());
+    expect(sessionStorage.getItem("one_care_recipient_id")).toBe("recipient-maria");
+    await waitFor(() => expect(screen.getByText("Daily @ 08:00")).toBeInTheDocument());
+    expect(screen.getByText("Daily @ 20:00")).toBeInTheDocument();
+    expect(screen.queryByText("Daily @ 07:45")).not.toBeInTheDocument();
+    expect(screen.queryByText("Daily @ 13:15")).not.toBeInTheDocument();
+    expect(screen.queryByText("Daily @ 13:15")).not.toBeInTheDocument();
+    expect(document.querySelector(".dose-list")?.children).toHaveLength(2);
+  });
 });

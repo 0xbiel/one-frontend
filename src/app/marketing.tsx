@@ -218,7 +218,7 @@ function ProductAnatomySequence({ name, parts, overviewSrc, overviewAlt, overvie
   if (!activePart) return null;
   return <section className="one-product-anatomy" aria-label={`${name} concept breakdown`}>
     <div className="one-product-anatomy-heading"><h2>Inside the concept</h2></div>
-    <div className="one-product-anatomy-track" ref={trackRef} style={{ "--part-count": parts.length } as React.CSSProperties}>
+    <div className="one-product-anatomy-track" ref={trackRef} style={{ "--part-count": parts.length, "--part-scroll-height": `${parts.length * 52}svh` } as React.CSSProperties}>
       <article className="one-product-anatomy-stage" ref={stageRef} tabIndex={0} aria-live="polite" onKeyDown={event => {
         if (event.key === "ArrowRight") goToPart(activeIndex + 1);
         if (event.key === "ArrowLeft") goToPart(activeIndex - 1);

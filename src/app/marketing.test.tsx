@@ -85,6 +85,7 @@ describe("marketing navigation and controls", () => {
     expect(screen.getByRole("heading", { name: cameraName })).toBeInTheDocument();
     expect(screen.getByText(/Final design, specifications, and availability are not confirmed/)).toBeInTheDocument();
     const track = document.querySelector(".one-product-anatomy-track");
+    expect((track as HTMLElement).style.getPropertyValue("--part-scroll-height")).toBe("416svh");
     const explodedView = document.querySelector(`.one-product-anatomy-overview img[src="${explodedImage}"]`);
     expect(explodedView).toBeInTheDocument();
     expect(track?.compareDocumentPosition(explodedView!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);

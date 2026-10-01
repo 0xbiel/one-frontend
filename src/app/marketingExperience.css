@@ -1990,6 +1990,73 @@
   }
 }
 
+/* Keep the product concept title in view while the component sequence advances. */
+.one-product-anatomy-heading {
+  position: sticky;
+  top: 68px;
+  z-index: 5;
+  align-items: center;
+  min-height: 64px;
+  margin-bottom: 0;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  background: #f6f7f4;
+  box-shadow: 0 1px 0 #e3e9e6;
+}
+
+.one-product-anatomy-heading h2 {
+  font-size: clamp(27px, 3vw, 40px);
+}
+
+.one-product-anatomy-stage {
+  top: 132px;
+  height: min(calc(100svh - 150px), 700px);
+}
+
+.one-product-anatomy-track {
+  padding-top: min(18svh, 170px);
+  min-height: calc(var(--part-scroll-height) + min(calc(100svh - 150px), 700px) + min(18svh, 170px));
+}
+
+@media (max-width: 800px) {
+  .one-product-anatomy-heading {
+    top: 68px;
+    min-height: 58px;
+  }
+
+  .one-product-anatomy-stage {
+    top: 126px;
+    height: min(calc(100svh - 142px), 620px);
+  }
+
+  .one-product-anatomy-track {
+    padding-top: min(16svh, 130px);
+    min-height: calc(var(--part-scroll-height) + min(calc(100svh - 142px), 620px) + min(16svh, 130px));
+  }
+}
+
+@media (max-width: 580px) {
+  .one-product-anatomy-heading {
+    min-height: 54px;
+    padding-right: 4px;
+    padding-left: 4px;
+  }
+
+  .one-product-anatomy-heading h2 {
+    font-size: clamp(25px, 7vw, 31px);
+  }
+
+  .one-product-anatomy-stage {
+    top: 122px;
+    height: min(calc(100svh - 136px), 560px);
+  }
+
+  .one-product-anatomy-track {
+    padding-top: min(15svh, 100px);
+    min-height: calc(var(--part-scroll-height) + min(calc(100svh - 136px), 560px) + min(15svh, 100px));
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .one-site-header-main,
   .one-site-product-subnav,

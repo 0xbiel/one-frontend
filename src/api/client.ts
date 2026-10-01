@@ -706,7 +706,55 @@ export type CareRecipientUpdateInput = Partial<CareRecipientCreateInput>;
 export interface MedicationReminder { plan_id: string; name: string; dose: string; instructions: string; schedule_rule: string; scheduled_for: string; status: 'pending' | 'taken' | 'skipped' | 'missed'; note: string; updated_at?: string | null; assigned_caregiver_id?: string | null; assigned_caregiver_name?: string | null; }
 export type MedicationCheckInStatus = 'taken' | 'skipped' | 'missed' | 'pending';
 export interface FamilyInviteResponse { id: string; code: string; role: string; expires_in_seconds: number; synthetic_demo?: boolean; }
-export interface MedicationPlan { id: string; subject_user_id: string; name: string; dose: string; schedule: string; instructions: string; active: boolean; version: number; assigned_caregiver_id?: string | null; }
+export interface MedicationPlan { id: string; subject_user_id?: string | null; care_recipient_id?: string | null; name: string; dose: string; schedule: string; instructions: string; active: boolean; version: number; assigned_caregiver_id?: string | null; }
+
+const demoMedicationPlans: Record<string, MedicationPlan[]> = {
+  'recipient-maria': [
+    { id: 'plan-maria-morning', subject_user_id: 'user-demo', care_recipient_id: 'recipient-maria', name: 'Morning reminder', dose: 'As recorded by the care team', schedule: 'Daily @ 08:00', instructions: 'After breakfast', active: true, version: 1, assigned_caregiver_id: 'caregiver-demo' },
+    { id: 'plan-maria-evening', subject_user_id: 'user-demo', care_recipient_id: 'recipient-maria', name: 'Evening reminder', dose: 'As recorded by the care team', schedule: 'Daily @ 20:00', instructions: 'Evening routine', active: true, version: 1, assigned_caregiver_id: 'caregiver-demo' },
+  ],
+  'recipient-manuel': [
+    { id: 'plan-manuel-morning', subject_user_id: 'user-demo', care_recipient_id: 'recipient-manuel', name: 'Morning reminder', dose: 'As recorded by the care team', schedule: 'Daily @ 07:45', instructions: 'After breakfast', active: true, version: 1, assigned_caregiver_id: 'caregiver-demo' },
+    { id: 'plan-manuel-midday', subject_user_id: 'user-demo', care_recipient_id: 'recipient-manuel', name: 'Midday reminder', dose: 'As recorded by the care team', schedule: 'Daily @ 13:15', instructions: 'With lunch', active: true, version: 1, assigned_caregiver_id: 'jordi-demo' },
+    { id: 'plan-manuel-evening', subject_user_id: 'user-demo', care_recipient_id: 'recipient-manuel', name: 'Evening reminder', dose: 'As recorded by the care team', schedule: 'Daily @ 20:30', instructions: 'Before bed', active: true, version: 1, assigned_caregiver_id: 'nuria-demo' },
+  ],
+};
+
+const demoCaregiverNames: Record<string, string> = {
+  'caregiver-demo': 'Clara García',
+  'jordi-demo': 'Jordi García',
+  'nuria-demo': 'Nuria García',
+};
+
+function demoScheduleTimes(schedule: string, day: string): string[] {
+  const weekday = new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(new Date(`${day}T12:00:00`));
+  return [...new Set(schedule.split(';').flatMap((rule) => {
+    const match = rule.trim().match(/^(.+?)\s*@\s*(\d{1,2}:\d{2})$/);
+    if (!match) return [];
+    const [scope, time] = [match[1].trim(), match[2]];
+    const appliesToday = scope.toLowerCase() === 'daily' || scope === day || scope.split(',').map((part) => part.trim()).includes(weekday);
+    return appliesToday ? [time] : [];
+  }))].sort();
+}
+
+function demoRemindersForRecipient(day: string, careRecipientId?: string): MedicationReminder[] {
+  if (!careRecipientId) return [];
+  return (demoMedicationPlans[careRecipientId] ?? []).filter((plan) => plan.active).flatMap((plan) => {
+    const status: MedicationReminder['status'] = plan.id.endsWith('morning') ? 'taken' : 'pending';
+    return demoScheduleTimes(plan.schedule, day).map((time) => ({
+      plan_id: plan.id,
+      name: plan.name,
+      dose: plan.dose,
+      instructions: plan.instructions,
+      schedule_rule: plan.schedule,
+      scheduled_for: new Date(`${day}T${time}:00`).toISOString(),
+      status,
+      note: status === 'taken' ? 'Acknowledged by the assigned caregiver' : '',
+      assigned_caregiver_id: plan.assigned_caregiver_id ?? null,
+      assigned_caregiver_name: plan.assigned_caregiver_id ? demoCaregiverNames[plan.assigned_caregiver_id] ?? null : null,
+    }));
+  }).sort((a, b) => a.scheduled_for.localeCompare(b.scheduled_for));
+}
 
 const token = () => sessionStorage.getItem('one_access_token');
 const homeId = () => sessionStorage.getItem('one_home_id') ?? 'current';
@@ -1103,10 +1151,29 @@ export const api = {
   createFamilyInvite: async (displayName: string, email: string, role: 'resident' | 'caregiver' = 'caregiver'): Promise<FamilyInviteResponse> => demoMode ? { id: 'invite-demo', code: '482701', role, expires_in_seconds: 86400, synthetic_demo: true } : request<FamilyInviteResponse>(`/homes/${homeId()}/family/invites`, { method: 'POST', body: JSON.stringify({ display_name: displayName, email: email || null, role, expires_in_seconds: 86400 }) }),
   updateFamilyMember: async (memberId: string, role: EditableFamilyRole): Promise<FamilyMemberMutationResponse> => demoMode ? { data: { id: memberId, display_name: 'Family member', role, created_at: new Date().toISOString(), synthetic_demo: true }, invalidated_sessions: 0 } : request<FamilyMemberMutationResponse>(`/homes/${homeId()}/family/members/${encodeURIComponent(memberId)}`, { method: 'PATCH', body: JSON.stringify({ role }) }),
   removeFamilyMember: async (memberId: string): Promise<FamilyMemberMutationResponse> => demoMode ? { data: { id: memberId, display_name: 'Household member', role: 'resident', created_at: new Date().toISOString(), synthetic_demo: true }, invalidated_sessions: 0 } : request<FamilyMemberMutationResponse>(`/homes/${homeId()}/family/members/${encodeURIComponent(memberId)}`, { method: 'DELETE' }),
-  getMedicationReminders: async (day = new Date().toISOString().slice(0, 10), subjectUserId?: string): Promise<MedicationReminder[]> => demoMode ? [] : (await request<{ data: MedicationReminder[] }>(`/homes/${homeId()}/medication-reminders?day=${encodeURIComponent(day)}${subjectUserId ? `&subject_user_id=${encodeURIComponent(subjectUserId)}` : ''}`)).data,
-  getMedicationPlans: async (subjectUserId?: string, activeOnly = true): Promise<MedicationPlan[]> => demoMode ? [] : (await request<{ data: MedicationPlan[] }>(`/homes/${homeId()}/medication-plans?active_only=${activeOnly}${subjectUserId ? `&subject_user_id=${encodeURIComponent(subjectUserId)}` : ''}`)).data,
-  createMedicationPlan: async (input: Omit<MedicationPlan, 'id' | 'active' | 'version'> & { active?: boolean }): Promise<MedicationPlan> => demoMode ? { ...input, id: 'plan-demo', active: input.active ?? true, version: 1 } : request<MedicationPlan>(`/homes/${homeId()}/medication-plans`, { method: 'POST', body: JSON.stringify(input) }),
-  updateMedicationPlan: async (planId: string, input: Partial<Pick<MedicationPlan, 'name' | 'dose' | 'schedule' | 'instructions' | 'active' | 'assigned_caregiver_id'>> & { version?: number }): Promise<MedicationPlan> => demoMode ? { id: planId, subject_user_id: 'user-demo', name: input.name ?? 'Daily plan', dose: input.dose ?? '', schedule: input.schedule ?? '', instructions: input.instructions ?? '', active: input.active ?? true, version: (input.version ?? 1) + 1, assigned_caregiver_id: input.assigned_caregiver_id } : request<MedicationPlan>(`/homes/${homeId()}/medication-plans/${encodeURIComponent(planId)}`, { method: 'PATCH', body: JSON.stringify(input) }),
+  getMedicationReminders: async (day = new Date().toISOString().slice(0, 10), subjectUserId?: string, careRecipientId?: string): Promise<MedicationReminder[]> => demoMode ? demoRemindersForRecipient(day, careRecipientId) : (await request<{ data: MedicationReminder[] }>(`/homes/${homeId()}/medication-reminders?day=${encodeURIComponent(day)}${subjectUserId ? `&subject_user_id=${encodeURIComponent(subjectUserId)}` : ''}${careRecipientId ? `&care_recipient_id=${encodeURIComponent(careRecipientId)}` : ''}`)).data,
+  getMedicationPlans: async (subjectUserId?: string, activeOnly = true, careRecipientId?: string): Promise<MedicationPlan[]> => {
+    if (demoMode) return careRecipientId ? (demoMedicationPlans[careRecipientId] ?? []).filter((plan) => !activeOnly || plan.active).map((plan) => ({ ...plan })) : [];
+    return (await request<{ data: MedicationPlan[] }>(`/homes/${homeId()}/medication-plans?active_only=${activeOnly}${subjectUserId ? `&subject_user_id=${encodeURIComponent(subjectUserId)}` : ''}${careRecipientId ? `&care_recipient_id=${encodeURIComponent(careRecipientId)}` : ''}`)).data;
+  },
+  createMedicationPlan: async (input: Omit<MedicationPlan, 'id' | 'active' | 'version'> & { active?: boolean }): Promise<MedicationPlan> => {
+    if (!demoMode) return request<MedicationPlan>(`/homes/${homeId()}/medication-plans`, { method: 'POST', body: JSON.stringify(input) });
+    const id = input.care_recipient_id ?? 'unassigned';
+    const plans = demoMedicationPlans[id] ?? (demoMedicationPlans[id] = []);
+    const plan: MedicationPlan = { ...input, id: `plan-${id}-${Date.now()}`, active: input.active ?? true, version: 1 };
+    plans.push(plan);
+    return { ...plan };
+  },
+  updateMedicationPlan: async (planId: string, input: Partial<Pick<MedicationPlan, 'name' | 'dose' | 'schedule' | 'instructions' | 'active' | 'assigned_caregiver_id'>> & { version?: number }): Promise<MedicationPlan> => {
+    if (!demoMode) return request<MedicationPlan>(`/homes/${homeId()}/medication-plans/${encodeURIComponent(planId)}`, { method: 'PATCH', body: JSON.stringify(input) });
+    for (const plans of Object.values(demoMedicationPlans)) {
+      const index = plans.findIndex((plan) => plan.id === planId);
+      if (index < 0) continue;
+      plans[index] = { ...plans[index], ...input, version: plans[index].version + 1 };
+      return { ...plans[index] };
+    }
+    throw new Error('Medication plan not found');
+  },
   updateMedicationCheckIn: async (planId: string, scheduledFor: string, status: MedicationCheckInStatus, note = ''): Promise<void> => {
     if (demoMode) return;
     await request(`/homes/${homeId()}/medication-plans/${encodeURIComponent(planId)}/check-ins`, { method: 'POST', body: JSON.stringify({ scheduled_for: scheduledFor, status, note }) });
