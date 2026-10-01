@@ -537,7 +537,7 @@
 
 .one-site-layer-cards button {
   display: grid;
-  grid-template-columns: 25px 1fr;
+  grid-template-columns: 40px minmax(0, 1fr);
   align-content: start;
   gap: 8px 12px;
   min-height: 136px;
