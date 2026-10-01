@@ -190,7 +190,27 @@ describe("marketing navigation and controls", () => {
   });
 
   it("shows legal links on the ONE app page", () => {
-    render(<MemoryRouter initialEntries={["/app"]}><AppDownloadPage /></MemoryRouter>);
+    const view = render(<MemoryRouter initialEntries={["/app"]}><AppDownloadPage /></MemoryRouter>);
     expect(screen.getByRole("navigation", { name: "Legal documents" })).toBeInTheDocument();
+    const mainNavigation = view.container.querySelector(".one-site-header-main .one-site-nav");
+    expect(mainNavigation?.querySelectorAll("a")).toHaveLength(10);
+  });
+
+  it("lets visitors explore a clearly labeled, interactive app sample", () => {
+    render(<MemoryRouter initialEntries={["/app"]}><AppDownloadPage /></MemoryRouter>);
+
+    expect(screen.getByLabelText("Interactive ONE app sample")).toBeInTheDocument();
+    expect(screen.getAllByText("SAMPLE DATA").length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("tab", { name: "Map" }));
+    expect(screen.getByRole("tabpanel").querySelector("h2")).toHaveTextContent("Home map");
+    fireEvent.click(screen.getByRole("button", { name: "Bedroom" }));
+    expect(screen.getByRole("button", { name: "Bedroom" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("Illustrative room · no live location")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Check-in" }));
+    fireEvent.click(screen.getByRole("button", { name: "Okay" }));
+    fireEvent.click(screen.getByRole("button", { name: /Save sample answer/ }));
+    expect(screen.getByRole("button", { name: /Sample answer saved/ })).toBeInTheDocument();
+    expect(screen.getByText("This demo stays on this page and is not sent to ONE.")).toBeInTheDocument();
   });
 });
