@@ -41,16 +41,38 @@ describe("marketing navigation and controls", () => {
     expect(screen.queryByRole("navigation", { name: "Choose a product" })).not.toBeInTheDocument();
   });
 
-  it("keeps product links in a secondary header row on product pages", () => {
+  it("opens the product submenu on hover and closes it when the pointer leaves", () => {
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
-    const view = renderAt("/products");
-    const productNav = screen.getByRole("navigation", { name: "Product navigation" });
-    expect(productNav.querySelectorAll("a")).toHaveLength(4);
-    expect(productNav.querySelector('a[href="/products/hub"]')).toHaveTextContent("ONE Hub");
-    view.unmount();
+    const view = renderAt("/products/exterior");
+    const productMenu = view.container.querySelector(".one-site-nav-products");
+    const productSubmenu = view.container.querySelector("#one-site-product-subnav");
+    expect(productMenu).toBeInTheDocument();
+    expect(productSubmenu).toHaveAttribute("aria-hidden", "true");
 
-    renderAt("/products/exterior");
+    fireEvent.pointerEnter(productMenu!, { pointerType: "mouse" });
+    const productPages = screen.getByRole("group", { name: "Product pages" });
+    expect(productPages.querySelectorAll("a")).toHaveLength(4);
+    expect(productPages.querySelector('a[href="/products/hub"]')).toHaveTextContent("ONE Hub");
     expect(screen.getByRole("link", { name: "Wall Camera" })).toHaveAttribute("aria-current", "page");
+
+    fireEvent.pointerLeave(productMenu!, { pointerType: "mouse" });
+    expect(productSubmenu).toHaveAttribute("aria-hidden", "true");
+    expect(screen.queryByRole("group", { name: "Product pages" })).not.toBeInTheDocument();
+  });
+
+  it("lets touch and keyboard users open the product submenu", () => {
+    vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+    const view = renderAt("/");
+    const productSubmenu = view.container.querySelector("#one-site-product-subnav");
+
+    fireEvent.click(screen.getByRole("button", { name: "Open menu" }));
+    fireEvent.click(screen.getByRole("button", { name: "Show product pages" }));
+    expect(productSubmenu).toHaveAttribute("aria-hidden", "false");
+    fireEvent.click(screen.getByRole("button", { name: "Hide product pages" }));
+    expect(productSubmenu).toHaveAttribute("aria-hidden", "true");
+
+    fireEvent.focus(screen.getByRole("link", { name: "Products" }));
+    expect(productSubmenu).toHaveAttribute("aria-hidden", "false");
   });
 
   it.each([

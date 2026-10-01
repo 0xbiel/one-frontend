@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
-  ArrowDown, ArrowLeft, ArrowRight, Camera, ChevronRight,
+  ArrowDown, ArrowLeft, ArrowRight, Camera, ChevronDown, ChevronRight,
   Home, LockKeyhole, Menu, MessageCircle, Search, Users, X,
 } from "lucide-react";
 import "./marketing.css";
@@ -28,13 +28,14 @@ const supportTopics = [
   { id: "family", title: "Review shared family information", group: "Family", icon: Users, summary: "Open summaries and observations available to your account.", keywords: "family caregiver sharing summary access", destination: "/dashboard/family", action: "Open family", steps: ["Open Family from the ONE dashboard.", "Review the summaries and observations available to your role.", "Ask the household administrator to update access if something is missing."] },
 ] as const;
 
-function ProductLink({ id, children, className = "", ariaCurrent }: { id: ProductId; children: React.ReactNode; className?: string; ariaCurrent?: "page" }) {
-  return <Link className={className} to={`/products/${id}`} aria-current={ariaCurrent}>{children}</Link>;
+function ProductLink({ id, children, className = "", ariaCurrent, onClick, onFocus }: { id: ProductId; children: React.ReactNode; className?: string; ariaCurrent?: "page"; onClick?: React.MouseEventHandler<HTMLAnchorElement>; onFocus?: React.FocusEventHandler<HTMLAnchorElement> }) {
+  return <Link className={className} to={`/products/${id}`} aria-current={ariaCurrent} onClick={onClick} onFocus={onFocus}>{children}</Link>;
 }
 
 export function SiteHeader({ section }: { section: string }) {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [productMenuOpen, setProductMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   useEffect(() => {
     const updateScrollState = () => {
@@ -58,22 +59,69 @@ export function SiteHeader({ section }: { section: string }) {
     { id: "exterior", label: "Wall Camera" },
     { id: "family", label: "ONE Family" },
   ];
-  const productSection = section === "products" || section === "detail";
+  const closeMenus = () => {
+    setMenuOpen(false);
+    setProductMenuOpen(false);
+  };
   return <header className={["one-site-header", isScrolled && "is-scrolled"].filter(Boolean).join(" ")}>
     <div className="one-site-header-main">
       <Link to="/" className="one-site-logo" aria-label="ONE home"><img src="/one-logo.png" alt="" /><span>one</span></Link>
       <nav className={menuOpen ? "one-site-nav open" : "one-site-nav"} aria-label="Main navigation">
-        {items.map(item => <Link key={item.label} className={item.active ? "active" : ""} to={item.to} onClick={() => setMenuOpen(false)}>{item.label}</Link>)}
+        {items.map(item => item.label === "Products" ? <div
+          key={item.label}
+          className={`one-site-nav-products${productMenuOpen ? " is-open" : ""}`}
+          onPointerEnter={event => {
+            if (event.pointerType !== "touch") setProductMenuOpen(true);
+          }}
+          onPointerLeave={event => {
+            if (event.pointerType !== "touch" && !event.currentTarget.contains(document.activeElement)) setProductMenuOpen(false);
+          }}
+          onBlur={event => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setProductMenuOpen(false);
+          }}
+        >
+          <div className="one-site-nav-products-trigger">
+            <Link
+              className={item.active ? "active" : ""}
+              to={item.to}
+              onClick={closeMenus}
+              onFocus={() => setProductMenuOpen(true)}
+              aria-expanded={productMenuOpen}
+              aria-controls="one-site-product-subnav"
+            >{item.label}<ChevronDown size={14} aria-hidden="true" /></Link>
+            <button
+              type="button"
+              className="one-site-products-menu-toggle"
+              onClick={() => setProductMenuOpen(value => !value)}
+              aria-label={productMenuOpen ? "Hide product pages" : "Show product pages"}
+              aria-expanded={productMenuOpen}
+              aria-controls="one-site-product-subnav"
+            ><ChevronDown size={16} aria-hidden="true" /></button>
+          </div>
+          <div
+            id="one-site-product-subnav"
+            className="one-site-product-subnav"
+            role="group"
+            aria-label="Product pages"
+            aria-hidden={!productMenuOpen}
+          >
+            {productLinks.map(product => {
+              const active = location.pathname === `/products/${product.id}`;
+              return <ProductLink
+                key={product.id}
+                id={product.id}
+                className={active ? "active" : ""}
+                ariaCurrent={active ? "page" : undefined}
+                onClick={closeMenus}
+                onFocus={() => setProductMenuOpen(true)}
+              >{product.label}<ArrowRight size={14} aria-hidden="true" /></ProductLink>;
+            })}
+          </div>
+        </div> : <Link key={item.label} className={item.active ? "active" : ""} to={item.to} onClick={closeMenus}>{item.label}</Link>)}
       </nav>
       <div className="one-site-actions"><Link className="one-site-register" to="/create-account">Create account</Link><Link className="one-site-pill primary" to="/login">Sign in <ArrowRight size={16} /></Link></div>
-      <button className="one-site-menu" onClick={() => setMenuOpen(value => !value)} aria-label={menuOpen ? "Close menu" : "Open menu"}>{menuOpen ? <X /> : <Menu />}</button>
+      <button className="one-site-menu" onClick={() => { setMenuOpen(value => !value); setProductMenuOpen(false); }} aria-label={menuOpen ? "Close menu" : "Open menu"}>{menuOpen ? <X /> : <Menu />}</button>
     </div>
-    {productSection && <nav className="one-site-product-subnav" aria-label="Product navigation">
-      {productLinks.map(item => {
-        const active = location.pathname === `/products/${item.id}`;
-        return <ProductLink key={item.id} id={item.id} className={active ? "active" : ""} ariaCurrent={active ? "page" : undefined}>{item.label}</ProductLink>;
-      })}
-    </nav>}
   </header>;
 }
 
