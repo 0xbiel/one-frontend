@@ -122,9 +122,9 @@ describe("marketing navigation and controls", () => {
   });
 
   it.each([
-    ["/products/band", "ONE Band", "/product-assets/companion-devices/one-band.png", "/product-assets/companion-devices/one-band-exploded.png", "/product-assets/companion-devices/one-band-strap.png"],
-    ["/products/home-speaker", "ONE Home Speaker", "/product-assets/companion-devices/one-home-speaker.png", "/product-assets/companion-devices/one-home-speaker-exploded.png", "/product-assets/companion-devices/one-home-speaker-shell.png"],
-    ["/products/wall-speaker", "ONE Wall Speaker", "/product-assets/companion-devices/one-wall-speaker.png", "/product-assets/companion-devices/one-wall-speaker-exploded.png", "/product-assets/companion-devices/one-wall-speaker-mount.png"],
+    ["/products/band", "ONE Band", "/product-assets/companion-devices/one-band.png", "/product-assets/companion-devices/one-band-exploded-v2.png", "/product-assets/companion-devices/one-band-strap.png"],
+    ["/products/home-speaker", "ONE Home Speaker", "/product-assets/companion-devices/one-home-speaker.png", "/product-assets/companion-devices/one-home-speaker-exploded-v2.png", "/product-assets/companion-devices/one-home-speaker-control-cap.png"],
+    ["/products/wall-speaker", "ONE Wall Speaker", "/product-assets/companion-devices/one-wall-speaker.png", "/product-assets/companion-devices/one-wall-speaker-exploded-v2.png", "/product-assets/companion-devices/one-wall-speaker-mount.png"],
   ])("shows the complete render and interactive component breakdown for %s", (path, name, completeImage, explodedImage, firstPartImage) => {
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
     renderAt(path);
@@ -134,7 +134,8 @@ describe("marketing navigation and controls", () => {
     expect(document.querySelector(".one-product-anatomy-overview img[src='" + explodedImage + "']")).toBeInTheDocument();
     expect(document.querySelector(".one-product-anatomy-visual img[src='" + firstPartImage + "']")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Inside the concept" })).toBeInTheDocument();
-    expect(document.querySelectorAll(".one-product-anatomy-overview-list li")).toHaveLength(3);
+    expect(document.querySelectorAll(".one-product-anatomy-overview-list li")).toHaveLength(5);
+    expect(document.querySelectorAll(".one-product-anatomy-part-list button")).toHaveLength(5);
     fireEvent.click(screen.getByRole("button", { name: "Next component" }));
     expect(document.querySelectorAll(".one-product-anatomy-visual img")).toHaveLength(1);
   });
