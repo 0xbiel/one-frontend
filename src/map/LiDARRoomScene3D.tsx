@@ -4,6 +4,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { api } from "../api/client";
 import type { LastSeenObject, Scene } from "../models/domain";
 import { hasRenderableSpatial3D } from "./lidarGeometry";
+import { topDownFitDistance } from "./mapFraming";
 import { parseRoomPlanUSDZ } from "./RoomPlanUSDZ";
 import { clearRoomPlanOverlays, populateRoomPlanOverlays, refreshRoomPlanOverlayVisibility } from "./RoomPlanOverlays";
 export { hasRealLidarGeometry, hasRenderableSpatial3D } from "./lidarGeometry";
@@ -84,9 +85,7 @@ export function LiDARRoomScene3D({ scene, objects }: { scene: Scene; objects: La
       world.add(roomRoot);
 
       const radius = Math.max(size.x, size.y, size.z, 1);
-      const halfSpan = Math.max(size.x, size.z) * 0.5;
-      const halfFov = THREE.MathUtils.degToRad(camera.fov * 0.5);
-      const fitDistance = Math.max(halfSpan / Math.max(Math.tan(halfFov), 0.1) * 1.2, 0.8);
+      const fitDistance = topDownFitDistance(size.x, size.z, width / height, camera.fov);
       camera.up.set(0, 0, -1);
       camera.position.set(0, Math.max(size.y * 0.5 + fitDistance, 1.2), 0);
       camera.lookAt(0, 0, 0);

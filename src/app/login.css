@@ -7,5 +7,6 @@
 .one-register-page .one-login-form-panel{min-height:850px}.one-register-form{margin-top:35px;gap:0}.one-register-form input{height:48px;margin-bottom:10px}.one-register-form label{font-size:12px}.one-register-form select{height:48px;border-radius:14px;border:1px solid #172941;background:#fff;color:#0a2345;padding:0 18px;margin-bottom:10px;font:600 13px Manrope,Inter,Arial,sans-serif}.one-register-form .one-login-primary{margin-top:10px}
 .one-login-demo-tag{display:inline-block;margin-top:15px;padding:7px 11px;border-radius:30px;background:#e9f6ff;color:#1975ba;font-size:10px;font-weight:800;letter-spacing:.09em}.one-login-demo-button{display:flex;align-items:center;justify-content:space-between;width:min(100%,352px);margin-top:13px;padding:12px 17px;border:1px solid #9bc9eb;border-radius:15px;background:#f3faff;color:#086fbe!important;font-weight:750;font-size:12px}.one-login-demo-button:hover{background:#e1f4ff}.one-login-demo-button:disabled{opacity:.6}
 
-/* The reference image contains the whole login mockup. Frame only its photo half. */
-.one-login-photo{background-size:180% 100%;background-position:right center}
+/* The reference includes a laptop camera cutout in its top 21px.
+   Frame the photo half and crop 3% off each vertical edge at every viewport. */
+.one-login-photo{background-size:180% 106%;background-position:right center}

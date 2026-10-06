@@ -1,3 +1,4 @@
+import { visibleRelationship } from "./recipientContext";
 import { useEffect, useRef, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Activity, BookOpen, Building2, Camera, Check, ChevronsUpDown, ChevronRight, CircleHelp, HeartHandshake, House, LogOut, Map, Menu, Pause, Play, Plus, Settings, ShieldCheck, Sparkles, Users, X } from "lucide-react";
@@ -17,6 +18,9 @@ export function EventRow({ event, onClick }: { event: HomeEvent; onClick?: () =>
         {event.type === "object.last_seen" ? "⌁" : event.type === "clip.created" ? "▶" : "✦"}
       </span>
         <span className="event-copy"><strong>{event.title}</strong><span>{event.detail}</span>{event.cameraName && <small>{event.cameraName}{event.roomName ? ` · ${event.roomName}` : ""}</small>}</span>
+      {event.status === "needs_review" && <span className="event-review-pill">Review</span>}
+      {event.occurrenceCount && event.occurrenceCount > 1 && <span className="event-count-pill" aria-label={`${event.occurrenceCount} observations grouped`}>{event.occurrenceCount}×</span>}
+      {event.snapshotPath && <span className="event-snapshot-pill" aria-label="Event snapshot available">Photo</span>}
       <time>{formatTime(event.occurredAt)}</time>
       <ChevronRight size={16} />
     </button>
@@ -307,7 +311,7 @@ export function Shell({ children, paused, onTogglePause, onLogout, session }: { 
               {careRecipients.length ? careRecipients.map((person, index) => {
                 const isSelected = recipient ? recipient === person.id : index === 0;
                 return <button key={person.id} className={`recipient-option ${isSelected ? "is-selected" : ""}`} type="button" role="option" aria-selected={isSelected} onClick={() => careRecipientChanged(person.id)}>
-                  <span>{person.display_name}</span><small>{person.room_label || person.relationship || "baseline"}</small>{isSelected && <Check size={15} aria-hidden="true" />}
+                  <span>{person.display_name}</span><small>{person.room_label || visibleRelationship(person.relationship) || "Care profile"}</small>{isSelected && <Check size={15} aria-hidden="true" />}
                 </button>;
               }) : <div className="recipient-option-empty"><span>No care recipients yet.</span><button type="button" className="recipient-option-add" onClick={() => { setRecipientMenuOpen(false); closeMenu(); nav("/dashboard/family?addCareRecipient=1"); }}><Plus size={14} /> Add person</button></div>}
             </div>}

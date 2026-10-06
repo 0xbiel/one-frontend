@@ -14,6 +14,9 @@ import { api, demoMode, getCameraReconnect } from "../api/client";
 import { rememberDashboardSession } from "./cameraReturnSession";
 import type { HomeEvent, LastSeenObject, Session } from "../models/domain";
 import { EventRow, ObjectCard } from "./shared";
+import { DayStoryCard, DayStoryDetails } from "./DayStory";
+import { cameraStatus } from "./cameraStatus";
+import { localCalendarDay } from "./localCalendarDay";
 
 type Pairing = { pairing_id: string; code: string; expires_at: string };
 
@@ -38,7 +41,6 @@ export function OverviewPage({
   const [pairingError, setPairingError] = useState("");
   const [pairingCopied, setPairingCopied] = useState(false);
   const [cameraLabel, setCameraLabel] = useState("Hallway camera");
-  const [cameraRoom, setCameraRoom] = useState("Hallway");
   const [cameraSetupBusy, setCameraSetupBusy] = useState(false);
   const [cameraSetupSaved, setCameraSetupSaved] = useState(false);
   const [resumeCameraId, setResumeCameraId] = useState<string | null>(null);
@@ -107,6 +109,12 @@ export function OverviewPage({
   const homeName = session?.home.name ?? "The García home";
   const recipientsQuery = useQuery({ queryKey: ["care-recipients", session?.home.id], queryFn: api.getCareRecipients, enabled: demoMode || Boolean(session), retry: false });
   const residentName = recipientsQuery.data?.find((person) => person.id === recipientId)?.display_name ?? session?.home.residentName ?? "Resident";
+  const medicationDay = localCalendarDay();
+  const medicationRemindersQuery = useQuery({ queryKey: ["medication-reminders", session?.home.id, recipientId, medicationDay], queryFn: () => api.getMedicationReminders(medicationDay, undefined, recipientId), enabled: Boolean(session && recipientId) && !demoMode, retry: false });
+  const dayStoryQuery = useQuery({ queryKey: ["day-story", session?.home.id, recipientId], queryFn: () => api.getDayStory(recipientId!), enabled: Boolean(session && recipientId) && !demoMode, retry: false });
+  const cameraDisplay = cameraStatus(savedCamera);
+  const onlineCameraCount = camerasQuery.data?.filter((camera) => cameraStatus(camera).online).length ?? 0;
+  const simulatedCameraCount = camerasQuery.data?.filter((camera) => cameraStatus(camera).simulated).length ?? 0;
   const recentEvents = events.slice(0, 3);
   const checkInEvent = events.find((event) => event.careRecipientId === recipientId && (event.eventType === "daily_check_in" || /check[- ]?in/i.test(event.title)) && new Date(event.occurredAt).toDateString() === new Date().toDateString());
   const summariesQuery = useQuery({ queryKey: ["caregiver-summaries", session?.home.id, recipientId], queryFn: () => api.getCaregiverSummaries(recipientId || null), enabled: demoMode || Boolean(session), retry: false });
@@ -131,8 +139,6 @@ export function OverviewPage({
       setResumeCameraId(savedCamera.id);
       setCameraSetupSaved(true);
       setCameraLabel(savedCamera.label);
-      const room = savedCamera.metadata?.room;
-      setCameraRoom(typeof room === "string" && room ? room : "Hallway");
       return;
     }
     setResumeCameraId(null);
@@ -140,7 +146,6 @@ export function OverviewPage({
     setPairingCopied(false);
     setCameraSetupSaved(false);
     setCameraLabel("Hallway camera");
-    setCameraRoom("Hallway");
     setPairingBusy(true);
     try {
       setPairing(await api.createPairing("Hallway phone"));
@@ -170,9 +175,11 @@ export function OverviewPage({
     setCameraSetupBusy(true);
     setPairingError("");
     try {
+      const metadata = { ...(activeCamera?.metadata ?? {}) };
+      delete metadata.room;
       await api.updateCamera(cameraId, {
         name: cameraLabel.trim(),
-        metadata: { ...(activeCamera?.metadata ?? {}), room: cameraRoom, setup_state: "configured" },
+        metadata: { ...metadata, setup_state: "configured" },
       });
       setCameraSetupSaved(true);
       void query.invalidateQueries({ queryKey: ["camera"] });
@@ -197,8 +204,8 @@ export function OverviewPage({
       <section className="home-camera-hero">
         <div className="home-camera-hero-top">
           <span className="home-camera-label"><Camera size={15} /> ROOM CAMERA</span>
-          <span className={`home-camera-state ${savedCamera?.status === "online" ? "online" : ""}`}>
-            <span className="status-dot" /> {savedCamera ? savedCamera.status.toUpperCase() : "NOT PAIRED"}
+          <span className={`home-camera-state ${cameraDisplay.online ? "online" : ""}`}>
+            <span className="status-dot" /> {cameraDisplay.label.toUpperCase()}{cameraDisplay.simulated && <small className="camera-simulation-note">Simulated</small>}
           </span>
         </div>
         <div className="home-camera-art" aria-hidden="true">
@@ -351,8 +358,7 @@ export function OverviewPage({
                     <span className="eyebrow">SAVED CAMERA</span>
                     <h3>Make this camera easy to recognize.</h3>
                     <p>
-                      Name and placement are independent from room mapping, so
-                      this camera stays on the account even if mapping is unfinished.
+                      ONE assigns this camera to the scanned room containing its saved RoomPlan position. You can correct the room later in Camera details.
                     </p>
                   </div>
                 </div>
@@ -367,24 +373,9 @@ export function OverviewPage({
                     autoFocus
                   />
                 </label>
-                <label>
-                  Placement
-                  <select
-                    value={cameraRoom}
-                    onChange={(event) => {
-                      setCameraRoom(event.target.value);
-                      setCameraSetupSaved(false);
-                    }}
-                  >
-                    <option>Hallway</option>
-                    <option>Living room</option>
-                    <option>Entryway</option>
-                    <option>Bedroom</option>
-                  </select>
-                </label>
                 {cameraSetupSaved && (
                   <div className="success-note" role="status">
-                    <Check size={15} /> Camera setup saved for {cameraRoom}.
+                    <Check size={15} /> Camera setup saved. Room assignment follows the saved RoomPlan position.
                   </div>
                 )}
                 <button
@@ -405,7 +396,7 @@ export function OverviewPage({
                       <div>
                         <span className="eyebrow">ROOM CONTEXT · OPTIONAL</span>
                         <h3>{cameraMapTitle}</h3>
-                        <p>{cameraMapDescription}</p>
+                        <p>{cameraMapDescription} You can correct the assigned room in Camera details.</p>
                       </div>
                     </div>
                     <div className={`room-sweep-status ${cameraMapReady ? "ready" : ["needs_rescan", "unavailable", "failed"].includes(mapGenerationStatus ?? "") ? "failed" : "processing"}`} role="status">
@@ -499,10 +490,12 @@ export function OverviewPage({
         </button>
       </section>
 
+      <section className="panel day-story-card"><span className="eyebrow">DAILY CARE PLAN</span><h3>{residentName}’s medication reminders</h3>{!recipientId ? <p className="muted">Select a person to view their daily care plan.</p> : medicationRemindersQuery.isFetching ? <p role="status">Loading today’s care plan…</p> : medicationRemindersQuery.isError ? <p className="muted">Today’s medication reminders are unavailable.</p> : !medicationRemindersQuery.data?.length ? <p className="muted">No medication reminders are recorded for today.</p> : medicationRemindersQuery.data.map((reminder) => <article key={`${reminder.plan_id}-${reminder.scheduled_for}`} className="daily-medication-reminder"><div><strong>{reminder.name}</strong><p className="muted">{reminder.dose} · {new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit" }).format(new Date(reminder.scheduled_for))}{reminder.instructions ? ` · ${reminder.instructions}` : ""}</p></div><span>{reminder.status === "pending" ? "Due" : reminder.status}</span></article>)}</section>
+
       <section className="home-section home-glance-section">
         <div className="section-heading"><div><span className="eyebrow">HOME AT A GLANCE</span><h3>Home at a glance</h3></div></div>
         <div className="home-glance-grid">
-          <button onClick={() => navigate("/dashboard/cameras")}><Camera size={19} /><span><strong>{camerasQuery.data?.filter((camera) => camera.status === "online").length ?? 0} camera{camerasQuery.data?.filter((camera) => camera.status === "online").length === 1 ? "" : "s"} online</strong><small>Review camera status</small></span><ChevronRight size={16} /></button>
+          <button onClick={() => navigate("/dashboard/cameras")}><Camera size={19} /><span><strong>{onlineCameraCount} camera{onlineCameraCount === 1 ? "" : "s"} online</strong><small>{simulatedCameraCount ? `${simulatedCameraCount} simulated device${simulatedCameraCount === 1 ? "" : "s"} · review camera status` : "Review camera status"}</small></span><ChevronRight size={16} /></button>
           <button onClick={() => navigate("/dashboard/events")}><Video size={19} /><span><strong>{recentEvents.length} recent observations</strong><small>Latest household activity</small></span><ChevronRight size={16} /></button>
           <button onClick={() => navigate("/dashboard/live")}><Check size={19} /><span><strong>{hasCheckIn ? "Check-in recorded" : "No check-in yet"}</strong><small>Today’s status for {residentName}</small></span><ChevronRight size={16} /></button>
         </div>
@@ -524,6 +517,8 @@ export function OverviewPage({
           ))}
         </div>
       </section>
+      <DayStoryCard story={dayStoryQuery.data} loading={dayStoryQuery.isFetching} error={dayStoryQuery.isError} />
+      <DayStoryDetails story={dayStoryQuery.data} />
     </div>
   );
 }

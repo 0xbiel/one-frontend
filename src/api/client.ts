@@ -1,4 +1,6 @@
 import type {
+  CareAnalytics,
+  DailyCheckInResult,
   CameraRegistration,
   CameraPose,
   Device,
@@ -36,6 +38,15 @@ const demoCareSpaces: CareSpaceSummary[] = [
   { id: 'home-demo', name: 'The García home', residentName: 'María', careSetting: 'home', supportFocus: 'general', role: 'admin', active: true },
   { id: 'home-demo-2', name: 'Casa dels avis', residentName: 'Joan', careSetting: 'home', supportFocus: 'general', role: 'caregiver', active: false },
 ];
+interface Room {
+  id: string;
+  home_id?: string;
+  name: string;
+  created_at?: string;
+}
+const demoRooms: Room[] = [
+  { id: 'room-demo-1', home_id: 'home-demo', name: 'Living room', created_at: '2026-01-01T00:00:00Z' },
+];
 const demoCareRecipients: Record<string, CareRecipient[]> = {
   'home-demo': [
     { id: 'recipient-maria', display_name: 'María García', relationship: 'Mother', room_label: 'Main bedroom', created_at: '2026-01-01T00:00:00Z' },
@@ -46,6 +57,7 @@ const demoCareRecipients: Record<string, CareRecipient[]> = {
   ],
 };
 
+interface RoomResponse { data: Room[]; }
 interface RequestOptions extends RequestInit { auth?: boolean; }
 type JsonBody<Path extends keyof paths, Method extends keyof paths[Path]> = paths[Path][Method] extends { requestBody?: { content?: { 'application/json'?: infer Body } } } ? Body : never;
 type PairStartInput = JsonBody<'/api/v1/pairing/start', 'post'>;
@@ -65,6 +77,20 @@ export interface CareSpaceSummary {
   active: boolean;
 }
 export interface CareSpaceCreateInput { name: string; careSetting: 'home' | 'residence'; supportFocus: 'general' | 'mci'; }
+export interface CareEntry {
+  id: string; care_recipient_id: string; kind: 'note' | 'appointment'; title: string; body: string; location: string;
+  starts_at: string | null; ends_at: string | null; timezone_name: string | null; reminder_minutes: number | null;
+}
+export interface DayStory {
+  recipient: { id: string; display_name: string };
+  window: { start_at: string; end_at: string; timezone: string; partial_day: boolean };
+  headline: string; summary: string; synthetic: boolean;
+  attention_items: Array<{ id: string; title: string; detail: string; source_ids: string[]; observed_at: string | null; severity: string; synthetic: boolean }>;
+  routine: { status: string; reason: string; baseline_eligible: boolean };
+  coverage: { simple_label: string; observation_count: number; last_observed_at: string | null; missing_means: string };
+  facts: Array<{ text: string; source_ids: string[]; times: string[]; synthetic: boolean }>;
+  limitations: string[];
+}
 export interface CaregiverSummary {
   id: string;
   careRecipientId?: string | null;
@@ -90,6 +116,7 @@ export interface CheckInQuestion {
 }
 export interface DailyCheckInInput {
   subjectUserId?: string | null;
+  careRecipientId?: string | null;
   questions: Array<{ question: string; answer: string; responseTimeMs: number | null; baselineMs: number | null; pulseBpm: number | null }>;
 }
 const demoDailyQuestions: CheckInQuestion[] = [...demoQuestionHistory];
@@ -100,7 +127,7 @@ interface BackendCaregiverSummary {
 interface CareSpaceSession extends PairCompleteResponse { role: 'admin' | 'resident' | 'caregiver'; }
 interface InviteAcceptResponse extends PairCompleteResponse { role?: string; }
 interface LiveKitResponse { url: string; token: string; expires_in: number; mode?: 'auto' | 'publish' | 'subscribe'; }
-interface BackendEvent { id: string; event_type: string; care_recipient_id?: string | null; status?: string; explanation?: string; confidence?: number; evidence_ids?: string; evidence_json?: string; first_seen_at?: string; last_seen_at?: string; source?: { camera_id?: string | null; camera_name?: string | null; room_name?: string | null; object_id?: string | null } | null; }
+interface BackendEvent { id: string; event_type: string; status?: string; explanation?: string; confidence?: number; evidence_ids?: string; evidence_json?: string; first_seen_at?: string; last_seen_at?: string; observation_count?: number; occurrence_count?: number; care_recipient_id?: string | null; snapshot_path?: string | null; snapshot_content_type?: string | null; source?: { camera_id?: string | null; camera_name?: string | null; room_name?: string | null; object_id?: string | null } | null; }
 interface MeResponse { actor: Session['actor']; home: Session['home']; device: Device | null; paused: boolean; }
 interface SceneResponse {
   sceneId: string | null;
@@ -256,6 +283,7 @@ export interface RoomPlanCalibrationSession {
   status: 'waiting_for_person' | 'capture_requested' | 'solving' | 'review' | 'failed' | 'expired';
   current_target_index: number;
   capture_request_seq: number;
+  capture_round_count: number;
   captured_target_count: number;
   targets: RoomPlanCalibrationTarget[];
   proposal?: RoomPlanCalibrationProposal | null;
@@ -269,11 +297,22 @@ export interface VisionFrameResponse {
     label: string;
     confidence: number;
     bbox: number[];
+    pose_keypoints?: number[][] | null;
+    pose_confidence?: number | null;
+    pose_model_version?: string | null;
     projection: { world_xyz?: number[] | null; uncertainty_m: number; zone: string; quality: string; room_zone?: { id?: string; label?: string } | null };
   }>;
   detector_version: string;
   observations: Array<{ observation_id: string; event_id: string; object_id: string; zone?: string | null }>;
   frames_persisted: false;
+  safety_events?: Array<{
+    event_id: string;
+    type: 'fall_suspected' | string;
+    status: 'needs_review' | string;
+    confidence: number;
+    snapshot_path?: string | null;
+  }>;
+  event_snapshots_persisted?: number;
 }
 export interface StartMapGenerationInput { room_id?: string | null; room_label?: string | null; orientation?: string; resolution_width: number; resolution_height: number; }
 export interface MapGenerationStartResponse { job_id: string; status: MapGenerationStatus; }
@@ -750,10 +789,38 @@ async function requestBinary(path: string, init?: RequestOptions): Promise<Array
 
 export function mapBackendEvent(event: BackendEvent): HomeEvent {
   const isObject = event.event_type === 'object_observed';
-  return { id: event.id, type: isObject ? 'object.last_seen' : 'presence.changed', eventType: event.event_type, careRecipientId: event.care_recipient_id ?? null, title: isObject ? 'Object observed' : event.event_type === 'daily_check_in' ? 'Daily check-in' : 'Meaningful moment', detail: event.explanation || 'An observation is available for review.', occurredAt: event.last_seen_at ?? event.first_seen_at ?? new Date().toISOString(), cameraId: event.source?.camera_id, cameraName: event.source?.camera_name, roomName: event.source?.room_name, objectId: event.source?.object_id ?? undefined, confidence: event.confidence, tone: isObject ? 'blue' : 'green' };
+  const isFall = event.event_type === 'fall_suspected';
+  const isCheckIn = event.event_type === 'daily_check_in' || event.event_type === 'check_in' || event.event_type === 'checkin';
+  const occurrenceCount = Math.max(1, Math.round(event.observation_count ?? event.occurrence_count ?? 1));
+  const detail = event.explanation || (isFall ? 'A possible fall pattern is ready for human review.' : isCheckIn ? 'A daily check-in is available for caregiver review.' : 'An observation is available for review.');
+  return {
+    id: event.id,
+    eventType: event.event_type,
+    cameraId: event.source?.camera_id,
+    cameraName: event.source?.camera_name,
+    roomName: event.source?.room_name,
+    objectId: event.source?.object_id ?? undefined,
+    type: isFall ? 'fall.suspected' : isObject ? 'object.last_seen' : isCheckIn ? 'daily.check_in' : 'presence.changed',
+    title: isFall ? 'Possible fall pattern' : isObject ? (occurrenceCount > 1 ? 'Movement observed' : 'Observation recorded') : isCheckIn ? 'Daily check-in recorded' : 'Meaningful moment',
+    detail: isObject && occurrenceCount > 1 ? `${detail} · ${occurrenceCount} observations grouped` : detail,
+    occurredAt: event.last_seen_at ?? event.first_seen_at ?? new Date().toISOString(),
+    firstSeenAt: event.first_seen_at,
+    occurrenceCount,
+    status: event.status,
+    confidence: event.confidence,
+    careRecipientId: event.care_recipient_id,
+    snapshotPath: event.snapshot_path,
+    snapshotContentType: event.snapshot_content_type,
+    tone: isFall ? 'amber' : isObject ? 'blue' : 'green',
+  };
 }
 
 export const api = {
+  getCareEntries: async (careRecipientId: string): Promise<CareEntry[]> => (await request<{ data: CareEntry[] }>(`/homes/${encodeURIComponent(homeId())}/care-entries?care_recipient_id=${encodeURIComponent(careRecipientId)}`)).data,
+  getDayStory: async (careRecipientId: string, timezoneName = Intl.DateTimeFormat().resolvedOptions().timeZone): Promise<DayStory> => {
+    const params = new URLSearchParams({ care_recipient_id: careRecipientId, timezone_name: timezoneName });
+    return (await request<{ data: DayStory }>(`/homes/${encodeURIComponent(homeId())}/day-story?${params}`)).data;
+  },
   getSession: async (): Promise<Session> => {
     if (!demoMode) return request<MeResponse>('/me');
     const active = demoCareSpaces.find((space) => space.id === demoActiveCareSpaceId) ?? demoCareSpaces[0];
@@ -848,6 +915,11 @@ export const api = {
     });
     return summaries.filter((item) => !careRecipientId || item.careRecipientId === careRecipientId);
   },
+  getCareAnalytics: async (): Promise<CareAnalytics> => {
+    const recipient = sessionStorage.getItem('one_care_recipient_id');
+    const scope = recipient ? `&care_recipient_id=${encodeURIComponent(recipient)}` : '';
+    return (await request<{ data: CareAnalytics }>(`/homes/${homeId()}/analytics?window_days=30${scope}`)).data;
+  },
   getCheckInQuestions: async (careRecipientId?: string | null): Promise<CheckInQuestion[]> => {
     if (demoMode) {
       return demoDailyQuestions
@@ -857,20 +929,48 @@ export const api = {
     // The backend currently stores check-in summaries, not individual answers or timing.
     return [];
   },
-  submitDailyCheckIn: async (input: DailyCheckInInput): Promise<{ id: string; degraded: boolean }> => {
+  submitDailyCheckIn: async (input: DailyCheckInInput): Promise<DailyCheckInResult> => {
     if (demoMode) {
       const id = `demo-daily-${Date.now()}`;
       const askedAt = new Date().toISOString();
       demoDailyQuestions.unshift(...input.questions.map((item, index) => ({ id: `${id}-${index}`, summaryId: id, question: item.question, answer: item.answer, responseTimeMs: item.responseTimeMs, baselineMs: item.baselineMs, pulseBpm: item.pulseBpm, askedAt })));
-      return { id, degraded: true };
+      return { id, degraded: true, status: "unknown", trend: "unknown", explanation: "Demo check-in recorded.", limitations: "Synthetic data for interface review." };
     }
-    return request<{ id: string; degraded: boolean }>(`/homes/${homeId()}/check-ins`, { method: 'POST', body: JSON.stringify({ subject_user_id: input.subjectUserId ?? null, transcript: '', questions: input.questions.map((item) => ({ question: item.question, answer: item.answer, response_time_ms: item.responseTimeMs, baseline_ms: item.baselineMs, pulse_bpm: item.pulseBpm })) }) });
+    return request<DailyCheckInResult>(`/homes/${homeId()}/check-ins`, { method: 'POST', body: JSON.stringify({ subject_user_id: input.subjectUserId ?? null, care_recipient_id: input.careRecipientId ?? null, transcript: input.questions.map((item) => `${item.question}: ${item.answer}`).join("\n"), questions: input.questions.map((item) => ({ question: item.question, answer: item.answer, response_time_ms: item.responseTimeMs, baseline_ms: item.baselineMs, pulse_bpm: item.pulseBpm })) }) });
   },
   getCameras: async (): Promise<Device[]> => {
     if (demoMode) return [demoDevice];
     return (await request<CameraResponse>(`/homes/${homeId()}/cameras`)).data;
   },
   getDevice: async (): Promise<Device | null> => (await api.getCameras())[0] ?? null,
+  getRooms: async (): Promise<Room[]> => demoMode ? [...demoRooms] : (await request<RoomResponse>(`/homes/${homeId()}/rooms`)).data,
+  createRoom: async (name: string): Promise<Room> => {
+    const trimmed = name.trim();
+    if (demoMode) {
+      const room = { id: `room-demo-${demoRooms.length + 1}`, home_id: demoActiveCareSpaceId, name: trimmed, created_at: new Date().toISOString() };
+      demoRooms.push(room);
+      return room;
+    }
+    return request<Room>(`/homes/${homeId()}/rooms`, { method: 'POST', body: JSON.stringify({ name: trimmed }) });
+  },
+  updateRoom: async (roomId: string, name: string): Promise<Room> => {
+    const trimmed = name.trim();
+    if (demoMode) {
+      const index = demoRooms.findIndex((room) => room.id === roomId);
+      if (index < 0) throw new Error('API_404');
+      demoRooms[index] = { ...demoRooms[index], name: trimmed };
+      return demoRooms[index];
+    }
+    return request<Room>(`/homes/${homeId()}/rooms/${encodeURIComponent(roomId)}`, { method: 'PATCH', body: JSON.stringify({ name: trimmed }) });
+  },
+  deleteRoom: async (roomId: string): Promise<{ id: string; status: string; cameras_unassigned?: number }> => {
+    if (demoMode) {
+      const index = demoRooms.findIndex((room) => room.id === roomId);
+      if (index >= 0) demoRooms.splice(index, 1);
+      return { id: roomId, status: 'deleted', cameras_unassigned: 0 };
+    }
+    return request(`/homes/${homeId()}/rooms/${encodeURIComponent(roomId)}`, { method: 'DELETE' });
+  },
   updateCamera: async (cameraId: string, input: { name?: string; room_id?: string | null; metadata?: Record<string, unknown> }) => {
     if (demoMode) return { status: 'saved' };
     return request(`/homes/${homeId()}/cameras/${encodeURIComponent(cameraId)}`, { method: 'PATCH', body: JSON.stringify(input) });
@@ -912,7 +1012,7 @@ export const api = {
       body: JSON.stringify({ frames }),
     });
   },
-  localizeRoomPlanCamera: async (cameraId: string, frames: MapGenerationFrame[], fovDegrees = 60, reviewOnly = false, personAnchors: CameraLocalizationPersonAnchor[] = []): Promise<CameraLocalizationResponse> => {
+  localizeRoomPlanCamera: async (cameraId: string, frames: MapGenerationFrame[], fovDegrees = 60, reviewOnly = true, personAnchors: CameraLocalizationPersonAnchor[] = []): Promise<CameraLocalizationResponse> => {
     if (demoMode) return { id: `registration-${cameraId}`, status: 'positioned', camera_id: cameraId, map_id: demoScene.sceneId, coordinate_frame: 'roomplan-local', camera_to_world: [[1, 0, 0, 0], [0, 1, 0, 1.5], [0, 0, 1, 0], [0, 0, 0, 1]], confidence: 0.95, tracking_state: 'visual-pnp', source: 'visual-roomplan-registration', inlier_count: 32, match_count: 40, reprojection_error_px: 1.2, intrinsics_source: 'estimated-fov', review_required: reviewOnly };
     return request<CameraLocalizationResponse>(`/homes/${homeId()}/cameras/${encodeURIComponent(cameraId)}/localize-roomplan`, {
       method: 'POST',
@@ -946,6 +1046,10 @@ export const api = {
   getRoomPlanReadiness: async (cameraId: string): Promise<RoomPlanReadinessResponse> => {
     if (demoMode) return { camera_id: cameraId, map_id: null, source: null, dimension: null, visual_landmarks_ready: false, ready: false };
     return request<RoomPlanReadinessResponse>(`/homes/${homeId()}/cameras/${encodeURIComponent(cameraId)}/roomplan-readiness`);
+  },
+  saveCameraReferenceSnapshot: async (cameraId: string, frame: MapGenerationFrame): Promise<void> => {
+    if (demoMode) return;
+    await request(`/homes/${homeId()}/cameras/${encodeURIComponent(cameraId)}/reference-snapshot`, { method: 'POST', body: JSON.stringify(frame) });
   },
   getRoomPlanCalibrationSession: async (cameraId: string): Promise<RoomPlanCalibrationSession | null> => {
     if (demoMode) return null;
@@ -1045,7 +1149,13 @@ export const api = {
   pause: async () => demoMode ? { status: 'paused' } : request(`/homes/${homeId()}/consents`, { method: 'POST', body: JSON.stringify({ purpose: 'video_capture', policy_version: '2026-09-01', granted: false }) }),
   resume: async () => demoMode ? { status: 'resumed' } : request(`/homes/${homeId()}/consents`, { method: 'POST', body: JSON.stringify({ purpose: 'video_capture', policy_version: '2026-09-01', granted: true }) }),
   exportData: async () => demoMode ? { status: 'complete' } : request(`/homes/${homeId()}/privacy/export`, { method: 'POST' }),
-  deleteData: async () => demoMode ? { status: 'queued' } : request(`/homes/${homeId()}/privacy/delete`, { method: 'POST' }),
+  deleteData: async (confirmation: { confirmed: true; confirmation_home_id: string }): Promise<{ status: string; request_id?: string }> => {
+    const currentHome = homeId();
+    if (!confirmation || confirmation.confirmed !== true || !confirmation.confirmation_home_id || confirmation.confirmation_home_id !== currentHome || currentHome === 'current') {
+      throw new Error('Explicit confirmation must match the current household');
+    }
+    return demoMode ? { status: 'queued' } : request(`/homes/${encodeURIComponent(currentHome)}/privacy/delete`, { method: 'POST', body: JSON.stringify(confirmation) });
+  },
   getCareRecipients: async (): Promise<CareRecipient[]> => {
     if (demoMode) return [...(demoCareRecipients[demoActiveCareSpaceId] ?? [])];
     return (await request<{ data: CareRecipient[] }>(`/homes/${homeId()}/care-recipients`)).data;
@@ -1089,7 +1199,7 @@ export const api = {
   createFamilyInvite: async (displayName: string, email: string, role: 'resident' | 'caregiver' = 'caregiver'): Promise<FamilyInviteResponse> => demoMode ? { id: 'invite-demo', code: '482701', role, expires_in_seconds: 86400, synthetic_demo: true } : request<FamilyInviteResponse>(`/homes/${homeId()}/family/invites`, { method: 'POST', body: JSON.stringify({ display_name: displayName, email: email || null, role, expires_in_seconds: 86400 }) }),
   updateFamilyMember: async (memberId: string, role: EditableFamilyRole): Promise<FamilyMemberMutationResponse> => demoMode ? { data: { id: memberId, display_name: 'Family member', role, created_at: new Date().toISOString(), synthetic_demo: true }, invalidated_sessions: 0 } : request<FamilyMemberMutationResponse>(`/homes/${homeId()}/family/members/${encodeURIComponent(memberId)}`, { method: 'PATCH', body: JSON.stringify({ role }) }),
   removeFamilyMember: async (memberId: string): Promise<FamilyMemberMutationResponse> => demoMode ? { data: { id: memberId, display_name: 'Household member', role: 'resident', created_at: new Date().toISOString(), synthetic_demo: true }, invalidated_sessions: 0 } : request<FamilyMemberMutationResponse>(`/homes/${homeId()}/family/members/${encodeURIComponent(memberId)}`, { method: 'DELETE' }),
-  getMedicationReminders: async (day = new Date().toISOString().slice(0, 10), subjectUserId?: string): Promise<MedicationReminder[]> => demoMode ? [] : (await request<{ data: MedicationReminder[] }>(`/homes/${homeId()}/medication-reminders?day=${encodeURIComponent(day)}${subjectUserId ? `&subject_user_id=${encodeURIComponent(subjectUserId)}` : ''}`)).data,
+  getMedicationReminders: async (day = new Date().toISOString().slice(0, 10), subjectUserId?: string, careRecipientId?: string): Promise<MedicationReminder[]> => demoMode ? [] : (await request<{ data: MedicationReminder[] }>(`/homes/${homeId()}/medication-reminders?day=${encodeURIComponent(day)}${careRecipientId ? `&care_recipient_id=${encodeURIComponent(careRecipientId)}` : ''}${subjectUserId ? `&subject_user_id=${encodeURIComponent(subjectUserId)}` : ''}`)).data,
   getMedicationPlans: async (subjectUserId?: string, activeOnly = true): Promise<MedicationPlan[]> => demoMode ? [] : (await request<{ data: MedicationPlan[] }>(`/homes/${homeId()}/medication-plans?active_only=${activeOnly}${subjectUserId ? `&subject_user_id=${encodeURIComponent(subjectUserId)}` : ''}`)).data,
   createMedicationPlan: async (input: Omit<MedicationPlan, 'id' | 'active' | 'version'> & { active?: boolean }): Promise<MedicationPlan> => demoMode ? { ...input, id: 'plan-demo', active: input.active ?? true, version: 1 } : request<MedicationPlan>(`/homes/${homeId()}/medication-plans`, { method: 'POST', body: JSON.stringify(input) }),
   updateMedicationPlan: async (planId: string, input: Partial<Pick<MedicationPlan, 'name' | 'dose' | 'schedule' | 'instructions' | 'active' | 'assigned_caregiver_id'>> & { version?: number }): Promise<MedicationPlan> => demoMode ? { id: planId, subject_user_id: 'user-demo', name: input.name ?? 'Daily plan', dose: input.dose ?? '', schedule: input.schedule ?? '', instructions: input.instructions ?? '', active: input.active ?? true, version: (input.version ?? 1) + 1, assigned_caregiver_id: input.assigned_caregiver_id } : request<MedicationPlan>(`/homes/${homeId()}/medication-plans/${encodeURIComponent(planId)}`, { method: 'PATCH', body: JSON.stringify(input) }),
@@ -1097,7 +1207,7 @@ export const api = {
     if (demoMode) return;
     await request(`/homes/${homeId()}/medication-plans/${encodeURIComponent(planId)}/check-ins`, { method: 'POST', body: JSON.stringify({ scheduled_for: scheduledFor, status, note }) });
   },
-  askFamilyAssistant: async (message: string, subjectUserId?: string) => demoMode ? { degraded: true, data: { summary: 'The household organizer can review available reminders.', next_action: 'Review scheduled reminders after household consent is set up.', evidence_ids: [], limitations: 'Administrative summary only; not medical advice.' } } : request(`/homes/${homeId()}/family-assistant`, { method: 'POST', body: JSON.stringify({ message, subject_user_id: subjectUserId ?? null }) }),
+  askFamilyAssistant: async (message: string, subjectUserId?: string, careRecipientId?: string): Promise<{ degraded: boolean; data: { summary: string; next_action: string; evidence_ids: string[]; limitations: string } }> => demoMode ? { degraded: true, data: { summary: 'Demo mode keeps the organizer local.', next_action: 'Connect a backend family consent to review live reminders.', evidence_ids: [], limitations: 'Administrative summary only; not medical advice.' } } : request<{ degraded: boolean; data: { summary: string; next_action: string; evidence_ids: string[]; limitations: string } }>(`/homes/${homeId()}/family-assistant`, { method: 'POST', body: JSON.stringify({ message, ...(careRecipientId ? { care_recipient_id: careRecipientId } : subjectUserId ? { subject_user_id: subjectUserId } : {}) }) }),
 };
 
 export type ApiClient = typeof api;

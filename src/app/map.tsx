@@ -7,6 +7,7 @@ import { CameraMap2D } from "../map/CameraMap2D";
 import { hasRenderableSpatial3D } from "../map/lidarGeometry";
 import { LocalizationTemporalTrace } from "../map/LocalizationTemporalTrace";
 import { formatTime } from "./shared";
+import { MapFrame } from "./MapFrame";
 import { DemoHomeMap } from "./DemoHomeMap";
 
 const LiDARRoomScene3D = lazy(() => import("../map/LiDARRoomScene3D").then((module) => ({ default: module.LiDARRoomScene3D })));
@@ -188,7 +189,7 @@ export function MapPage({ objects, scene, recipientId }: { objects: LastSeenObje
         <p>Review room geometry, camera context, and approximate last-seen locations in one place.</p>
       </header>
       <div className="map-layout">
-      <section className="map-panel panel">
+      <MapFrame>
         <div className="panel-heading">
           <div>
             <span className="eyebrow">{sourceLabel(displayScene)} · REVISION {mapQuery.data?.revision ?? displayScene.version}</span>
@@ -219,8 +220,14 @@ export function MapPage({ objects, scene, recipientId }: { objects: LastSeenObje
                 <span><i className="legend-dot precise" /> {displayScene.source === "roomplan-lidar-3d" ? "Native RoomPlan geometry" : "ARKit structural geometry"}</span>
                 {displayScene.source === "roomplan-lidar-3d" ? <span><i className="legend-dot fixture" /> Furniture</span> : null}
                 {displayScene.source === "roomplan-lidar-3d" ? <span><i className="legend-dot opening" /> Door & window openings</span> : null}
-                {displayScene.source === "roomplan-lidar-3d" ? <span><i className="legend-dot zone" /> Registered camera</span> : null}
-                <span>Person markers remain visible for 12 s after the latest detection</span>
+                {displayScene.source === "roomplan-lidar-3d" && positionedCameraCount > 0 ? <span><i className="legend-dot zone" /> Registered camera</span> : null}
+                {liveObjects.some((object) => object.identity?.status === "matched") && <span><i className="legend-dot presence-identified" /> Recognized person</span>}
+                {liveObjects.some((object) => object.presenceState === "current" && object.identity?.status !== "matched") && <span><i className="legend-dot presence-unknown" /> Unknown person now</span>}
+                {liveObjects.some((object) => object.presenceState === "recent") && <span><i className="legend-dot presence-recent" /> Unknown person recently</span>}
+                <span><i className="legend-dot coverage-unknown" /> Coverage unknown</span>
+                
+                <span>Click a camera, person dot, or room area to open the live camera views covering that point</span>
+                <span>Room placement does not establish active coverage. Unknown areas remain neutral.</span>
               </>
             ) : (
               <>
@@ -238,7 +245,7 @@ export function MapPage({ objects, scene, recipientId }: { objects: LastSeenObje
             {displayScene.source === "camera-cv-2d" && !displayScene.geometry?.furniture?.length && !displayScene.geometry?.openings?.length ? " · Run a fresh sweep to add detected furniture, doors, and windows." : ""}
           </div>
         </div>
-      </section>
+      </MapFrame>
 
       <aside className="map-side">
         <div className="panel selected-object">
@@ -254,7 +261,7 @@ export function MapPage({ objects, scene, recipientId }: { objects: LastSeenObje
                 <div className="meter"><span style={{ width: `${current.confidence * 100}%` }} /></div>
                 <p>{objectLocationCopy(current, displayScene)}</p>
               </div>
-              <button className="secondary-button full-width"><Video size={16} /> View source clip</button>
+
             </>
           ) : <p className="muted">{displayScene.geometry?.polygons.length ? "Select an object on the map." : "Complete a camera sweep to add room geometry."}</p>}
         </div>

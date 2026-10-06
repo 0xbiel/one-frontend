@@ -31,3 +31,9 @@ describe("RoomPlan camera overlays", () => {
     expect(group.children).toHaveLength(0);
   });
 });
+
+it("does not infer live coverage from a positioned camera", () => {
+ const group = new THREE.Group();
+ populateRoomPlanOverlays(group, [registration], [], "map-21", true);
+ expect(group.children[0].userData.oneCameraState).toBe("unknown");
+});

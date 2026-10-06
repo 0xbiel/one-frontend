@@ -31,6 +31,7 @@ function dateLabel(iso: string): string {
 }
 
 export function EventsPage({ events, onEvent, recipientId }: { events: HomeEvent[]; onEvent: (event: HomeEvent) => void; recipientId: string }) {
+  const [reviewFilter, setReviewFilter] = useState<"all" | "review" | "movement">("all");
   const [category, setCategory] = useState<Category>("All events");
   const [period, setPeriod] = useState<Period>("1 month");
   const recipientsQuery = useQuery({ queryKey: ["care-recipients", sessionStorage.getItem("one_home_id")], queryFn: api.getCareRecipients, enabled: demoMode || Boolean(sessionStorage.getItem("one_access_token")), retry: false });
@@ -44,10 +45,12 @@ export function EventsPage({ events, onEvent, recipientId }: { events: HomeEvent
     else if (period === "3 months") start.setMonth(start.getMonth() - 3);
     else if (period === "6 months") start.setMonth(start.getMonth() - 6);
     else start.setFullYear(start.getFullYear() - 1);
-    return events.filter((event) => new Date(event.occurredAt).getTime() >= start.getTime())
+    return events.filter((event) => !event.careRecipientId || event.careRecipientId === recipientId)
+      .filter((event) => reviewFilter === "all" || (reviewFilter === "review" ? event.status === "needs_review" : event.type === "object.last_seen"))
+      .filter((event) => new Date(event.occurredAt).getTime() >= start.getTime())
       .filter((event) => category === "All events" || categoryOf(event) === category)
       .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
-  }, [events, period, category]);
+  }, [events, period, category, recipientId, reviewFilter]);
   const groups = useMemo(() => {
     const grouped = new Map<string, { key: string; date: string; owner: string; items: HomeEvent[] }>();
     for (const event of filteredEvents) {
@@ -62,7 +65,9 @@ export function EventsPage({ events, onEvent, recipientId }: { events: HomeEvent
   }, [filteredEvents, recipientName]);
   return <div className="events-page dashboard-page">
     <header className="page-heading-clean"><span className="eyebrow">EVENTS</span><h2>Events</h2><p>{filteredEvents.length} observations available for review.</p></header>
+    {events.some((event) => (!event.careRecipientId || event.careRecipientId === recipientId) && event.type === "fall.suspected" && event.status === "needs_review") && <section className="safety-review-note" role="status">A possible fall pattern needs a check-in. Open the event for human review.</section>}
     <section className="panel events-results-panel">
+      <div className="filter-row events-filter-row" aria-label="Event filters">{(["all", "review", "movement"] as const).map((filter) => <button key={filter} className={`filter ${reviewFilter === filter ? "active" : ""}`} onClick={() => setReviewFilter(filter)}>{filter === "all" ? "All" : filter === "review" ? "Needs review" : "Movement"}</button>)}</div>
       <div className="event-filter-toolbar"><div className="event-filters" role="group" aria-label="Event category">{categories.map(({ name, icon: Icon }) => <button key={name} className={category === name ? "active" : ""} aria-pressed={category === name} onClick={() => setCategory(name)}><Icon size={16} />{name}</button>)}</div><div className="event-period-filters" role="group" aria-label="Event date range">{periods.map((item) => <button key={item} className={period === item ? "active" : ""} aria-pressed={period === item} onClick={() => setPeriod(item)}>{item}</button>)}</div></div>
       <div className="timeline-panel">{groups.map((group) => <section key={group.key} className="event-group"><div className="timeline-date"><span>{group.date} <small>· {group.owner}</small></span><span className="muted">{group.items.length} observations</span></div>{group.items.map((event) => <EventRow key={event.id} event={event} onClick={() => onEvent(event)} />)}</section>)}{groups.length === 0 && <div className="empty-event">No {category === "All events" ? "observations" : category.toLowerCase() + " events"} for {recipientName} or the household in this period.</div>}</div>
     </section>

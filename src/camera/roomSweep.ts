@@ -31,14 +31,14 @@ export interface RoomSweepOptions {
   onProgress?: (captured: number, total: number) => void;
 }
 
-export function preferredCameraConstraints(): MediaStreamConstraints {
+export function preferredCameraConstraints(includeAudio = true): MediaStreamConstraints {
   return {
     video: {
       facingMode: { ideal: "environment" },
       width: { ideal: 1280, max: 1920 },
       height: { ideal: 720, max: 1080 },
     },
-    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    audio: includeAudio ? { echoCancellation: true, noiseSuppression: true, autoGainControl: true } : false,
   };
 }
 
@@ -167,7 +167,7 @@ export async function captureFixedCameraFrames(
     const elapsed = performance.now() - startedAt;
     if (targetTime > elapsed) await wait(targetTime - elapsed, options.signal);
     throwIfAborted(options.signal);
-    frames.push(captureFrame(video, index, new Date().toISOString(), options.maxDimension ?? 640, options.jpegQuality ?? 0.68));
+    frames.push(captureFrame(video, index, new Date().toISOString(), options.maxDimension ?? 960, options.jpegQuality ?? 0.82));
     options.onProgress?.(frames.length, frameCount);
   }
   return frames;

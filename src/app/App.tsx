@@ -86,6 +86,11 @@ function App() {
     void streamHomeEvents(currentHome, () => { void query.invalidateQueries({ queryKey: ["events"] }); void query.invalidateQueries({ queryKey: ["objects"] }); void query.invalidateQueries({ queryKey: ["scene"] }); void query.invalidateQueries({ queryKey: ["caregiver-summaries"] }); void query.invalidateQueries({ queryKey: ["check-in-questions"] }); }, controller.signal).catch(() => undefined);
     return () => controller.abort();
   }, [query, session]);
+  useEffect(() => {
+    const handleRecipientChange = () => { void query.invalidateQueries({ queryKey: ["analytics"] }); };
+    window.addEventListener("one:care-recipient-change", handleRecipientChange);
+    return () => window.removeEventListener("one:care-recipient-change", handleRecipientChange);
+  }, [query]);
   const togglePause = async () => {
     if (!paused) stopActivePublisher();
     setPaused((value) => !value);
@@ -128,7 +133,7 @@ function App() {
         <Route path="dashboard/assistant" element={<AssistantPage session={session} />} />
         <Route path="dashboard/family" element={<FamilyPage session={session} />} />
         <Route path="dashboard/account" element={<AccountSettingsPage onLogout={logout} />} />
-        <Route path="dashboard/privacy" element={<PrivacyPage paused={paused} onTogglePause={togglePause} consents={consents} setConsents={setConsents} />} />
+        <Route path="dashboard/privacy" element={<PrivacyPage session={session} paused={paused} onTogglePause={togglePause} consents={consents} setConsents={setConsents} />} />
       </Routes></Shell>} />
     </Routes>
     {selectedEvent && <div className="modal-backdrop" role="presentation" onClick={() => setSelectedEvent(null)}><section className="event-modal panel" role="dialog" aria-modal="true" aria-labelledby="event-modal-title" onClick={(event) => event.stopPropagation()}><button className="modal-close icon-button" onClick={() => setSelectedEvent(null)} aria-label="Close event"><X size={18} /></button><span className="eyebrow">OBSERVED MOMENT · {formatTime(selectedEvent.occurredAt)}</span><h2 id="event-modal-title">{selectedEvent.title}</h2><p>{selectedEvent.detail}</p>{selectedEvent.cameraName && <p>Camera: {selectedEvent.cameraName}{selectedEvent.roomName ? ` · ${selectedEvent.roomName}` : ""}</p>}{selectedEvent.cameraId && <button className="primary-button" onClick={() => { navigate(`/dashboard/cameras?camera=${encodeURIComponent(selectedEvent.cameraId!)}`); setSelectedEvent(null); }}>View source camera</button>}<div className="evidence-note"><ShieldCheck size={16} /> {selectedEvent.cameraId ? "Camera source linked" : "Household observation"} · not a diagnosis.</div></section></div>}

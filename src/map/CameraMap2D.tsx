@@ -19,6 +19,18 @@ function bounded(value: number): number {
   return Math.min(100, Math.max(0, value));
 }
 
+function personState(object: LastSeenObject): "identified" | "current" | "recent" | "stale" {
+  const baseState = object.presenceState === "current" || object.presenceState === "recent" || object.presenceState === "stale"
+    ? object.presenceState
+    : !object.lastSeenAt
+      ? "stale"
+      : (() => {
+        const age = Math.max(0, Date.now() - Date.parse(object.lastSeenAt));
+        return age <= 12_000 ? "current" : age <= 120_000 ? "recent" : "stale";
+      })();
+  return baseState === "stale" ? "stale" : object.identity?.status === "matched" ? "identified" : baseState;
+}
+
 function measuredDimension(item: { size: Point2D }, scene: Scene): string | null {
   const metersPerNormalizedUnit = scene.scale?.metersPerNormalizedUnit;
   if (!metersPerNormalizedUnit) return null;
@@ -182,13 +194,13 @@ export function CameraMap2D({ scene, objects, selectedId, onSelect, measurement 
             <Camera size={4} x={-2} y={-2} color="#ffffff" aria-hidden="true" />
           </g>
         )}
-        {objects.filter((object) => object.point).map((object) => {
+        {objects.filter((object) => object.point && (!/^(person|people|human)$/i.test(object.label) || personState(object) !== "stale")).map((object) => {
           const point = object.point!;
           const selected = selectedId === object.id;
           return (
             <g
               key={object.id}
-              className={`camera-map-marker ${selected ? "selected" : ""}`}
+              className={`camera-map-marker ${selected ? "selected" : ""} ${/^(person|people|human)$/i.test(object.label) ? `presence-${personState(object)}` : ""}`}
               transform={`translate(${bounded(point.x)} ${bounded(point.y)})`}
               role="button"
               tabIndex={0}
@@ -204,7 +216,7 @@ export function CameraMap2D({ scene, objects, selectedId, onSelect, measurement 
               <circle className="camera-map-marker-ring" r={selected ? 5.8 : 5.1} />
               <circle className="camera-map-marker-dot" r={selected ? 3.5 : 3.1} />
               <text className="camera-map-marker-icon" x="0" y="1.2" textAnchor="middle">{object.icon}</text>
-              <title>{`${object.label} · ${object.zone?.name ?? "location unknown"}`}</title>
+              <title>{`${object.label} · ${object.identity?.status === "matched" ? "recognized person" : personState(object) === "current" ? "unknown person now" : personState(object) === "recent" ? "unknown person recently" : object.zone?.name ?? "location unknown"}`}</title>
             </g>
           );
         })}

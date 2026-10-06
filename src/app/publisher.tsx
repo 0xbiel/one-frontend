@@ -1,3 +1,4 @@
+import { cameraStatus } from "./cameraStatus";
 import {
   Camera,
   Check,
@@ -29,6 +30,8 @@ export function CameraManagerPage({ paused = false }: { paused?: boolean }) {
   const hasSession = demoMode || Boolean(sessionStorage.getItem("one_access_token"));
   const queryClient = useQueryClient();
   const camerasQuery = useQuery({ queryKey: ["cameras"], queryFn: api.getCameras, enabled: hasSession, retry: false, refetchInterval: 5_000 });
+  const roomsQuery = useQuery({ queryKey: ["rooms"], queryFn: api.getRooms, enabled: hasSession, retry: false });
+  const rooms = useMemo(() => roomsQuery.data ?? [], [roomsQuery.data]);
   const cameras = useMemo(() => camerasQuery.data ?? [], [camerasQuery.data]);
   const [selectedId, setSelectedId] = useState<string | undefined>(() => new URLSearchParams(window.location.search).get("camera") ?? undefined);
   const [retryCount, setRetryCount] = useState(0);
@@ -40,6 +43,7 @@ export function CameraManagerPage({ paused = false }: { paused?: boolean }) {
   const [removeError, setRemoveError] = useState<string | null>(null);
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
+  const [savingRoom, setSavingRoom] = useState(false);
   const [savingName, setSavingName] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
   const [pairing, setPairing] = useState<Pairing | null>(null);
@@ -180,8 +184,26 @@ export function CameraManagerPage({ paused = false }: { paused?: boolean }) {
     }
   };
 
+  const saveCameraRoom = async (roomId: string) => {
+    if (!selectedCamera || savingRoom) return;
+    setSavingRoom(true);
+    setNameError(null);
+    try {
+      await api.updateCamera(selectedCamera.id, { room_id: roomId || null });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["cameras"] }),
+        queryClient.invalidateQueries({ queryKey: ["camera"] }),
+        queryClient.invalidateQueries({ queryKey: ["scene"] }),
+      ]);
+    } catch {
+      setNameError("The room assignment could not be saved.");
+    } finally {
+      setSavingRoom(false);
+    }
+  };
+
   const removeCamera = async () => {
-    if (!selectedCamera || !window.confirm(`Remove ${selectedCamera.label}? Its permanent reconnect link and live access will stop.`)) return;
+    if (!selectedCamera || !window.confirm(`Remove ${selectedCamera.label}? Its private device connection and live access will stop. A ONE Camera will return to setup mode.`)) return;
     setRemoving(true);
     setRemoveError(null);
     try {
@@ -211,7 +233,7 @@ export function CameraManagerPage({ paused = false }: { paused?: boolean }) {
         <div>
           <span className="eyebrow">CAMERAS</span>
           <h2>Camera Manager</h2>
-          <p>See every paired camera, check its connection, rename it, watch the live view, or revoke it from this household.</p>
+          <p>See every paired camera, check its connection, rename it, watch the live view, or remove it from this care space.</p>
         </div>
         <div className="camera-manager-heading-actions">
           <Link className="secondary-button" to={savedCamera ? `/camera/${encodeURIComponent(savedCamera.id)}` : "/join"} onClick={rememberDashboardSession}>
@@ -229,8 +251,8 @@ export function CameraManagerPage({ paused = false }: { paused?: boolean }) {
             <span className="manager-icon"><Camera size={18} /></span>
             <div>
               <span className="eyebrow">PAIR A NEW CAMERA</span>
-              <h3>{pairingStatus === "connected" ? "Camera joined this household" : "Open the camera link on the device"}</h3>
-              <p>{pairingStatus === "connected" ? "The device is saved. Its own screen now provides a permanent reconnect URL." : "The code is one use only. Camera and microphone stay off until consent is chosen on that device."}</p>
+              <h3>{pairingStatus === "connected" ? "Camera joined this care space" : "Set up a ONE Camera or browser camera"}</h3>
+              <p>{pairingStatus === "connected" ? "The device is saved with a private reconnect credential." : "For a ONE Camera, finish nearby setup in the iPhone app over Bluetooth. For a phone or laptop, use this one-time browser code."}</p>
             </div>
           </div>
           <div className="manager-pairing-code">
@@ -261,14 +283,14 @@ export function CameraManagerPage({ paused = false }: { paused?: boolean }) {
               <button key={camera.id} className={`camera-manager-row ${camera.id === selectedId ? "active" : ""}`} onClick={() => setSelectedId(camera.id)}>
                 <span className="camera-row-icon"><Video size={17} /></span>
                 <span className="camera-row-copy"><strong>{camera.label}</strong><small>{typeof camera.metadata?.room === "string" ? camera.metadata.room : "Room camera"}</small></span>
-                <span className={`camera-status ${camera.status === "online" ? "online" : camera.status === "paused" ? "paused" : ""}`}><i /> {camera.status}</span>
+                <span className={`camera-status ${cameraStatus(camera).online ? "online" : camera.status === "paused" ? "paused" : ""}`}><i /> {cameraStatus(camera).label}</span>{cameraStatus(camera).simulated && <small className="camera-simulation-note">Simulated</small>}
               </button>
             ))}
             {!cameras.length && (
               <div className="camera-manager-empty">
                 <Camera size={28} />
                 <strong>No cameras paired</strong>
-                <span>Pair a phone, tablet, or laptop to add a room view.</span>
+                <span>Add a ONE Camera from the iPhone app, or pair a phone, tablet, or laptop here.</span>
               </div>
             )}
           </div>
@@ -326,7 +348,7 @@ export function CameraManagerPage({ paused = false }: { paused?: boolean }) {
             {selectedCamera ? (
               <>
                 <div className="camera-detail-grid">
-                  <div><span>Status</span><strong className={`camera-detail-status ${selectedCamera.status}`}>{selectedCamera.status}</strong></div>
+                  <div><span>Status</span><strong className={`camera-detail-status ${selectedCamera.status}`}>{selectedCamera.status}</strong></div>{selectedCamera.simulation && <div><span>Simulated availability</span><strong>{selectedCamera.simulation.status === "simulated_online" ? "Simulated online" : "Simulated offline"} · no real capture</strong></div>}
                   <div><span>Type</span><strong>{selectedCamera.platform || "Browser camera"}</strong></div>
                   <div><span>Room</span><strong>{typeof selectedCamera.metadata?.room === "string" ? selectedCamera.metadata.room : "Not assigned"}</strong></div>
                   <div><span>Paired</span><strong>{new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(new Date(selectedCamera.lastSeenAt))}</strong></div>
@@ -337,7 +359,18 @@ export function CameraManagerPage({ paused = false }: { paused?: boolean }) {
                     {editingName && <button className="primary-button" onClick={() => void saveCameraName()} disabled={!nameDraft.trim() || savingName}><Save size={14} /> {savingName ? "Saving…" : "Save"}</button>}
                   </div>
                 </label>
-                <div className="camera-reconnect-note"><LockKeyhole size={15} /><span><strong>Permanent camera reconnect</strong><small>The camera device keeps a private reconnect link after pairing. Reloads and normal session expiry return to this same camera; removing it revokes that link.</small></span></div>
+                <label className="camera-name-field">Room
+                  <select
+                    value={selectedCamera.roomId ?? ""}
+                    onChange={(event) => void saveCameraRoom(event.target.value)}
+                    disabled={savingRoom}
+                  >
+                    <option value="">Unassigned</option>
+                    {rooms.map((room) => <option key={room.id} value={room.id}>{room.name}</option>)}
+                  </select>
+                  <small className="muted">ONE detects the room from the saved RoomPlan position. Change it here if the result needs correction.</small>
+                </label>
+                <div className="camera-reconnect-note"><LockKeyhole size={15} /><span><strong>Private device connection</strong><small>The camera keeps a device-only reconnect credential after pairing. Removing it revokes that credential; a ONE Camera then returns to setup mode automatically.</small></span></div>
                 {nameError && <div className="error-note" role="alert">{nameError}</div>}
                 <button className="secondary-button danger-button" onClick={() => void removeCamera()} disabled={removing}>
                   <Trash2 size={15} /> {removing ? "Removing camera…" : "Remove camera"}

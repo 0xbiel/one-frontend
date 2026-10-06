@@ -206,10 +206,13 @@ function cameraIdFromSession(): Promise<string | null> {
 }
 
 export function CameraSetupCard({ embedded = false, paused = false, onTogglePause }: CameraSetupCardProps) {
-  const [consented, setConsented] = useState(false);
+  const applianceMode = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("appliance") === "1";
+  const applianceAudio = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("audio") === "1";
+  const [consented, setConsented] = useState(applianceMode);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [connection, setConnection] = useState<PublisherConnection | null>(null);
   const [starting, setStarting] = useState(false);
+  const [savingReference, setSavingReference] = useState(false);
   const [phase, setPhase] = useState<SweepPhase>("idle");
   const [sweepProgress, setSweepProgress] = useState(0);
   const [cameraId, setCameraId] = useState<string | null>(null);
@@ -230,6 +233,7 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
   const autoLocalizationRef = useRef<{ mapId: string; attempts: number; lastAttemptAt: number } | null>(null);
   const autoLocalizationRunningRef = useRef(false);
   const remoteCalibrationCaptureRef = useRef<string | null>(null);
+  const applianceAutoStartRef = useRef(false);
   const generationQuery = useMapGeneration(cameraId ?? undefined, jobId ?? undefined);
   const setupStage = stageFor(consented, phase);
   const copy = phaseCopy(phase);
@@ -351,8 +355,17 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
           }
           remoteCalibrationCaptureRef.current = captureKey;
           try {
-            setConnectionNotice(`iPhone-guided calibration · capturing point ${session.current_target_index + 1} from this fixed camera…`);
-            const burst = await captureFixedCameraFrames(videoRef.current, stream, { frameCount: 2, durationMs: 650 });
+            setConnectionNotice(`iPhone-guided calibration · capturing reference view ${session.current_target_index + 1} of ${session.capture_round_count}…`);
+            // Four short samples per requested reference view keep the camera
+            // fixed while giving temporal consensus enough evidence to reject
+            // wandering repeated-texture matches. Three rounds stay within the
+            // backend's sixteen-frame transient calibration limit.
+            const burst = await captureFixedCameraFrames(videoRef.current, stream, {
+              frameCount: 4,
+              durationMs: 1_200,
+              maxDimension: 960,
+              jpegQuality: 0.82,
+            });
             const updated = await api.submitRoomPlanCalibrationFrames(cameraId, session.current_target_index, burst);
             if (disposed) return;
             setRemoteCalibration(updated);
@@ -397,8 +410,20 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
       if (disposed || running || !videoRef.current) return;
       running = true;
       try {
-        const frame = captureCurrentCameraFrame(videoRef.current, 640, 0.58);
-        await api.submitVisionFrame(cameraId, frame);
+        // Keep the live analytics frame at the same scale as the saved fixed
+        // reference. Small or oblique people otherwise lose enough detail to
+        // fall below the worker's person confidence gate.
+        const frame = captureCurrentCameraFrame(videoRef.current, 960, 0.72);
+        const response = await api.submitVisionFrame(cameraId, frame);
+        const fallEvent = response.safety_events?.find((event) => event.type === "fall_suspected");
+        if (fallEvent) {
+          setConnectionNotice("Possible fall pattern detected. Please check in with the person; this signal is waiting for human review.");
+        }
+        setConnectionNotice((current) =>
+          current === "Live video is connected, but the local object-vision worker is unavailable."
+            ? ""
+            : current,
+        );
       } catch (error) {
         if (!disposed && error instanceof Error && error.message === "API_503") {
           setConnectionNotice("Live video is connected, but the local object-vision worker is unavailable.");
@@ -442,14 +467,16 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
     try {
       if (!demoMode && typeof window !== "undefined" && window.isSecureContext === false) throw new Error("SECURE_CONTEXT_REQUIRED");
       if (!navigator.mediaDevices?.getUserMedia) throw new Error("SECURE_CONTEXT_REQUIRED");
-      const media = await navigator.mediaDevices.getUserMedia(preferredCameraConstraints());
+      const media = await navigator.mediaDevices.getUserMedia(preferredCameraConstraints(applianceMode ? applianceAudio : true));
       registerPublisherStream(media);
       setStream(media);
       setPhase((current) => current === "place-camera" || current === "ready" || current === "processing" ? current : "preview");
       if (!demoMode) {
         try {
-          await api.giveConsent("video_capture", true);
-          await api.giveConsent("audio_capture", true);
+          if (!applianceMode) {
+            await api.giveConsent("video_capture", true);
+            await api.giveConsent("audio_capture", true);
+          }
           const livekit = await api.getLiveKitToken("publish");
           if (livekit.url && livekit.token) {
             const { connectPublisher } = await import("../livekit/publisher");
@@ -469,6 +496,27 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
       setMapError(describeCameraError(error));
     } finally {
       setStarting(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!applianceMode || applianceAutoStartRef.current || !consented || stream || starting) return;
+    applianceAutoStartRef.current = true;
+    void start();
+  }, [applianceMode, consented, starting, stream]);
+
+  const refreshReferenceSnapshot = async () => {
+    if (!stream || !videoRef.current || savingReference) return;
+    setSavingReference(true);
+    try {
+      const resolvedCameraId = cameraId ?? await cameraIdFromSession();
+      if (!resolvedCameraId) throw new Error("CAMERA_NOT_REGISTERED");
+      await api.saveCameraReferenceSnapshot(resolvedCameraId, captureCurrentCameraFrame(videoRef.current, 960, 0.82));
+      setConnectionNotice("Camera reference view saved.");
+    } catch (error) {
+      setMapError(describeCameraError(error));
+    } finally {
+      setSavingReference(false);
     }
   };
 
@@ -680,12 +728,31 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
   const confirmPlacement = useCallback(async (automatic = false): Promise<boolean> => {
     if (!stream || !videoRef.current) return false;
     setPhase("localizing");
+    setConnectionNotice("Starting camera localization… Keep the camera still while the local vision worker prepares the reference frames.");
     setMapError("");
     try {
       const resolvedCameraId = cameraId ?? await cameraIdFromSession();
       if (!resolvedCameraId) throw new Error("CAMERA_NOT_REGISTERED");
       setCameraId(resolvedCameraId);
-      const frames = await captureFixedCameraFrames(videoRef.current, stream, { frameCount: 6, durationMs: demoMode ? 120 : 1_600 });
+      const frames = await captureFixedCameraFrames(videoRef.current, stream, {
+        frameCount: demoMode ? 2 : 8,
+        durationMs: demoMode ? 120 : 2_400,
+        maxDimension: demoMode ? 640 : 960,
+        jpegQuality: demoMode ? 0.68 : 0.82,
+      });
+      const referenceFrame = frames.at(-1) ?? null;
+      if (referenceFrame) {
+        // Keep the exact fixed live view available even when this solve ends
+        // in review-only/needs-rescan. Successful placement saves it again
+        // after confirmation, while a failed attempt still leaves a useful,
+        // integrity-checked visual reference for the next retry.
+        try {
+          await api.saveCameraReferenceSnapshot(resolvedCameraId, referenceFrame);
+        } catch {
+          // A reference-image write must not discard a valid localization
+          // attempt. The reviewed-placement path retries the save later.
+        }
+      }
       const localization = await api.localizeRoomPlanCamera(resolvedCameraId, frames, 60, true);
       if (localization.status !== "positioned" || !localization.camera_to_world) {
         setPlacementProposal(null);
@@ -813,10 +880,17 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
         <div className="camera-placeholder camera-setup-placeholder"><Camera size={30} /><span>Preview appears after consent</span></div>
       )}
 
-      <label className={`publisher-consent camera-consent ${consented ? "is-consented" : ""}`}>
-        <input type="checkbox" checked={consented} onChange={(event) => { const next = event.target.checked; setConsented(next); if (!next && stream) stop(); }} />
-        <span>I understand what is shared and consent to camera and microphone capture for this household.</span>
-      </label>
+      {applianceMode ? (
+        <div className="camera-notice" role="status">
+          <LockKeyhole size={15} />
+          <span>Capture permission was chosen in the ONE app during Bluetooth setup. {applianceAudio ? "Video and microphone are enabled." : "Video is enabled; microphone capture is off."}</span>
+        </div>
+      ) : (
+        <label className={`publisher-consent camera-consent ${consented ? "is-consented" : ""}`}>
+          <input type="checkbox" checked={consented} onChange={(event) => { const next = event.target.checked; setConsented(next); if (!next && stream) stop(); }} />
+          <span>I understand what is shared and consent to camera and microphone capture for this household.</span>
+        </label>
+      )}
 
       {connectionNotice && <div className="camera-notice" role="status"><LockKeyhole size={15} /> {connectionNotice}</div>}
       {remoteCalibration && (
@@ -882,7 +956,7 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
         </div>
       ) : phase === "ready" ? (
         <div className="room-sweep-status ready" role="status">
-          <CheckCircle2 size={17} /><span><strong>Camera saved and ready.</strong><small>Keep this camera fixed. After the iPhone LiDAR scan is saved, use Position this camera in 3D to localize this exact live view in the RoomPlan coordinate frame.</small></span>
+          <CheckCircle2 size={17} /><span><strong>Camera paired and ready.</strong><small>Keep this camera fixed. After the iPhone LiDAR scan is saved, use Position this camera in 3D to localize this exact live view in the RoomPlan coordinate frame; ONE saves the latest fixed view with each positioning attempt.</small></span>
         </div>
       ) : null}
 
@@ -1030,6 +1104,32 @@ export function CameraSetupCard({ embedded = false, paused = false, onTogglePaus
             <button className="secondary-button" onClick={togglePublisher}>
               {onTogglePause ? (paused ? <Play size={16} /> : <Pause size={16} />) : <Pause size={16} />} {actionLabel}
             </button>
+            <details className="camera-spatial-menu">
+              <summary><Map size={16} /> Position & map</summary>
+              <div className="camera-spatial-menu-actions">
+                <p>Optional spatial tools. Nothing runs until you choose an action.</p>
+                {["preview", "ready", "needs-rescan", "unavailable", "failed", "place-camera"].includes(phase) && (
+                  <button className="primary-button" onClick={() => void confirmPlacement(false)}>
+                    <Map size={16} /> {phase === "ready" || phase === "place-camera" ? "Position this camera in 3D" : "Calibrate camera"}
+                  </button>
+                )}
+                {["preview", "ready", "needs-rescan", "unavailable", "failed", "place-camera"].includes(phase) && (
+                  <button className="secondary-button" onClick={() => void beginManualPlacement()}>
+                    <Map size={16} /> Set position manually
+                  </button>
+                )}
+                {phase === "ready" && (
+                  <button className="secondary-button" disabled={savingReference} onClick={() => void refreshReferenceSnapshot()}>
+                    <Camera size={16} /> {savingReference ? "Saving reference…" : "Refresh map reference view"}
+                  </button>
+                )}
+                {["preview", "needs-rescan", "unavailable", "failed", "ready", "place-camera"].includes(phase) && (
+                  <button className="secondary-button" onClick={() => void recordWalkthrough()}>
+                    <Video size={16} /> {phase === "ready" ? "Refresh room walkthrough" : "Record optional room walkthrough"}
+                  </button>
+                )}
+              </div>
+            </details>
           </>
         )}
         <span className="muted secure-note"><LockKeyhole size={14} /> Encrypted in transit · local network</span>

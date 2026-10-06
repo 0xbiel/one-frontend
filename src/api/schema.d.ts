@@ -2597,6 +2597,8 @@ export interface components {
         };
         /** RoomIn */
         RoomIn: {
+            /** Id */
+            id?: string;
             /** Name */
             name: string;
         };
